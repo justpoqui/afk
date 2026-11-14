@@ -80,7 +80,8 @@ HEROES.forEach(h => { h.sprite = 'hero_' + h.id; });
 const HERO_BY_ID = Object.fromEntries(HEROES.map(h => [h.id, h]));
 
 // Rendered Blender art (see art/blender). Emoji stay as alt text / fallback.
-const spriteUrl = key => `assets/sprites/${key}.webp`;
+// Smoothed renders (art/blender/smooth.py); the originals stay alongside as <key>.webp.
+const spriteUrl = key => `assets/sprites/${key}_smooth.webp`;
 // What a unit fires: rangers shoot arrows, mages and supports cast glowing bolts.
 const projOf = d => d.proj || (d.cls === 'ranger' ? 'arrow' : (d.cls === 'mage' || d.cls === 'support') ? 'bolt' : null);
 const boltColor = d => d.bolt || (d.faction ? FACTIONS[d.faction].color : '#ff6b6b');
