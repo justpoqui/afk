@@ -10,6 +10,9 @@ from mathutils import Vector
 
 ROOT = __file__.rsplit('/art/blender/', 1)[0]
 _cache = {}
+# Every primitive is tagged with the current part kind: 'body' (anatomy, fused when smoothing)
+# or 'gear' (weapons, armor, accessories: kept as separate objects).
+PART = {'tag': 'body'}
 
 
 def hx(h):
@@ -33,6 +36,7 @@ def reset(transparent=True, samples=48):
     sc.cycles.samples = samples
     sc.cycles.use_denoising = True
     sc.cycles.max_bounces = 4
+    sc.cycles.filter_width = 1.5  # pixel filter (anti-aliasing) width
     sc.view_settings.view_transform = 'Standard'
     sc.view_settings.look = 'None'
     sc.render.film_transparent = transparent
@@ -126,6 +130,7 @@ def _finish(o, m, scale=None, rot=None, smooth=True, outline=True):
         if smooth:
             bpy.ops.object.shade_smooth()
     o['outline'] = outline
+    o['part'] = PART['tag']
     return o
 
 
@@ -186,13 +191,14 @@ def tube(points, radii, m, res=4, outline=True):
     o.data.materials.append(m)
     bpy.ops.object.shade_smooth()
     o['outline'] = outline
+    o['part'] = PART['tag']
     return o
 
 
 def add_outlines(thickness=0.035):
     om = outline_mat()
     for o in list(bpy.context.scene.objects):
-        if o.type != 'MESH' or not o.get('outline', True):
+        if o.type != 'MESH' or not o.get('outline', True) or 'outline' in o.modifiers:
             continue
         o.data.materials.append(om)
         mod = o.modifiers.new('outline', 'SOLIDIFY')

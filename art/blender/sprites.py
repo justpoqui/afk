@@ -293,6 +293,8 @@ def acc(kind, skin, c1, c2, hair_c):
 # player's equipped weapon in their hand, so attacks come from gear and fighting style, not the look.
 BARE = {'on': False}
 ARMOR_ACCS = {'helmet', 'horned', 'plume'}
+# Accessories that are part of the creature's body (fused when smoothing); every other accessory is gear.
+ANATOMY_ACCS = {'elf_ears', 'batears', 'foxtail', 'beard', 'devtail', 'horns', 'tusks'}
 
 
 def humanoid(skin, c1, c2, hair_c='#4a3020', hair_style='short', headkind='human', accs=(), props=(),
@@ -302,11 +304,13 @@ def humanoid(skin, c1, c2, hair_c='#4a3020', hair_style='short', headkind='human
     for a in accs:
         if BARE['on'] and a in ARMOR_ACCS:
             continue
+        PART['tag'] = 'body' if a in ANATOMY_ACCS else 'gear'
         acc(a, skin, c1, c2, hair_c)
-    if BARE['on']:
-        return
-    for p in props:
-        prop(p, pc1 or c1, pc2 or c2)
+    PART['tag'] = 'gear'
+    if not BARE['on']:
+        for p in props:
+            prop(p, pc1 or c1, pc2 or c2)
+    PART['tag'] = 'body'
 
 
 # ---------------- monsters ----------------
@@ -497,7 +501,10 @@ SPRITES = {
 TURN = {'mon_wolf': -35, 'boss_wyrm': -30, 'mon_spider': -20}
 
 
-def build(name, side=False):
+BLEND_DIR = os.path.join(ROOT, 'art', 'blender', 'blend')
+
+
+def build(name, side=False, smooth=False):
     reset(transparent=True, samples=40)
     world_color('#9a94b8', 0.7)
     BARE['on'] = name.startswith('hero_')  # looks are bare characters; monsters keep their gear
@@ -517,14 +524,31 @@ def build(name, side=False):
     # the game mirrors it for enemies).
     cam = camera((6.2, -5.0, 3.6) if side else (3.2, -7.5, 4.2), (0, 0, 1.1), ortho=4)
     frame_ortho(cam, 1.08)
-    render(os.path.join(OUT, name + ('_side' if side else '') + '.webp'), 256, 256)
+    base = name + ('_side' if side else '')
+    if not smooth:
+        render(os.path.join(OUT, base + '.webp'), 256, 256)
+        return []
+    # Smooth pass: same scene, camera, lights and framing; only the shapes change.
+    from smooth import smooth_scene
+    os.makedirs(BLEND_DIR, exist_ok=True)
+    bpy.context.preferences.filepaths.save_version = 0  # no .blend1 duplicates
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(BLEND_DIR, base + '_backup.blend'), copy=True, compress=True)
+    report = smooth_scene(base)
+    add_outlines(0.032)  # outline the fused body like every other part
+    bpy.context.scene.cycles.filter_width = 1.5
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(BLEND_DIR, base + '_smooth.blend'), copy=True, compress=True)
+    render(os.path.join(OUT, base + '_smooth.webp'), 256, 256)
+    return report
 
 
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
+    smooth = '--smooth' in sys.argv   # python sprites.py --smooth [names]: writes *_smooth.webp + .blend files
     names = [a for a in sys.argv[1:] if not a.startswith('-')] or list(SPRITES)
     for n in names:
         n = n if n in SPRITES else next(k for k in SPRITES if k.endswith('_' + n))
-        build(n)
-        build(n, side=True)
+        for side in (False, True):
+            rep = build(n, side=side, smooth=smooth)
+            if smooth and not side:
+                print(f'== {n}', *('   ' + line for line in rep), sep='\n', flush=True)
         print('rendered', n, flush=True)
