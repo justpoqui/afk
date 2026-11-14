@@ -4,7 +4,12 @@
 const BATTLE_TIME = 90;
 const PROJ_MS = 480;     // flight time of arrows and spells at 1x speed
 const FLOAT_MS = 1600;   // how long damage numbers stay on screen
-// Where each formation slot stands: [left %, feet height % from the bottom, size]. Matches the arena art's floor.
+// Movement: units run around the arena floor. x is % of the field width, y is feet height % from the bottom.
+const FLOOR = { xMin: 6, xMax: 94, yMin: 15, yMax: 33 };
+const RUN_SPEED = 26;    // % of field width per second at 1x
+const MELEE_REACH = 16;  // how close (in x %) a melee fighter stands to its target
+const KITE_RANGE = 22;   // ranged units back away from melee foes closer than this
+// Where each formation slot starts: [left %, feet height % from the bottom, size]. Matches the arena art's floor.
 const SPOTS = {
   enemy: { 0: [38, 22, 1], 1: [25, 26, 0.88], 2: [12, 24, 0.94], 3: [25, 26, 0.88], 4: [12, 24, 0.94], boss: [31, 22, 1] },
   ally:  { 0: [73, 22, 1], 1: [81, 26, 0.88], 2: [84, 23, 1], 3: [81, 26, 0.88], 4: [84, 23, 1] },
@@ -30,8 +35,12 @@ class Battle {
 
   makeUnit(side, slot, d) {
     const hp = d.startHp != null ? Math.min(d.hp, d.startHp) : d.hp;
+    const p = SPOTS[side][d.boss ? 'boss' : slot];
     return { ...d, side, slot, row: slot < 2 ? 'front' : 'back', maxHp: d.hp, hp, shownHp: hp, energy: d.startEnergy || 0,
-      timer: Math.random() * 0.5, eatCd: 0, stun: 0, shield: 0, buff: 0, buffT: 0, el: null };
+      timer: Math.random() * 0.5, eatCd: 0, stun: 0, shield: 0, buff: 0, buffT: 0, el: null,
+      // position and movement state
+      x: p[0], y: p[1], home: { x: p[0], y: p[1] }, size: p[2], face: side === 'ally' ? -1 : 1, moving: false, target: null,
+      orbit: side === 'ally' ? 0 : Math.PI, orbitGoal: side === 'ally' ? 0 : Math.PI, switchT: 2 + Math.random() * 3 };
   }
 
   alive(side) { return this.units.filter(u => u.side === side && u.hp > 0); }
@@ -42,9 +51,10 @@ class Battle {
     const foes = this.foes(u);
     if (!foes.length) return null;
     if (u.range === 'melee') {
+      if (u.target && u.target.hp > 0) return u.target; // stick with the foe you're running at
       const front = foes.filter(f => f.row === 'front');
       const pool = front.length ? front : foes;
-      return pool.reduce((a, b) => (Math.abs(a.slot - u.slot) <= Math.abs(b.slot - u.slot) ? a : b));
+      return (u.target = pool.reduce((a, b) => (Math.abs(a.slot - u.slot) <= Math.abs(b.slot - u.slot) ? a : b)));
     }
     return foes[Math.floor(Math.random() * foes.length)];
   }
@@ -168,12 +178,17 @@ class Battle {
       if (u.eatCd > 0) u.eatCd -= dt;
       if (u.regen) u.hp = u.shownHp = Math.min(u.maxHp, u.hp + u.maxHp * u.regen * dt);
       if (u.side === 'ally' && u.hp < u.maxHp * 0.45 && u.eatCd <= 0) this.eat(u);
-      if (u.stun > 0) { u.stun -= dt; continue; }
+      if (u.stun > 0) { u.stun -= dt; u.moving = false; continue; }
+      this.move(u, dt);
       u.timer += dt;
+      // Melee fighters can only swing once they've run into reach of their target.
+      const ready = u.range !== 'melee' || this.inReach(u, this.pickTarget(u));
+      if (!ready) { u.timer = Math.min(u.timer, 120 / u.spd); continue; }
       if (u.energy >= 100) { this.ultimate(u); u.timer = 0; }
       else if (u.timer >= 120 / u.spd) { u.timer = 0; this.basic(u); }
       if (!this.alive('ally').length || !this.alive('enemy').length) break;
     }
+    this.separate(dt);
     const allyLeft = this.alive('ally').length, enemyLeft = this.alive('enemy').length;
     if (!enemyLeft || !allyLeft || (!this.hunt && this.time >= BATTLE_TIME)) {
       this.over = true;
@@ -184,6 +199,66 @@ class Battle {
       }, this.silent ? 0 : PROJ_MS / this.speed);
       setTimeout(() => this.onEnd(enemyLeft === 0 && allyLeft > 0), this.silent ? 300 : (this.hunt && allyLeft ? 650 : 1300));
     }
+  }
+
+  // ---- movement: melee fighters run at their target and circle it; ranged units keep their distance ----
+  inReach(u, t) { return !!t && Math.abs(t.x - u.x) <= MELEE_REACH + 4 && Math.abs(t.y - u.y) <= 8; }
+
+  // Keep bodies from stacking: units that overlap push each other apart (mostly in depth).
+  separate(dt) {
+    const live = this.units.filter(u => u.hp > 0);
+    for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
+      const a = live[i], b = live[j], dx = b.x - a.x, dy = b.y - a.y;
+      if (Math.abs(dx) < 11 && Math.abs(dy) < 4) {
+        const push = 14 * dt, sy = Math.sign(dy) || (i % 2 ? 1 : -1), sx = Math.sign(dx) || 1;
+        a.y -= sy * push * 0.5; b.y += sy * push * 0.5;
+        if (a.side === b.side) { a.x -= sx * push * 0.4; b.x += sx * push * 0.4; }
+        for (const u of [a, b]) {
+          u.x = Math.max(FLOOR.xMin, Math.min(FLOOR.xMax, u.x));
+          u.y = Math.max(FLOOR.yMin, Math.min(FLOOR.yMax, u.y));
+        }
+      }
+    }
+  }
+
+  move(u, dt) {
+    let tx = u.home.x, ty = u.home.y, look = null;
+    if (u.range === 'melee') {
+      const t = this.pickTarget(u);
+      if (!t) { u.moving = false; return; }
+      look = t;
+      // Every few seconds run around to the other side of the target (passing in front or behind it).
+      u.switchT -= dt;
+      if (u.switchT <= 0) { u.orbitGoal += Math.PI * (Math.random() < 0.5 ? 1 : -1); u.switchT = 2.5 + Math.random() * 3; }
+      const spread = ((u.slot % 3) - 1) * 0.5; // several attackers fan out around one target
+      const goal = u.orbitGoal + spread;
+      u.orbit += Math.max(-2.4 * dt, Math.min(2.4 * dt, goal - u.orbit));
+      tx = t.x + Math.cos(u.orbit) * MELEE_REACH;
+      ty = t.y + Math.sin(u.orbit) * 6;
+    } else {
+      const foes = this.foes(u);
+      look = foes.reduce((a, b) => (!a || Math.abs(b.x - u.x) < Math.abs(a.x - u.x) ? b : a), null);
+      const threat = foes.find(f => f.range === 'melee' && Math.abs(f.x - u.x) < KITE_RANGE && Math.abs(f.y - u.y) < 9);
+      if (threat) { // back away; if pinned against a wall, slip past sideways in depth
+        const away = Math.sign(u.x - threat.x) || (u.side === 'ally' ? 1 : -1);
+        tx = u.x + away * 16;
+        ty = u.y + (u.y > (FLOOR.yMin + FLOOR.yMax) / 2 ? -6 : 6);
+        if (tx < FLOOR.xMin + 2 || tx > FLOOR.xMax - 2) { tx = u.x - away * 10; ty = threat.y > u.y ? FLOOR.yMin : FLOOR.yMax; }
+      } else { // drift around the home spot
+        tx = u.home.x + Math.sin(this.time * 0.7 + u.slot) * 3;
+        ty = u.home.y + Math.cos(this.time * 0.9 + u.slot) * 2;
+      }
+    }
+    tx = Math.max(FLOOR.xMin, Math.min(FLOOR.xMax, tx));
+    ty = Math.max(FLOOR.yMin, Math.min(FLOOR.yMax, ty));
+    const dx = tx - u.x, dy = (ty - u.y) * 2; // y % counts double: the field is twice as tall as wide
+    const d = Math.hypot(dx, dy), stepLen = RUN_SPEED * (u.boss ? 0.7 : 1) * dt;
+    if (d > 0.3) {
+      const k = Math.min(stepLen, d) / d;
+      u.x += dx * k; u.y += (dy * k) / 2;
+    }
+    u.moving = d > 1.2;
+    if (look && Math.abs(look.x - u.x) > 1) u.face = Math.sign(look.x - u.x);
   }
 
   // Run the rest of the fight instantly (no effects).
@@ -256,12 +331,6 @@ class Battle {
     for (const u of [...this.units].sort((a, b) => a.slot - b.slot)) {
       const el = document.createElement('div');
       el.className = `unit ${this.cont && u.side === 'ally' ? '' : 'enter'} ${u.side} ${u.row}` + (u.boss ? ' boss' : '') + (u.hero ? ' hero' : '') + (u.range === 'melee' ? ' melee' : ' ranged');
-      // Side-on arena: everyone stands on the floor in a line; units further back sit slightly higher.
-      const p = SPOTS[u.side][u.boss ? 'boss' : u.slot];
-      el.style.left = p[0] + '%';
-      el.style.bottom = p[1] + '%';
-      el.style.zIndex = 10 - Math.round(p[1]);
-      if (p[2] !== 1) el.style.setProperty('--depth', p[2]);
       el.style.setProperty('--c', u.color);
       el.style.animationDelay = (u.slot * 70) + 'ms';
       el.innerHTML = `<div class="u-status"></div><div class="u-name">${u.name.split(' ')[0]}</div>
@@ -277,6 +346,14 @@ class Battle {
   render() {
     for (const u of this.units) {
       if (!u.el) continue;
+      // Place on the floor: further back (higher y) sits higher, smaller and behind.
+      u.el.style.left = u.x.toFixed(2) + '%';
+      u.el.style.bottom = u.y.toFixed(2) + '%';
+      u.el.style.zIndex = 100 - Math.round(u.y * 2);
+      u.el.style.setProperty('--depth', (u.size * (1 - (u.y - 22) * 0.012)).toFixed(3));
+      u.el.classList.toggle('face-right', u.face > 0);
+      u.el.classList.toggle('face-left', u.face < 0);
+      u.el.classList.toggle('running', u.moving && u.hp > 0);
       const hp = this.silent ? u.hp : u.shownHp;
       u.el.querySelector('.hp i').style.width = (100 * hp / u.maxHp) + '%';
       u.el.querySelector('.hp b').style.width = Math.min(100, 100 * u.shield / u.maxHp) + '%';
@@ -298,6 +375,8 @@ class Battle {
     u.el.classList.remove(cls);
     void u.el.offsetWidth; // restart animation
     u.el.classList.add(cls);
+    clearTimeout(u['fx_' + cls]);
+    u['fx_' + cls] = setTimeout(() => u.el && u.el.classList.remove(cls), 650);
   }
   float(u, text, cls) {
     if (this.silent || !u.el) return;

@@ -579,3 +579,18 @@ body.nav-open #scrim { display: block; }
 .wd-btn { align-self: flex-start; font-size: 12px; font-weight: 800; color: #9fdcff; background: #1d2a3a; border: 1px solid #2f4a66; border-radius: 8px; padding: 4px 8px; }
 .ds-ico.fists { font-size: 18px; letter-spacing: -2px; }
 .float.blow { font-size: 22px; }
+
+/* ---------- Units running around the arena ---------- */
+/* Side sprites face left; flip to face whoever the unit is looking at. */
+#field .unit .u-emoji .spr { transform: none; transition: transform .12s; }
+#field .unit.face-right .u-emoji .spr { transform: scaleX(-1); }
+#field .unit.running:not(.lunge):not(.hit):not(.ult):not(.cast) .u-emoji { animation: run-bob .3s ease-in-out infinite; }
+@keyframes run-bob { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-6px) rotate(-4deg); } 75% { transform: translateY(-6px) rotate(4deg); } }
+#field .unit.lunge.face-left .u-emoji { animation: hop-left .3s ease-out; }
+#field .unit.lunge.face-right .u-emoji { animation: hop-right .3s ease-out; }
+@keyframes hop-left { 45% { transform: translateX(-20px) translateY(-8px) rotate(-8deg); } }
+@keyframes hop-right { 45% { transform: translateX(20px) translateY(-8px) rotate(8deg); } }
+#field .unit.cast.face-left .u-emoji { animation: recoil-right .3s; }
+#field .unit.cast.face-right .u-emoji { animation: recoil-left .3s; }
+#field .unit.hit .u-emoji { animation: shake .35s; }
+#field .unit.ult .u-emoji { animation: ult .6s; }

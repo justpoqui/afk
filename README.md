@@ -107,6 +107,7 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
 - 6 tiers of tasks across every system, with a bonus reward for finishing each tier.
 
 ### Combat
+- **Fighters run around each other**: melee units run at their target, attack only when in reach, and every few seconds swing around to its other side, passing in front or behind. They turn to face their foe and bob as they run. Archers and casters hang back and retreat from melee attackers. Units push apart instead of stacking.
 - Side-on arena battles, like Swords & Sandals: fighters stand on the arena floor (crowd and banners behind), you on the right, enemies on the left (melee nearest, casters behind). Ranged attacks arc overhead. Damage numbers linger, and status badges stay up while effects last.
 - **Auto ⟳** keeps fighting the next stage after each win. **✕** retreats (XP still counts). Speed 1x/2x/3x, and Skip.
 - **Arena** (the campaign): 6 arenas (Mistvale Colosseum → Crystal Abyss Arena), 10 rounds each with a champion in round 10. Arena fighters are 35% stronger than the hunting grounds, with bigger rewards. A character whose combat skills are at about level L, with matching gear, can clear about stage L.
