@@ -1,0 +1,36 @@
+name: Android APK
+
+on:
+  push:
+    paths: ['index.html', 'styles.css', 'js/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk IdleRealms.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IdleRealms-apk
+          path: IdleRealms.apk
+      - name: Publish to the "android-latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete android-latest --yes --cleanup-tag || true
+          gh release create android-latest IdleRealms.apk --prerelease \
+            --target "$GITHUB_SHA" --title "Idle Realms (latest Android build)" \
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Download IdleRealms.apk on your phone and install it."

@@ -7,6 +7,14 @@ Open `index.html` in a browser. No build step and no dependencies. Progress save
 
 For phone testing on a local network, serve the folder, e.g. `python3 -m http.server 8000`.
 
+## Android APK
+The `android/` folder is a small native app that runs the game full-screen in a WebView. The game files are copied in from the repo root at build time, so there's only one copy of the game code.
+
+- **Download**: every push rebuilds the APK through GitHub Actions and attaches it as `IdleRealms.apk` to the **android-latest** release (Releases page). Open it on your phone and install it. Android will ask you to allow installs from your browser or file manager.
+- **Build locally**: `cd android && ./gradlew assembleRelease` (needs JDK 17+ and the Android SDK, with `sdk.dir` in `android/local.properties`). The output is `android/app/build/outputs/apk/release/app-release.apk`.
+- Every build is signed with the same test key (`android/app/idlerealms-test.keystore`), so new builds install over old ones and **your save is kept**. Use a private key before publishing to a store.
+- The Android back button closes popups and menus, then returns to Camp, then exits.
+
 ## Features
 ### Skills (sidebar)
 - **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers unlocked by level, up to level 99. Higher levels raise the chance of getting double items.

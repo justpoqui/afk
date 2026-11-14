@@ -1,0 +1,65 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The game lives in the repo root (index.html, styles.css, js/). Copy it into the APK at build time
+// so the web version and the Android app always share one source.
+def webOut = layout.buildDirectory.dir('generated/webassets')
+def copyWebAssets = tasks.register('copyWebAssets', Copy) {
+    from(rootProject.file('..')) {
+        include 'index.html', 'styles.css', 'js/**', 'assets/**'
+    }
+    into webOut.map { it.dir('www') }
+}
+
+// Version code grows every minute, so a newer build always installs over an older one.
+def buildMinutes = (int) ((System.currentTimeMillis() / 60000L) - 29_000_000L)
+
+android {
+    namespace 'com.idlerealms.game'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.idlerealms.game'
+        minSdk 26
+        targetSdk 36
+        versionCode buildMinutes
+        versionName '0.3.0'
+    }
+
+    signingConfigs {
+        // A fixed key committed to the repo so builds from any machine or CI can update each other
+        // on your phone. It is for testing only: use a private key before publishing to a store.
+        shared {
+            storeFile file('idlerealms-test.keystore')
+            storePassword 'idlerealms'
+            keyAlias 'idlerealms'
+            keyPassword 'idlerealms'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.shared
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.shared
+        }
+    }
+
+    sourceSets {
+        main.assets.srcDir(webOut)
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+tasks.named('preBuild') { dependsOn copyWebAssets }
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.14.0'
+}

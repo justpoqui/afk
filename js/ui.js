@@ -590,3 +590,12 @@ setInterval(() => { onSkillTick(processSkilling(), false); tickBars(); }, 100);
 setInterval(() => {
   if (page === 'camp' && !modalOpen() && !battle) render(); else renderTop();
 }, 1000);
+
+// Android back button: close whatever is open first; return false to let the app exit.
+window.handleBack = function () {
+  if (battle) return true;
+  if (modalOpen()) { closeModal(); return true; }
+  if (document.body.classList.contains('nav-open')) { document.body.classList.remove('nav-open'); return true; }
+  if (page !== 'camp') { go('camp'); return true; }
+  return false;
+};
