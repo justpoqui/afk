@@ -8,6 +8,11 @@ const T_SELL = [2, 6, 14, 30, 65];
 const METALS = ['Copper', 'Iron', 'Silver', 'Mythril', 'Starmetal'];
 
 const SKILLS = {
+  // Combat skills: trained by fighting. The attack style picks which one gets the XP.
+  attack:      { name: 'Attack',      icon: '🎯', type: 'combat', desc: 'Raises your hit chance and attack speed.' },
+  strength:    { name: 'Strength',    icon: '💪', type: 'combat', desc: 'Raises the damage of every hit.' },
+  defence:     { name: 'Defence',     icon: '🛡️', type: 'combat', desc: 'Reduces damage taken and makes enemies miss more.' },
+  hitpoints:   { name: 'Hitpoints',   icon: '❤️', type: 'combat', desc: 'Raises your maximum health. Always gains a third of combat XP.' },
   woodcutting: { name: 'Woodcutting', icon: '🪓', type: 'gather', verb: 'Chop' },
   mining:      { name: 'Mining',      icon: '⛏️', type: 'gather', verb: 'Mine' },
   fishing:     { name: 'Fishing',     icon: '🎣', type: 'gather', verb: 'Catch' },
@@ -81,6 +86,7 @@ const TASK_TIERS = [
     { t: 'act', id: 'ore0', n: 20, r: { gold: 200 } },
     { t: 'act', id: 'bar0', n: 5, r: { gold: 300 } },
     { t: 'stage', n: 3, r: { gems: 50 } },
+    { t: 'lvl', skill: 'strength', n: 5, r: { scrolls: 1 } },
     { t: 'claim', n: 1, r: { gems: 30 } },
     { t: 'lvl', skill: 'woodcutting', n: 5, r: { scrolls: 1 } },
   ] },
@@ -90,12 +96,12 @@ const TASK_TIERS = [
     { t: 'act', id: 'food0', n: 20, r: { gems: 50 } },
     { t: 'lvl', skill: 'fishing', n: 10, r: { scrolls: 1 } },
     { t: 'stage', n: 10, r: { gems: 150 } },
-    { t: 'summon', n: 10, r: { gems: 100 } },
+    { t: 'summon', n: 5, r: { gems: 100 } },
   ] },
   { name: 'Rising Adventurer', reward: { gems: 300, scrolls: 5 }, tasks: [
     { t: 'act', id: 'pot0', n: 5, r: { gold: 1000 } },
     { t: 'potion', n: 1, r: { gems: 50 } },
-    { t: 'hero', n: 20, r: { gems: 100 } },
+    { t: 'lvl', skill: 'strength', n: 15, r: { gems: 100 } },
     { t: 'act', id: 'fish1', n: 50, r: { gold: 1500 } },
     { t: 'lvl', skill: 'mining', n: 20, r: { scrolls: 1 } },
     { t: 'total', n: 75, r: { gems: 150 } },
@@ -107,7 +113,7 @@ const TASK_TIERS = [
     { t: 'stage', n: 30, r: { gems: 200 } },
     { t: 'act', id: 'food2', n: 50, r: { gold: 4000 } },
     { t: 'lvl', skill: 'herbalism', n: 30, r: { scrolls: 2 } },
-    { t: 'summon', n: 50, r: { gems: 200 } },
+    { t: 'summon', n: 20, r: { gems: 200 } },
     { t: 'eat', n: 25, r: { gems: 100 } },
   ] },
   { name: 'Realm Champion', reward: { gems: 1000, scrolls: 12 }, tasks: [
@@ -115,7 +121,7 @@ const TASK_TIERS = [
     { t: 'act', id: 'armor2', n: 1, r: { gems: 150 } },
     { t: 'total', n: 250, r: { scrolls: 3 } },
     { t: 'stage', n: 50, r: { gems: 300 } },
-    { t: 'hero', n: 50, r: { gems: 200 } },
+    { t: 'lvl', skill: 'attack', n: 40, r: { gems: 200 } },
     { t: 'lvl', skill: 'alchemy', n: 45, r: { scrolls: 3 } },
     { t: 'act', id: 'pot3', n: 10, r: { gold: 15000 } },
   ] },
@@ -125,7 +131,7 @@ const TASK_TIERS = [
     { t: 'total', n: 450, r: { scrolls: 5 } },
     { t: 'stage', n: 80, r: { gems: 500 } },
     { t: 'lvl', skill: 'woodcutting', n: 80, r: { scrolls: 3 } },
-    { t: 'hero', n: 80, r: { gems: 500 } },
+    { t: 'lvl', skill: 'defence', n: 70, r: { gems: 500 } },
   ] },
 ];
 TASK_TIERS.forEach((tier, ti) => tier.tasks.forEach((t, i) => { t.key = ti + '.' + i; }));

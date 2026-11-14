@@ -34,27 +34,30 @@ blender -b -P art/blender/sprites.py        # same thing with a Blender install
 Rendering uses Cycles on the CPU, so no GPU is needed. Sprites take about 1s each, backgrounds 30–60s each.
 
 ## Features
-### Skills (sidebar)
-- **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers unlocked by level, up to level 99. Higher levels raise the chance of getting double items.
-- **Crafting**: Smithing (ore + logs → bars → blades and plate armor), Cooking (fish → battle food), Alchemy (herbs → potions). Higher levels raise the chance of keeping the materials.
-- One action runs at a time with a progress bar. It **keeps running while the game is closed** (up to 12h) and shows a "welcome back" summary.
-- **Bank**: every item you own, sorted by category. Sell for gold, equip gear, set food as provisions, or drink potions.
+### One character, Melvor-style
+- You play **one character**. Its stats come from four **combat skills**, plus gear and its look:
+  - 🎯 **Attack**: hit chance and attack speed
+  - 💪 **Strength**: damage per hit
+  - 🛡️ **Defence**: damage reduction, and enemies miss more
+  - ❤️ **Hitpoints**: max HP (starts at level 10)
+- Damage you deal in battle becomes combat XP. Your **attack style** (Accurate, Aggressive or Defensive) picks which skill gets it, and Hitpoints always gets a third.
+- **One activity at a time**: fighting stops any running skill action, just like starting another skill would.
+- **Wardrobe**: spend a 📜 scroll (or 💎 150) to **reroll your look**, chosen from 24 designs. Each look gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear, and brings its own special attack. You choose whether to keep the new look, and a Legendary is guaranteed within 30 rerolls.
+- **Equipment** slots (weapon, armor; built to take more slots later), **food** that you eat automatically below 45% HP, and **potions** for 5 battles.
 
-### Skills feed into combat
-- Forged **weapons and armor** equip onto heroes for flat ATK, HP and DEF.
-- Cooked **provisions** are eaten automatically by heroes below 45% HP in battle.
-- **Potions** give stat buffs for 5 battles.
+### Skills (sidebar)
+- **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers, up to level 99.
+- **Crafting**: Smithing (bars → blades and plate armor), Cooking (food), Alchemy (potions).
+- Skill actions keep running while the game is closed (up to 12h). Skill XP is tuned by `SKILL_XP_MULT` in `js/skilldata.js`.
+- **Bank**: sell items, equip gear, choose battle food, drink potions.
 
 ### Task chain
-- 6 tiers of tasks across every system (gather X, reach skill level Y, forge your first blade, clear stage Z, summon, equip gear…). Each task gives a reward, and finishing a tier gives a bonus and unlocks the next tier.
+- 6 tiers of tasks across every system, with a bonus reward for finishing each tier.
 
 ### Combat
-- **Idle rewards**: gold, hero EXP and gems pile up over time (up to 12h, offline too), at higher rates as you clear stages.
-- **Campaign**: auto-battles across chapters, with a boss every 10 stages and a power comparison before each fight.
-- **Real-time auto-battle**: front and back rows, melee vs. ranged targeting, energy-charged ultimates (AoE, heals, shields, stuns, buffs, executes, life drain), crits, 1x/2x/3x speed and skip.
-- **16 original heroes** across 4 factions (Dawnguard, Wildroot, Ironveil, Duskborn), 5 classes and 3 rarities.
-- **Summoning**: ×1 / ×10 with scrolls or gems, and a guaranteed Legendary within 30 summons. Duplicates add stars (+20% stats, +15 level cap).
-- **Team builder**: 5-slot formation and an auto-fill button.
+- Sideways auto-battles: you stand on the right, enemies on the left (melee in front, archers and casters behind). Ranged attacks arc overhead. Damage numbers linger, and status badges stay up while effects last.
+- **Auto ⟳** keeps fighting the next stage after each win. **✕** retreats (XP still counts). Speed 1x/2x/3x, and Skip.
+- Campaign chapters with a boss every 10 stages. A character whose combat skills are at about level L, with matching gear, can clear about stage L.
 
 ## Code layout
 | File | Purpose |
@@ -62,7 +65,7 @@ Rendering uses Cycles on the CPU, so no GPU is needed. Sprites take about 1s eac
 | `js/data.js` | Factions, classes, rarities, heroes, monsters |
 | `js/skilldata.js` | Skills, items, recipes (generated from 5 tiers), task tiers |
 | `js/skills.js` | Skilling engine (live + offline), XP curve, task progress/claims |
-| `js/state.js` | Save/load, stat formulas, stages, idle economy, summoning |
+| `js/state.js` | Save/load (with migration from team saves), player stats from combat skills, skins & rerolls, stages, idle economy |
 | `js/battle.js` | Auto-battle simulation and battlefield rendering |
 | `js/ui.js` | Screens, modals, input handling, battle flow |
 | `styles.css` | All styling |

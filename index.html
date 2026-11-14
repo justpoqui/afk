@@ -24,7 +24,6 @@
         </div>
         <div class="res-row">
           <div class="res" title="Gold">🪙 <span id="r-gold">0</span></div>
-          <div class="res" title="Hero EXP">✨ <span id="r-exp">0</span></div>
           <div class="res" title="Gems">💎 <span id="r-gems">0</span></div>
           <div class="res" title="Summon Scrolls">📜 <span id="r-scrolls">0</span></div>
         </div>
@@ -36,9 +35,10 @@
 
   <div id="battle" class="hidden">
     <div class="battle-head">
-      <div id="battle-title">Stage 1</div>
+      <div class="bh-left"><button id="btn-retreat" title="Leave the fight">✕</button><div id="battle-title">Stage 1</div></div>
       <div id="battle-timer">90</div>
       <div class="battle-ctrl">
+        <button id="btn-auto" title="Keep fighting the next stage after each win">Auto ⟳</button>
         <button id="btn-speed">1x</button>
         <button id="btn-skip">Skip ⏭</button>
       </div>

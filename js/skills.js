@@ -68,7 +68,6 @@ function taskProgress(t) {
     total: () => totalSkillLevel(),
     stage: () => state.stage - 1,
     summon: () => state.stats.summons,
-    hero: () => Math.max(0, ...state.heroes.map(h => h.level)),
     equip: () => state.stats.equips,
     claim: () => state.stats.claims,
     potion: () => state.stats.potions,
@@ -82,9 +81,8 @@ function taskText(t) {
     case 'lvl': return `Reach ${SKILLS[t.skill].name} level ${t.n}`;
     case 'total': return `Reach a total skill level of ${t.n}`;
     case 'stage': return `Clear campaign stage ${stageLabel(t.n)}`;
-    case 'summon': return `Summon ${t.n} heroes`;
-    case 'hero': return `Raise any hero to level ${t.n}`;
-    case 'equip': return `Equip gear on a hero`;
+    case 'summon': return `Reroll your look ${t.n} times`;
+    case 'equip': return `Equip a weapon or armor`;
     case 'claim': return `Collect your idle rewards`;
     case 'potion': return `Drink a potion before battle`;
     case 'eat': return `Heroes eat ${t.n} provisions in battle`;

@@ -6,21 +6,17 @@ const PROJ_MS = 480;     // flight time of arrows and spells at 1x speed
 const FLOAT_MS = 1600;   // how long damage numbers stay on screen
 
 class Battle {
-  constructor(allySlots, enemySlots, onEnd) {
+  // One player character (from playerBattleUnit) against a group of enemies.
+  constructor(player, enemySlots, onEnd) {
     this.units = [];
     this.onEnd = onEnd;
     this.time = 0;
     this.speed = 1;
     this.over = false;
-    const pe = potionEffect();
-    allySlots.forEach((h, i) => {
-      if (!h) return;
-      const def = HERO_BY_ID[h.id], st = heroStats(h);
-      for (const k of ['hp', 'atk', 'def', 'spd']) st[k] = Math.round(st[k] * (1 + (pe[k] || 0)));
-      this.units.push(this.makeUnit('ally', i, { ...st, name: def.name, emoji: def.emoji, sprite: def.sprite,
-        range: CLASSES[def.cls].range, cls: def.cls, skill: def.skill, color: FACTIONS[def.faction].color,
-        proj: projOf({ ...def }), bolt: boltColor(def) }));
-    });
+    this.dealt = 0; // damage the player dealt: becomes combat XP
+    this.kills = 0;
+    this.player = this.makeUnit('ally', player.range === 'melee' ? 0 : 2, { ...player, hero: true });
+    this.units.push(this.player);
     enemySlots.forEach((e, i) => { if (e) this.units.push(this.makeUnit('enemy', i, { ...e, color: e.boss ? '#ff5d5d' : '#888' })); });
   }
 
@@ -48,14 +44,25 @@ class Battle {
   atkOf(u) { return u.atk * (1 + (u.buffT > 0 ? u.buff : 0)); }
 
   // ---- combat (state changes now, visuals land when the hit arrives) ----
+  // Attack trains accuracy against the enemy's level; Defence makes enemies miss more.
+  hitChance(src, tgt) {
+    return src.side === 'ally' ? playerHitChance(src.accLvl, tgt.lvl) : enemyHitChance(tgt.defLvl, src.lvl);
+  }
+
   damage(src, tgt, mult, delay = 0) {
+    if (Math.random() > this.hitChance(src, tgt)) {
+      this.later(delay, () => this.float(tgt, 'Miss', 'miss'));
+      return 0;
+    }
     const crit = Math.random() < 0.12;
     let dmg = this.atkOf(src) * mult * (100 / (100 + tgt.def)) * (0.9 + Math.random() * 0.2);
     if (crit) dmg *= 1.6;
     dmg = Math.max(1, Math.round(dmg));
     const absorbed = Math.min(tgt.shield, dmg);
     tgt.shield -= absorbed;
-    tgt.hp = Math.max(0, tgt.hp - (dmg - absorbed));
+    const lost = Math.min(tgt.hp, dmg - absorbed);
+    tgt.hp -= lost;
+    if (src.side === 'ally') { this.dealt += lost; if (tgt.hp <= 0) this.kills++; }
     tgt.energy = Math.min(100, tgt.energy + 8);
     this.later(delay, () => {
       tgt.shownHp = tgt.hp;
@@ -141,6 +148,7 @@ class Battle {
       if (u.hp <= 0) continue;
       if (u.buffT > 0) u.buffT -= dt;
       if (u.eatCd > 0) u.eatCd -= dt;
+      if (u.regen) u.hp = u.shownHp = Math.min(u.maxHp, u.hp + u.maxHp * u.regen * dt);
       if (u.side === 'ally' && u.hp < u.maxHp * 0.45 && u.eatCd <= 0) this.eat(u);
       if (u.stun > 0) { u.stun -= dt; continue; }
       u.timer += dt;
@@ -230,7 +238,7 @@ class Battle {
     // Fill each column top-to-bottom in slot order so formations look the same every time.
     for (const u of [...this.units].sort((a, b) => a.slot - b.slot)) {
       const el = document.createElement('div');
-      el.className = 'unit enter' + (u.boss ? ' boss' : '') + (u.range === 'melee' ? ' melee' : ' ranged');
+      el.className = 'unit enter' + (u.boss ? ' boss' : '') + (u.hero ? ' hero' : '') + (u.range === 'melee' ? ' melee' : ' ranged');
       el.style.setProperty('--c', u.color);
       el.style.animationDelay = (u.slot * 70) + 'ms';
       el.innerHTML = `<div class="u-status"></div><div class="u-emoji">${art(u, '', true)}</div>

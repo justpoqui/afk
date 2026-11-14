@@ -362,3 +362,47 @@ body.nav-open #scrim { display: block; }
 .float.skill, .float.buff { width: 92px; white-space: normal; text-align: center; line-height: 1.1; }
 .ally .row.back .float.skill, .ally .row.back .float.buff { left: 38% !important; }
 .enemy .row.back .float.skill, .enemy .row.back .float.buff { left: 62% !important; }
+
+/* ---------- Single character ---------- */
+.res-row { grid-template-columns: repeat(3, 1fr); }
+.bh-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#btn-retreat { width: 30px; height: 30px; border-radius: 9px; background: #0006; font-weight: 800; flex-shrink: 0; }
+#battle-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.battle-ctrl button.on { background: var(--good); color: #062b14; }
+.look { display: flex; gap: 12px; align-items: center; }
+.look-art { width: 96px; height: 96px; flex-shrink: 0; border-radius: 16px; border: 2px solid var(--rc); padding: 4px;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--c) 40%, var(--panel2)), var(--panel2)); }
+.look.big .look-art { width: 120px; height: 120px; }
+.look.small .look-art { width: 64px; height: 64px; }
+.look.small .look-skill { display: none; }
+.look-info { min-width: 0; }
+.look-info > b { font-size: 17px; }
+.look-bonus { color: var(--gold); font-weight: 700; font-size: 13px; margin-top: 4px; }
+.look-skill { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.look-skill b { color: #9fdcff; }
+.look.reveal .look-art { animation: pop .5s; box-shadow: 0 0 24px color-mix(in srgb, var(--rc) 70%, transparent); }
+.reroll-new { margin: 10px 0 6px; }
+.styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.style-btn { background: var(--panel2); border-radius: 12px; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid transparent; }
+.style-btn span { font-size: 22px; }
+.style-btn small { color: var(--muted); font-size: 11px; }
+.style-btn.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--panel2)); }
+.cskills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cskill { display: flex; gap: 8px; align-items: center; background: var(--panel2); border-radius: 10px; padding: 8px 10px; text-align: left; }
+.cskill > span { font-size: 20px; }
+.cskill > div { flex: 1; min-width: 0; }
+.cs-top { display: flex; justify-content: space-between; font-size: 13px; }
+.warn { color: var(--gold); font-size: 13px; text-align: center; margin: 10px 0 0; }
+.good { color: var(--good); }
+.vs-preview { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.vs-preview .vs { font-weight: 900; color: var(--bad); font-size: 18px; }
+.spr.flip { transform: scaleX(-1); }
+.codex-item.current { box-shadow: 0 0 0 3px var(--gold); }
+.xp-line { font-size: 13px; color: #9fdcff; }
+.lvl-up { color: var(--gold); font-weight: 800; animation: pop .5s; }
+.unit.hero, .unit.hero .u-emoji, .unit.hero .u-emoji .spr { width: 96px; height: 96px; }
+.unit.hero { height: auto; }
+.float.miss { color: #c9c3e0; font-size: 13px; font-style: italic; }
+.battle-ctrl { gap: 4px; }
+.battle-ctrl button { white-space: nowrap; padding: 6px 8px; font-size: 12px; }
+.battle-head { grid-template-columns: 1fr auto auto; gap: 6px; padding: 10px 10px; }
