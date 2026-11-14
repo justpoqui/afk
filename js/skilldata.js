@@ -1,7 +1,12 @@
 // Skills, items, crafting recipes and the task chain.
 // All gather/production data is generated from 5 material tiers.
 const TIER_TINT = ['#c9844a', '#9aa7b4', '#dfe6ee', '#4fd6c4', '#b48cff'];
-const T_LEVEL = [1, 15, 30, 45, 65];
+// ---- Tier levels: the level each of the five tiers belongs to ----
+// Raw materials, bars and consumables unlock at T_LEVEL; gear (weapons, armor, shields) at GEAR_LEVEL,
+// which is also the level needed to equip it (Attack for weapons, Defence for armor and shields).
+// Late-game tiers can be added by extending these lists.
+const T_LEVEL = [1, 10, 20, 30, 40];
+const GEAR_LEVEL = [5, 10, 20, 30, 40];
 const T_DUR = [3, 4, 5, 6.5, 8];
 const T_XP = [10, 28, 58, 105, 185];
 const T_SELL = [2, 6, 14, 30, 65];
@@ -63,9 +68,16 @@ const POTIONS = [
   ['Elixir of Heroes', { atk: 0.15, def: 0.15, hp: 0.15, spd: 0.1 }, 'All stats +10-15%'],
 ];
 const POTION_SECOND = [{}, { ore1: 1 }, { food1: 1 }, { log3: 1 }, { bar4: 1 }];
-const SWORD_ATK = [20, 50, 110, 220, 420];
-const ARMOR_HP = [200, 500, 1100, 2200, 4200];
-const ARMOR_DEF = [10, 25, 55, 110, 210];
+// Gear stats scale with the tier's level L: a short sword gives the damage, a chestplate the HP and defence.
+const gearAtk = L => Math.round(4 * L + 0.12 * L * L);
+const gearHp = L => Math.round(40 * L + 1.6 * L * L);
+const gearDef = L => Math.round(2 * L + 0.065 * L * L);
+const SWORD_ATK = GEAR_LEVEL.map(gearAtk);
+const ARMOR_HP = GEAR_LEVEL.map(gearHp);
+const ARMOR_DEF = GEAR_LEVEL.map(gearDef);
+// Requirement to wear gear of tier i, and where a piece's crafting level sits inside its tier.
+const gearReq = (slot, i) => ({ skill: slot === 'weapon' ? 'attack' : 'defence', level: GEAR_LEVEL[i] });
+const gearCraftLevel = (i, offset) => GEAR_LEVEL[i] + Math.round(offset / 2);
 const POTION_BATTLES = 5;
 
 // ---- Gear: seven equipment slots. Stats per tier scale off a chestplate / blade of that tier. ----
@@ -114,28 +126,28 @@ for (let i = 0; i < 5; i++) {
   // Metalworking: four melee weapons per metal
   for (const [pre, name, bars, lo, atkS, spd, twoHanded] of MELEE_WEAPONS) {
     addItem_(pre + i, { name: `${METALS[i]} ${name}`, icon: '🗡️', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'melee',
-      atk: Math.round(SWORD_ATK[i] * atkS), spd, twoHanded, sell: barSell * (bars + 1) });
-    addAction_('metalworking', pre + i, { level: T_LEVEL[i] + lo, dur: 3 + bars * 0.6, xp: cx * bars, inputs: { ['bar' + i]: bars }, group: 'Weapons' });
+      atk: Math.round(SWORD_ATK[i] * atkS), spd, twoHanded, req: gearReq('weapon', i), sell: barSell * (bars + 1) });
+    addAction_('metalworking', pre + i, { level: gearCraftLevel(i, lo), dur: 3 + bars * 0.6, xp: cx * bars, inputs: { ['bar' + i]: bars }, group: 'Weapons' });
   }
   // Metalworking: armor pieces
   for (const [pre, name, slot, bars, lo, hpS, defS, atkS] of METAL_PIECES) {
-    const it = { name: `${METALS[i]} ${name}`, icon: GEAR_SLOT_INFO[slot].icon, tint: t, cat: slot === 'shield' ? 'Shields' : 'Armor', tier: i, slot, sell: barSell * (bars + 1) };
+    const it = { name: `${METALS[i]} ${name}`, icon: GEAR_SLOT_INFO[slot].icon, tint: t, cat: slot === 'shield' ? 'Shields' : 'Armor', tier: i, slot, req: gearReq(slot, i), sell: barSell * (bars + 1) };
     if (hpS) it.hp = Math.round(ARMOR_HP[i] * hpS);
     if (defS) it.def = Math.round(ARMOR_DEF[i] * defS);
     if (atkS) it.atk = Math.round(SWORD_ATK[i] * atkS);
     addItem_(pre + i, it);
-    addAction_('metalworking', pre + i, { level: T_LEVEL[i] + lo, dur: 3 + bars * 0.6, xp: cx * bars, inputs: { ['bar' + i]: bars }, group: 'Armor' });
+    addAction_('metalworking', pre + i, { level: gearCraftLevel(i, lo), dur: 3 + bars * 0.6, xp: cx * bars, inputs: { ['bar' + i]: bars }, group: 'Armor' });
   }
 
   // Carpentry: planks, bows (archery), staves (magic), wooden shields
   addItem_('plank' + i, { name: WOODS[i] + ' Plank', icon: '🪵', tint: t, cat: 'Planks', tier: i, sell: T_SELL[i] * 3 });
   addAction_('carpentry', 'plank' + i, { level: T_LEVEL[i], dur: 2.5, xp: Math.round(T_XP[i] * 1.2), inputs: { ['log' + i]: 2 }, group: 'Planks' });
-  addItem_('bow' + i, { name: BOWS[i], icon: '🏹', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'archery', atk: Math.round(SWORD_ATK[i] * 0.95), sell: T_SELL[i] * 12 });
-  addAction_('carpentry', 'bow' + i, { level: T_LEVEL[i] + 3, dur: 4.5, xp: Math.round(T_XP[i] * 3.6), inputs: { ['plank' + i]: 3 }, group: 'Weapons' });
-  addItem_('staff' + i, { name: WOODS[i] + ' Staff', icon: '🪄', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'magic', atk: Math.round(SWORD_ATK[i] * 0.95), sell: T_SELL[i] * 16 });
-  addAction_('carpentry', 'staff' + i, { level: T_LEVEL[i] + 6, dur: 5, xp: Math.round(T_XP[i] * 4.2), inputs: { ['plank' + i]: 2, ['orb' + i]: 1 }, group: 'Weapons' });
-  addItem_('wshield' + i, { name: WOODS[i] + ' Shield', icon: '🛡️', tint: t, cat: 'Shields', tier: i, slot: 'shield', hp: Math.round(ARMOR_HP[i] * 0.3), def: Math.round(ARMOR_DEF[i] * 0.5), sell: T_SELL[i] * 14 });
-  addAction_('carpentry', 'wshield' + i, { level: T_LEVEL[i] + 4, dur: 5, xp: Math.round(T_XP[i] * 4.4), inputs: { ['plank' + i]: 4 }, group: 'Shields' });
+  addItem_('bow' + i, { name: BOWS[i], icon: '🏹', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'archery', atk: Math.round(SWORD_ATK[i] * 0.95), req: gearReq('weapon', i), sell: T_SELL[i] * 12 });
+  addAction_('carpentry', 'bow' + i, { level: gearCraftLevel(i, 3), dur: 4.5, xp: Math.round(T_XP[i] * 3.6), inputs: { ['plank' + i]: 3 }, group: 'Weapons' });
+  addItem_('staff' + i, { name: WOODS[i] + ' Staff', icon: '🪄', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'magic', atk: Math.round(SWORD_ATK[i] * 0.95), req: gearReq('weapon', i), sell: T_SELL[i] * 16 });
+  addAction_('carpentry', 'staff' + i, { level: gearCraftLevel(i, 6), dur: 5, xp: Math.round(T_XP[i] * 4.2), inputs: { ['plank' + i]: 2, ['orb' + i]: 1 }, group: 'Weapons' });
+  addItem_('wshield' + i, { name: WOODS[i] + ' Shield', icon: '🛡️', tint: t, cat: 'Shields', tier: i, slot: 'shield', hp: Math.round(ARMOR_HP[i] * 0.3), def: Math.round(ARMOR_DEF[i] * 0.5), req: gearReq('shield', i), sell: T_SELL[i] * 14 });
+  addAction_('carpentry', 'wshield' + i, { level: gearCraftLevel(i, 4), dur: 5, xp: Math.round(T_XP[i] * 4.4), inputs: { ['plank' + i]: 4 }, group: 'Shields' });
 
   // Glassworking: magic orbs (glass infused with herbs), used for staves
   addItem_('orb' + i, { name: ORBS[i], icon: '🔮', tint: t, cat: 'Orbs', tier: i, sell: T_SELL[i] * 8 });

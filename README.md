@@ -71,6 +71,14 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
 - HP carries over between kills, and you eat food from your inventory. Each kill gives gold, a chance at area-tier materials, rare gear and gems, plus combat XP.
 - Kills count toward quests. Retreating or falling shows a session summary.
 
+### Item tiers and stats
+- The five tiers (Copper, Iron, Silver, Mythril, Starmetal, and their wood and herb equivalents) belong to **levels 5, 10, 20, 30 and 40**.
+- **Gear** (weapons, armor, shields) unlocks for crafting at its tier's level, and it **needs that level to equip**: 🎯 Attack for weapons, 🛡️ Defence for armor and shields. Gear you can't use yet is marked in red, and it gives no stats if it's already worn.
+- **Gear stats scale with the tier's level L**: a short sword gives `4L + 0.12L²` damage, a chestplate `40L + 1.6L²` HP and `2L + 0.065L²` defence. Other pieces are shares of these (helmet 30%/40%, platelegs 60%, dagger 60% damage, 2H sword 185%, and so on).
+- Raw materials, bars and consumables unlock at **1, 10, 20, 30, 40** (tier one is available from the start).
+- Defence soaks less damage from higher-level attackers, so balance holds at every level. A character at level L with that level's gear clears about Arena stage L.
+- Late-game tiers can be added by extending `T_LEVEL` and `GEAR_LEVEL` in `js/skilldata.js`.
+
 ### Shop
 - **Tools** for every gathering and crafting skill (3 tiers, each 10% faster), **Backpacks** (+4 inventory slots, 5 tiers), and the **Bank Courier** (auto-deposits everything but food when your inventory fills, offline too).
 - **Supplies**: bread, cooked food, potions and tier 1–2 materials (sent to the bank), plus gem packs for gold.

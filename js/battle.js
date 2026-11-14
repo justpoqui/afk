@@ -64,7 +64,9 @@ class Battle {
       return 0;
     }
     const crit = Math.random() < 0.12;
-    let dmg = this.atkOf(src) * mult * (100 / (100 + tgt.def)) * (0.9 + Math.random() * 0.2);
+    // Defence soaks less against stronger attackers: armor is measured against the attacker's level.
+    const soak = 100 + 12 * (src.lvl || 1);
+    let dmg = this.atkOf(src) * mult * (soak / (soak + tgt.def)) * (0.9 + Math.random() * 0.2);
     if (crit) dmg *= 1.6;
     dmg = Math.max(1, Math.round(dmg));
     const absorbed = Math.min(tgt.shield, dmg);

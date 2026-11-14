@@ -573,3 +573,6 @@ body.nav-open #scrim { display: block; }
 .bank-grid { grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 5px; }
 .bank-item.empty { background: #120f1a; border: 1.5px dashed #2c2540; }
 .panel-title .link { float: right; font-size: 12px; }
+.req-ok { color: var(--good); }
+.req-no { color: var(--bad); font-weight: 700; }
+.pick.locked { opacity: .5; }

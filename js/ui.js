@@ -248,6 +248,7 @@ const pages = {
           ${GEAR_SLOTS.map(slot).join('')}
         </div>
         <div class="doll-stats">❤️ ${fmt(st.hp)} · ⚔️ ${fmt(st.atk)} · 🛡️ ${fmt(st.def)} · ${COMBAT_TYPES[state.player.ctype].icon} ${COMBAT_TYPES[state.player.ctype].name}</div>
+        ${GEAR_SLOTS.map(gearItem).filter(it => it && !meetsReq(it)).map(it => `<p class="warn">⚠️ ${it.name} needs ${SKILLS[it.req.skill].name} ${it.req.level}: it gives no stats until then.</p>`).join('')}
         ${w && !weaponMatches(w) ? `<p class="warn">⚠️ Your ${w.name} is a ${COMBAT_TYPES[w.wtype].name} weapon but you fight with ${COMBAT_TYPES[state.player.ctype].name}: half damage. Change your fighting style on the Character Sheet.</p>` : ''}
       </section>
       <section class="panel"><div class="panel-title">Equipped</div>
@@ -465,7 +466,8 @@ function describeItem(id) {
     const stats = [it.atk && `Damage +${it.atk}`, it.hp && `HP +${it.hp}`, it.def && `Defence +${it.def}`].filter(Boolean).join(', ');
     const kind = it.slot === 'weapon' ? `${COMBAT_TYPES[it.wtype].icon} ${COMBAT_TYPES[it.wtype].name} weapon` : GEAR_SLOT_INFO[it.slot].name;
     const extra = [it.spd && `${it.spd > 0 ? '+' : ''}${Math.round(it.spd * 100)}% attack speed`, it.twoHanded && 'two-handed (no shield)'].filter(Boolean).join(', ');
-    return `${kind} · ${stats}${extra ? ' · ' + extra : ''}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
+    const req = it.req ? ` · <span class="${meetsReq(it) ? 'req-ok' : 'req-no'}">needs ${SKILLS[it.req.skill].icon} ${SKILLS[it.req.skill].name} ${it.req.level}</span>` : '';
+    return `${kind} · ${stats}${extra ? ' · ' + extra : ''}${req}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
   }
   if (it.heal) return `Food · heals ${it.heal} HP in battle`;
   if (it.effect) return `Potion · ${it.effectText} for ${POTION_BATTLES} battles`;
@@ -514,7 +516,7 @@ function pickGear(slot) {
     <button class="close" data-act="close">✕</button>
     <h2>${GEAR_SLOT_INFO[slot].icon} Choose ${GEAR_SLOT_INFO[slot].name.toLowerCase()}</h2>
     <div class="pick-list">
-      ${options.map(id => `<button class="pick" data-act="equip" data-item="${id}">${icon(id, 'lg')}
+      ${options.map(id => `<button class="pick ${meetsReq(ITEMS[id]) ? '' : 'locked'}" data-act="equip" data-item="${id}">${icon(id, 'lg')}
         <div><b>${ITEMS[id].name}</b><small>${describeItem(id)} · ×${haveCount(id)}</small></div></button>`).join('')
         || `<p class="muted">You have no ${GEAR_SLOT_INFO[slot].name.toLowerCase()} gear yet. ${slot === 'weapon' ? 'Forge blades with Metalworking, or make bows and staves with Carpentry.' : slot === 'shield' ? 'Forge kite shields with Metalworking or make wooden shields with Carpentry.' : 'Forge it with Metalworking.'}</p>`}
       ${cur ? `<button class="btn ghost" data-act="unequip" data-slot="${slot}">Unequip ${ITEMS[cur].name}</button>` : ''}
@@ -544,7 +546,7 @@ function showItem(id, from = 'bank') {
   if (!n) { closeModal(); return; }
   const recipe = ACTIONS[id];
   openModal(`<button class="close" data-act="close">✕</button>
-    <div class="item-head">${icon(id, 'xl')}<div><h2>${it.name}</h2><small class="muted">${it.cat}${it.stack ? ' · stackable' : ''}</small></div></div>
+    <div class="item-head">${icon(id, 'xl')}<div><h2>${it.name}</h2><small class="muted">${it.cat}${it.slot ? ` · Tier ${it.tier + 1} (level ${GEAR_LEVEL[it.tier]})` : ''}${it.stack ? ' · stackable' : ''}</small></div></div>
     ${describeItem(id) ? `<p>${describeItem(id)}</p>` : ''}
     <p class="muted">${inv ? 'In inventory' : 'In bank'} <b>${fmt(n)}</b> · sells for 🪙 ${it.sell} each${recipe ? ` · made with ${SKILLS[recipe.skill].icon} ${SKILLS[recipe.skill].name}` : ''}</p>
     ${inv ? `<div class="row-btns"><button class="btn" data-act="deposit" data-item="${id}" data-n="1">Deposit 1</button><button class="btn" data-act="deposit" data-item="${id}" data-n="${n}">Deposit all ${n}</button></div>`
@@ -786,7 +788,9 @@ document.addEventListener('click', e => {
       case 'close': closeModal(); break;
       case 'style': state.player.style = d.style; save(); render(); toast(`Now training ${SKILLS[d.style].icon} ${SKILLS[d.style].name}`); break;
       case 'pickgear': pickGear(d.slot); break;
-      case 'equip': equipGear(d.item); closeModal(); render(); toast(`Equipped ${ITEMS[d.item].name}`); break;
+      case 'equip': { const it = ITEMS[d.item], r = equipGear(d.item);
+        if (r === 'req') { toast(`Needs ${SKILLS[it.req.skill].icon} ${SKILLS[it.req.skill].name} level ${it.req.level} to equip`); break; }
+        closeModal(); render(); toast(`Equipped ${it.name}`); break; }
       case 'unequip': unequipGear(d.slot); closeModal(); render(); break;
       case 'pickfood': pickFood(); break;
       case 'pickpotion': pickPotion(); break;

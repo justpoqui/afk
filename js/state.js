@@ -119,15 +119,17 @@ const atkSpeedBonus = l => Math.min(0.3, l * 0.003);
 const playerHitChance = (attackLvl, enemyLvl) => Math.min(0.98, Math.max(0.55, 0.82 + (attackLvl - enemyLvl) * 0.008));
 const enemyHitChance = (defenceLvl, enemyLvl) => Math.min(0.95, Math.max(0.45, 0.85 - (defenceLvl - enemyLvl) * 0.006));
 const gearItem = slot => (state.player.gear[slot] ? ITEMS[state.player.gear[slot]] : null);
+// Gear needs a level to use (Attack for weapons, Defence for armor/shields); until then it gives no stats.
+const meetsReq = it => !it.req || skillLevel(it.req.skill) >= it.req.level;
 // A weapon made for another fighting style (blade / bow / staff) only gives half its damage.
 const weaponMatches = it => !it.wtype || it.wtype === state.player.ctype;
 // Daggers swing faster, long and 2H swords slower (only when the weapon fits your fighting style).
-const weaponSpeed = () => { const w = gearItem('weapon'); return w && w.spd && weaponMatches(w) ? w.spd : 0; };
+const weaponSpeed = () => { const w = gearItem('weapon'); return w && w.spd && weaponMatches(w) && meetsReq(w) ? w.spd : 0; };
 function gearTotals() {
   const t = { hp: 0, atk: 0, def: 0 };
   for (const slot of GEAR_SLOTS) {
     const it = gearItem(slot);
-    if (!it) continue;
+    if (!it || !meetsReq(it)) continue;
     t.hp += it.hp || 0; t.def += it.def || 0;
     t.atk += (it.atk || 0) * (slot === 'weapon' && !weaponMatches(it) ? 0.5 : 1);
   }
@@ -158,7 +160,7 @@ const playerPower = () => power(playerStats());
 function playerBattleUnit() {
   const d = HERO_BY_ID[state.player.skin], st = playerStats(true);
   const ct = state.player.ctype;
-  return { ...st, name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' ? 'melee' : 'ranged', cls: d.cls,
+  return { ...st, lvl: combatLevel(), name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' ? 'melee' : 'ranged', cls: d.cls,
     skill: { ...d.skill, power: d.skill.power * (1 + st.ult) }, color: FACTIONS[d.faction].color,
     proj: ct === 'archery' ? 'arrow' : ct === 'magic' ? 'bolt' : null, bolt: d.bolt || (ct === 'magic' ? '#9f7aff' : boltColor(d)) };
 }
@@ -263,7 +265,8 @@ function sellItem(id, n, fromInv = false) {
 }
 function equipGear(itemId) {
   const slot = ITEMS[itemId].slot;
-  if (!slot || !haveCount(itemId)) return;
+  if (!slot || !haveCount(itemId)) return false;
+  if (!meetsReq(ITEMS[itemId])) return 'req';
   const old = state.player.gear[slot];
   take(itemId, 1); state.player.gear[slot] = itemId; state.stats.equips++;
   const stash = id => { if (id && !invAdd(id)) addItem(id); }; // to the inventory, or the bank if it's full
@@ -272,6 +275,7 @@ function equipGear(itemId) {
   if (ITEMS[itemId].twoHanded && state.player.gear.shield) { stash(state.player.gear.shield); state.player.gear.shield = null; }
   if (slot === 'shield' && gearItem('weapon') && gearItem('weapon').twoHanded) { stash(state.player.gear.weapon); state.player.gear.weapon = null; }
   save();
+  return true;
 }
 function unequipGear(slot) {
   const old = state.player.gear[slot];
@@ -324,7 +328,7 @@ function monsterUnit(areaIdx, monIdx) {
   return {
     key, name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss, lvl,
     proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (boss ? 'bolt' : null), bolt: tpl.bolt || (boss ? '#ff5d5d' : null),
-    hp: Math.round(520 * mult * (boss ? 0.9 : 0.33)), atk: Math.round(40 * mult * (boss ? 2.6 : 1.25)),
+    hp: Math.round(520 * mult * (boss ? 1.0 : 0.38)), atk: Math.round(40 * mult * (boss ? 3.2 : 1.75)),
     def: Math.round(18 * mult), spd: boss ? 80 : 90,
     skill: boss ? { name: 'Cataclysm', type: 'nuke', power: 2.6 } : { name: 'Frenzy', type: 'nuke', power: 2.0 },
   };
