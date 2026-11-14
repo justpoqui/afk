@@ -53,6 +53,7 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
   - ❤️ **Hitpoints**: max HP (starts at level 10)
 - Damage you deal in battle becomes combat XP. Your **attack style** (Accurate, Aggressive or Defensive) picks which skill gets it, and Hitpoints always gets a third.
 - **One activity at a time**: fighting stops any running skill action, just like starting another skill would.
+- **Unarmed**: with no weapon equipped you fight with your 👊 fists and 🦶 feet, up close, whatever your fighting style.
 - **Fighting style** dropdown on the Character Sheet: ⚔️ **Melee** (+10% damage, fights up close), 🏹 **Archery** (+15% attack speed, arrows from the back) or 🔮 **Magic** (specials charge 30% faster, spells from the back).
 - **Looks**: open **chests** with 📜 scrolls to unlock looks into your **Look Library** (24 looks, with a dropdown to filter Melee, Archery or Magic looks). Wear any look you own. Each gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear, plus its own special attack. Duplicates add ★ (+15% bonus each, up to ★5).
 
@@ -98,7 +99,7 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
   - 🫙 **Glassworking**: sand (dug with Mining) into molten glass, then **vials** (every potion needs one) and magic **orbs**.
 - **Cooking & Brewing** group: Cooking (food), Alchemy (potions, bottled in vials).
 - Skill actions keep running while the game is closed (up to 12h). Skill XP is tuned by `SKILL_XP_MULT` in `js/skilldata.js`.
-- **Inventory (28 slots)**: everything you gather or craft goes here, **one item per slot**. Only the **bank** stacks items, except stackable items like 🍖 **Burnt Food** (every dish that burns while cooking turns into it). Skill actions stop when the inventory is full, so deposit in the bank. Crafting takes materials from the inventory first, then the bank.
+- **Inventory (28 slots)**: everything you gather or craft goes here, **one item per slot**. Only the **bank** stacks items, except stackable items like 🍖 **Burnt Food** (every dish that burns while cooking turns into it). Skill actions stop when the inventory is full, so deposit in the bank. **Crafting only uses materials in your inventory**, never the bank. Each recipe card has a **📥 Withdraw** button that fills your inventory with exactly the materials for as many crafts as fit. The Bank Courier never deposits the current recipe's materials.
 - **Bank**: a container of **50 slots**. Each item type takes one slot and stacks inside it. Buy **+1 slot** at a time in the Shop (1,000 gold, then 10% more each time). When the bank is full, new item types stay in your inventory. Deposit or withdraw, sell, equip gear, choose battle food, drink potions.
 - **Cooking can burn**: 40% at a recipe's level, 1.2% less per level above it (minimum 2%). Burnt dishes give no XP.
 

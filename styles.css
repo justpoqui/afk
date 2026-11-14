@@ -576,3 +576,6 @@ body.nav-open #scrim { display: block; }
 .req-ok { color: var(--good); }
 .req-no { color: var(--bad); font-weight: 700; }
 .pick.locked { opacity: .5; }
+.wd-btn { align-self: flex-start; font-size: 12px; font-weight: 800; color: #9fdcff; background: #1d2a3a; border: 1px solid #2f4a66; border-radius: 8px; padding: 4px 8px; }
+.ds-ico.fists { font-size: 18px; letter-spacing: -2px; }
+.float.blow { font-size: 22px; }

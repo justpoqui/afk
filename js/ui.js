@@ -216,7 +216,7 @@ const pages = {
         <div class="panel-title">Fighting style</div>
         <label class="select"><select data-change="ctype">${Object.entries(COMBAT_TYPES).map(([k, c]) =>
           `<option value="${k}" ${state.player.ctype === k ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select></label>
-        <p class="hint">${COMBAT_TYPES[state.player.ctype].perk}. Your look still brings its own special attack.</p>
+        <p class="hint">${COMBAT_TYPES[state.player.ctype].perk}. Your look still brings its own special attack.${gearItem('weapon') ? '' : ' <b>No weapon equipped: you fight with your fists and feet, up close.</b>'}</p>
       </section>
       <section class="panel">
         <div class="panel-title">Attack style <span class="muted">· decides which skill your damage trains</span></div>
@@ -238,8 +238,8 @@ const pages = {
     const slot = sl => {
       const it = gearItem(sl), info = GEAR_SLOT_INFO[sl];
       return `<button class="doll-slot ${it ? 'filled' : ''}" style="grid-area:${sl}" data-act="pickgear" data-slot="${sl}">
-        ${it ? `<span class="ds-ico" style="--t:${it.tint}">${itemImg(it.id)}</span>` : `<span class="ds-ico empty">${info.icon}</span>`}
-        <small>${info.name}</small></button>`;
+        ${it ? `<span class="ds-ico" style="--t:${it.tint}">${itemImg(it.id)}</span>` : sl === 'weapon' ? '<span class="ds-ico fists">👊🦶</span>' : `<span class="ds-ico empty">${info.icon}</span>`}
+        <small>${it || sl !== 'weapon' ? info.name : 'Unarmed'}</small></button>`;
     };
     return `
       <section class="panel">
@@ -255,7 +255,7 @@ const pages = {
         <div class="equipped-list">${GEAR_SLOTS.map(sl => {
           const it = gearItem(sl);
           return `<button class="eq-row" data-act="pickgear" data-slot="${sl}">${it ? icon(it.id) : `<span class="ico empty">${GEAR_SLOT_INFO[sl].icon}</span>`}
-            <div><b>${it ? it.name : `No ${GEAR_SLOT_INFO[sl].name.toLowerCase()}`}</b><small>${it ? describeItem(it.id) : 'Tap to equip'}</small></div></button>`;
+            <div><b>${it ? it.name : sl === 'weapon' ? '👊 Fists & 🦶 feet' : `No ${GEAR_SLOT_INFO[sl].name.toLowerCase()}`}</b><small>${it ? describeItem(it.id) : sl === 'weapon' ? 'Unarmed: you punch and kick up close. Tap to equip a weapon.' : 'Tap to equip'}</small></div></button>`;
         }).join('')}</div></section>
       <section class="panel"><div class="panel-title">Battle preparation</div>${prepPanel()}</section>
       <section class="panel"><div class="panel-title">🎒 Inventory ${invUsed()}/${invSize()}</div>${invGrid(true)}</section>`;
@@ -389,7 +389,7 @@ const pages = {
     return `${head}${invBar()}${picker}
       ${id === 'cooking' ? `<p class="hint">Food can burn: ${Math.round(burnChance(ACTIONS.food0) * 100)}% for ${ACTIONS.food0.name} at your level. Burnt dishes become stackable 🍖 Burnt Food.</p>` : ''}
       <div class="act-grid">${acts.filter(a => a.group === cur).map(actCard).join('')}</div>
-      <p class="hint">You can do one thing at a time: one skill action, or fighting. Items go into your inventory one slot each, and the action stops when it's full, so deposit in the bank, where items stack. Skills keep going while the game is closed (up to 12h).</p>`;
+      <p class="hint">Crafting only uses materials in your <b>inventory</b>; tap 📥 to withdraw a recipe's materials from the bank. You can do one thing at a time: one skill action, or fighting. Items go into your inventory one slot each, and the action stops when it's full, so deposit in the bank, where items stack. Skills keep going while the game is closed (up to 12h).</p>`;
   },
 
   bank() {
@@ -453,7 +453,8 @@ function actCard(a) {
     <div class="ac-top">${icon(a.id, 'lg')}<div><div class="ac-name">${a.name}</div>
       <div class="ac-meta">⏱ ${actionDur(a)}s · +${a.xp} XP</div></div></div>
     ${inputs.length ? `<div class="ac-inputs">${inputs.map(([id, n]) =>
-      `<span class="${haveCount(id) < n ? 'lack' : ''}">${icon(id, 'sm')} ${n}<small>(${fmt(haveCount(id))})</small></span>`).join('')}</div>` : ''}
+      `<span class="${invCount(id) < n ? 'lack' : ''}">${icon(id, 'sm')} ${n}<small>(🎒${fmt(invCount(id))}${itemCount(id) ? ` 🏦${fmt(itemCount(id))}` : ''})</small></span>`).join('')}</div>` : ''}
+    ${inputs.length && !locked && craftsToFill(a) > Math.min(...inputs.map(([id, n]) => Math.floor(invCount(id) / n))) ? `<span class="wd-btn" data-act="withdrawfor" data-id="${a.id}">📥 Withdraw for ${craftsToFill(a)}</span>` : ''}
     ${describeItem(a.id) ? `<div class="ac-desc">${describeItem(a.id)}</div>` : ''}
     <div class="ac-foot"><span>🎒 ${fmt(invCount(a.id))} · 🏦 ${fmt(itemCount(a.id))}</span><span class="ac-btn">${active ? 'Stop' : locked ? `🔒 Level ${a.level}` : SKILLS[a.skill].verb}</span></div>
     <div class="prog"><i></i></div>
@@ -748,11 +749,13 @@ document.addEventListener('click', e => {
   const nav = t.closest('[data-page]');
   if (nav && !t.closest('#modal')) { go(nav.dataset.page); return; }
 
+  const wd = t.closest('[data-act="withdrawfor"]');
+  if (wd) { const k = withdrawFor(ACTIONS[wd.dataset.id]); toast(k ? `📥 Packed materials for ${k} × ${ITEMS[wd.dataset.id].name}` : 'Nothing to withdraw'); render(); return; }
   const actCardEl = t.closest('[data-action]');
   if (actCardEl) {
     const r = toggleAction(actCardEl.dataset.action);
     if (r === 'level') toast(`Requires level ${ACTIONS[actCardEl.dataset.action].level}`);
-    if (r === 'inputs') toast('Not enough materials');
+    if (r === 'inputs') toast('Not enough materials in your inventory. Withdraw them from the bank (📥).');
     if (r === 'full') toast('🎒 Inventory full. Deposit items in the bank first.');
     render(); return;
   }

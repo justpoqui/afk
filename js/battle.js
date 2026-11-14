@@ -105,6 +105,10 @@ class Battle {
   strike(u, t, mult, big = false) {
     if (u.range === 'melee' || !u.proj) {
       this.fx(u, 'lunge');
+      if (u.unarmed) { // fists and feet: alternate punches and kicks
+        u.blow = (u.blow || 0) + 1;
+        this.later(140, () => this.float(t, u.blow % 2 ? '👊' : '🦶', 'blow'));
+      }
       return this.damage(u, t, mult, 140);
     }
     this.fx(u, 'cast');

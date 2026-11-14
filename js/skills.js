@@ -20,12 +20,31 @@ const bonusLabel = id => (SKILLS[id].type === 'gather' ? 'Double-item chance' : 
 
 // Shop tools make actions faster (10% per tier).
 const actionDur = act => +(act.dur * (1 - TOOL_SPEED * toolTier(act.skill))).toFixed(2);
-// The Bank Courier (shop) empties the inventory into the bank, keeping food, when it fills up.
+// The Bank Courier (shop) empties the inventory into the bank when it fills up, keeping food and
+// the materials the current recipe still needs.
 function courierCheck(act) {
-  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(true); return invRoomFor(act.id, 1) > 0; }
+  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(true, Object.keys(act.inputs)); return invRoomFor(act.id, 1) > 0; }
   return false;
 }
-const hasInputs = act => Object.entries(act.inputs).every(([id, n]) => haveCount(id) >= n);
+// Crafting only uses materials carried in the inventory (withdraw them from the bank first).
+const hasInputs = act => Object.entries(act.inputs).every(([id, n]) => invCount(id) >= n);
+// How many crafts of `act` the inventory can be filled for, using inventory + bank stock.
+function craftsToFill(act) {
+  const ins = Object.entries(act.inputs);
+  if (!ins.length) return 0;
+  const perCraft = ins.reduce((s, [id, n]) => s + (ITEMS[id].stack ? 0 : n), 0);
+  const carried = ins.reduce((s, [id]) => s + (ITEMS[id].stack ? 0 : invCount(id)), 0);
+  const bySlots = perCraft ? Math.floor((invFree() + carried) / perCraft) : Infinity;
+  const byStock = Math.min(...ins.map(([id, n]) => Math.floor(haveCount(id) / n)));
+  return Math.max(0, Math.min(bySlots, byStock));
+}
+// Withdraw exactly the materials for as many crafts as fit.
+function withdrawFor(act) {
+  const k = craftsToFill(act);
+  for (const [id, n] of Object.entries(act.inputs)) { const need = n * k - invCount(id); if (need > 0) withdraw(id, need); }
+  save();
+  return k;
+}
 // Every finished item needs a free inventory slot (cooking can also produce stackable Burnt Food).
 const hasRoom = act => invRoomFor(act.id, 1) > 0;
 const canDo = act => skillLevel(act.skill) >= act.level && hasInputs(act) && hasRoom(act);
@@ -48,7 +67,7 @@ function doAction(act, sum) {
   const before = skillLevel(act.skill);
   const lucky = Math.random() < bonusChance(act.skill);
   if (!(lucky && SKILLS[act.skill].type === 'craft')) {
-    for (const [id, n] of Object.entries(act.inputs)) take(id, n);
+    for (const [id, n] of Object.entries(act.inputs)) invRemove(id, n);
   }
   sum.count++;
   if (Math.random() < burnChance(act)) { // burnt: no XP, the dish becomes Burnt Food

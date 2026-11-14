@@ -160,9 +160,11 @@ const playerPower = () => power(playerStats());
 function playerBattleUnit() {
   const d = HERO_BY_ID[state.player.skin], st = playerStats(true);
   const ct = state.player.ctype;
-  return { ...st, lvl: combatLevel(), name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' ? 'melee' : 'ranged', cls: d.cls,
-    skill: { ...d.skill, power: d.skill.power * (1 + st.ult) }, color: FACTIONS[d.faction].color,
-    proj: ct === 'archery' ? 'arrow' : ct === 'magic' ? 'bolt' : null, bolt: d.bolt || (ct === 'magic' ? '#9f7aff' : boltColor(d)) };
+  // No weapon equipped: you fight up close with your fists and feet, whatever your style.
+  const unarmed = !gearItem('weapon');
+  return { ...st, lvl: combatLevel(), name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' || unarmed ? 'melee' : 'ranged', cls: d.cls,
+    skill: { ...d.skill, power: d.skill.power * (1 + st.ult) }, color: FACTIONS[d.faction].color, unarmed,
+    proj: unarmed ? null : ct === 'archery' ? 'arrow' : ct === 'magic' ? 'bolt' : null, bolt: d.bolt || (ct === 'magic' ? '#9f7aff' : boltColor(d)) };
 }
 
 // ---- Combat XP: damage dealt trains the chosen style; Hitpoints always gets a third ----
@@ -217,13 +219,13 @@ function deposit(id, n = Infinity) {
   const k = invRemove(id, Math.min(n, invCount(id))); addItem(id, k); save(); return k;
 }
 // Deposits everything that fits; items whose type has no free bank slot stay in the inventory.
-function depositAll(keepFood = false) {
+function depositAll(keepFood = false, keepIds = []) {
   const keep = [];
   for (const x of state.inv) {
-    if ((keepFood && ITEMS[x.id].heal) || !bankHasRoom(x.id)) keep.push(x);
+    if ((keepFood && ITEMS[x.id].heal) || keepIds.includes(x.id) || !bankHasRoom(x.id)) keep.push(x);
     else addItem(x.id, x.n);
   }
-  const skipped = keep.filter(x => !(keepFood && ITEMS[x.id].heal)).length;
+  const skipped = keep.filter(x => !(keepFood && ITEMS[x.id].heal) && !keepIds.includes(x.id)).length;
   state.inv = keep; save();
   return skipped;
 }
