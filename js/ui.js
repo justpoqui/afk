@@ -10,7 +10,9 @@ let autoTimer = null;
 const $ = s => document.querySelector(s);
 const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.floor(n));
 const fmtTime = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m ${String(s % 60).padStart(2, '0')}s`; };
-const icon = (id, extra = '') => `<span class="ico ${extra} ${ITEMS[id].burnt ? 'burnt' : ''}" style="--t:${ITEMS[id].tint}">${ITEMS[id].icon}</span>`;
+// Item art: the rendered icon, falling back to the emoji if an image is missing.
+const itemImg = id => `<img class="item-img" src="${ITEMS[id].img}" alt="${ITEMS[id].icon}" draggable="false" onerror="this.replaceWith(this.alt)">`;
+const icon = (id, extra = '') => `<span class="ico ${extra}" style="--t:${ITEMS[id].tint}">${itemImg(id)}</span>`;
 const skin = () => HERO_BY_ID[state.player.skin];
 
 function toast(msg) {
@@ -83,7 +85,7 @@ function invGrid(small = false) {
   const cells = [];
   for (let i = 0; i < invSize(); i++) {
     const x = state.inv[i];
-    cells.push(x ? `<button class="inv-slot ${ITEMS[x.id].burnt ? 'burnt' : ''}" data-inv="${i}" style="--t:${ITEMS[x.id].tint}">${ITEMS[x.id].icon}${x.n > 1 ? `<span class="qty">${fmt(x.n)}</span>` : ''}</button>`
+    cells.push(x ? `<button class="inv-slot" data-inv="${i}" style="--t:${ITEMS[x.id].tint}">${itemImg(x.id)}${x.n > 1 ? `<span class="qty">${fmt(x.n)}</span>` : ''}</button>`
                  : '<div class="inv-slot empty"></div>');
   }
   return `<div class="inv-grid ${small ? 'small' : ''}">${cells.join('')}</div>`;
@@ -140,7 +142,7 @@ const pages = {
         <div class="doing">${busy ? `Now: ${SKILLS[busy.skill].icon} <b>${busy.name}</b> · 🎒 ${invUsed()}/${invSize()}` : 'Idle: pick a skill or go fight.'}</div>
       </section>
       <div class="tiles">
-        ${tile('fight', '⚔️', 'Fight', `Dungeon ${stageLabel(state.stage)} · Hunting`)}
+        ${tile('fight', '⚔️', 'Fight', `Arena ${stageLabel(state.stage)} · Hunting`)}
         ${tile('skills', '🧠', 'Skills', `Total level ${totalSkillLevel()}`)}
         ${tile('summon', '🎁', 'Summon Looks', `📜 ${state.scrolls} scrolls`)}
         ${tile('library', '📚', 'Look Library', `${Object.keys(state.looks).length} / ${HEROES.length} looks`)}
@@ -158,7 +160,7 @@ const pages = {
   fight() {
     const busy = state.active ? SKILLS[ACTIONS[state.active.action].skill] : null;
     const warn = busy ? `<p class="warn">⚠️ Fighting stops ${busy.icon} ${busy.name}. You can do one thing at a time.</p>` : '';
-    const head = `${tabs(fightTab, 'fighttab', [['campaign', '🏰 Dungeons'], ['hunting', '🗺️ Hunting Grounds']])}
+    const head = `${tabs(fightTab, 'fighttab', [['campaign', '🏟️ Arena'], ['hunting', '🗺️ Hunting Grounds']])}
       <div class="prep-line">Combat level <b>${combatLevel()}</b> · training <b>${SKILLS[state.player.style].icon} ${SKILLS[state.player.style].name}</b> + ❤️ · ${prepLine().replace(/<\/?div[^>]*>/g, '')}</div>${warn}`;
     if (fightTab === 'hunting') {
       return `${head}
@@ -179,8 +181,8 @@ const pages = {
     const rw = stageReward(state.stage);
     return `${head}
       <section class="panel stage-box">
-        <div class="chapter">🏰 Dungeon ${chapterOf(state.stage)} · ${chapterName(state.stage)}</div>
-        <div class="stage-title">${isBoss(state.stage) ? '👑 Boss floor' : `Floor ${floorOf(state.stage)}`} / 10</div>
+        <div class="chapter">🏟️ Arena ${chapterOf(state.stage)} · ${chapterName(state.stage)}</div>
+        <div class="stage-title">${isBoss(state.stage) ? '👑 Champion round' : `Round ${floorOf(state.stage)}`} / 10</div>
         <div class="floors">${Array.from({ length: 10 }, (_, i) => `<i class="${i + 1 < floorOf(state.stage) ? 'done' : i + 1 === floorOf(state.stage) ? 'cur' : ''} ${i === 9 ? 'boss' : ''}"></i>`).join('')}</div>
         <div class="vs-preview">
           <div class="enemy-preview">${stageEnemies(state.stage).filter(Boolean).map(e => `<span class="${e.boss ? 'big' : ''}">${art(e, 'flip', true)}</span>`).join('')}</div>
@@ -384,7 +386,7 @@ const pages = {
         const list = ids.filter(id => ITEMS[id].cat === cat).sort((a, b) => ITEMS[a].tier - ITEMS[b].tier);
         if (!list.length) return '';
         return `<div class="sub">${cat}</div><div class="bank-grid">${list.map(id =>
-          `<button class="bank-item ${ITEMS[id].burnt ? 'burnt' : ''}" data-item="${id}" style="--t:${ITEMS[id].tint}">${ITEMS[id].icon}<span class="qty">${fmt(state.bank[id])}</span></button>`).join('')}</div>`;
+          `<button class="bank-item" data-item="${id}" style="--t:${ITEMS[id].tint}">${itemImg(id)}<span class="qty">${fmt(state.bank[id])}</span></button>`).join('')}</div>`;
       }).join('')}`;
   },
 
@@ -608,7 +610,7 @@ function startBattle() {
   if (hunt) return;
   stopSkillForFight();
   const stage = state.stage;
-  openBattleScreen(`${isBoss(stage) ? '👑 ' : '🏰 '}${chapterName(stage)} ${floorOf(stage)}/10`, battleBg(stage));
+  openBattleScreen(`${isBoss(stage) ? '👑 ' : '🏟️ '}${chapterName(stage)} ${floorOf(stage)}/10`, battleBg(stage));
   $('#battle-info').innerHTML = prepLine();
   const b = new Battle(playerBattleUnit(), stageEnemies(stage), win => { if (battle === b) endBattle(b, win, stage); });
   runBattle(b);

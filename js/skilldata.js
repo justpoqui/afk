@@ -26,7 +26,9 @@ const ITEMS = {};
 const ACTIONS = {}; // keyed by output item id (each item has exactly one recipe)
 const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Weapons', 'Armor', 'Food', 'Potions', 'Misc'];
 
-function addItem_(id, d) { ITEMS[id] = { id, ...d }; }
+// Every item has a Blender-rendered icon at assets/items/<id>.webp (see art/blender/items.py).
+// New items, including future monster drops, need a model there too; run `node art/check-item-icons.js`.
+function addItem_(id, d) { ITEMS[id] = { id, img: `assets/items/${id}.webp`, ...d }; }
 const SKILL_XP_MULT = 0.7; // global skill XP tuning (-30%)
 function addAction_(skill, outId, d) {
   ACTIONS[outId] = { id: outId, skill, inputs: {}, qty: 1, group: '', ...d, name: ITEMS[outId].name, icon: ITEMS[outId].icon, tint: ITEMS[outId].tint };

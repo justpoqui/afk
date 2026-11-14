@@ -1,0 +1,346 @@
+"""Renders an icon for every item to assets/items/<item id>.webp.
+
+Every item in the game (materials, gear, food, potions, and future monster drops) gets
+a model here that looks like its name. When you add an item to js/skilldata.js or js/content.js,
+add a builder to ITEMS below and render it:
+
+    python art/blender/items.py              # all items
+    python art/blender/items.py log3 pot0    # only these
+    node art/check-item-icons.js             # lists items that have no icon yet
+"""
+import os
+import sys
+import math
+import random
+import bpy
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import *  # noqa: E402,F403
+
+OUT = os.path.join(ROOT, 'assets', 'items')
+R = random.Random(5)
+
+
+def glow(c, s=3):
+    return mat(c, emit=s)
+
+
+def metal(c, rough=0.28):
+    return mat(c, rough=rough, metal=0.9)
+
+
+def group(rot=(0, 0, 0), loc=(0, 0, 0)):
+    """Parent every object to an empty and rotate the whole item."""
+    bpy.ops.object.empty_add(location=(0, 0, 0))
+    pivot = bpy.context.object
+    for o in bpy.context.scene.objects:
+        if o is not pivot and o.parent is None and o.type in ('MESH', 'LIGHT'):
+            o.parent = pivot
+    pivot.rotation_euler = [math.radians(a) for a in rot]
+    pivot.location = loc
+    return pivot
+
+
+# ---------------- materials ----------------
+def log(bark, wood, ring, glow_c=None, marks=None, stub=True):
+    cyl((0, 0, 0), 0.45, 1.8, mat(bark, rough=0.9), rot=(0, 90, 0), verts=14)
+    for x in (0.9, -0.9):
+        cyl((x, 0, 0), 0.41, 0.03, mat(wood), rot=(0, 90, 0), verts=24, outline=False)
+        for r in (0.12, 0.24, 0.34):
+            torus((x * 1.012, 0, 0), r, 0.012, mat(ring), rot=(0, 90, 0), outline=False)
+        if glow_c:
+            cyl((x * 1.02, 0, 0), 0.12, 0.02, glow(glow_c, 5), rot=(0, 90, 0), verts=16, outline=False)
+    if marks:
+        for _ in range(9):
+            a = R.uniform(-1.2, 1.2)
+            box((R.uniform(-0.75, 0.75), -0.45 * math.cos(a), 0.45 * math.sin(a)), (0.18, 0.03, 0.05), mat(marks), rot=(math.degrees(a), 0, 0), outline=False)
+    if stub:
+        cyl((0.25, 0, 0.5), 0.1, 0.3, mat(bark, rough=0.9), rot=(0, -20, 0), verts=8)
+    group(rot=(0, 0, -38))  # turn a cut end toward the camera so the rings show
+
+
+def ore(rock_c, nug_c, metallic=True, emit=0, sparkle=None):
+    ico((0, 0, 0), 0.8, mat(rock_c, rough=0.95), scale=(1.15, 1, 0.8), sub=1)
+    for i in range(7):
+        a, z = i * 0.9 + R.uniform(-0.2, 0.2), R.uniform(0.0, 0.55)
+        r = math.sqrt(max(0.05, 0.75 ** 2 - z ** 2)) * 0.97
+        m = mat(nug_c, rough=0.25, metal=0.9 if metallic else 0, emit=emit)
+        ico((r * 1.15 * math.cos(a), r * math.sin(a), z * 0.8), R.uniform(0.14, 0.24), m, sub=1)
+    if sparkle:
+        for _ in range(5):
+            sphere((R.uniform(-0.7, 0.7), R.uniform(-0.6, 0.6), R.uniform(0.3, 0.7)), 0.05, glow(sparkle, 8), outline=False)
+
+
+def fish_body(body, belly, fin, length=1.8, height=0.8, eye='#1b1426'):
+    sphere((0, 0, 0), 0.5, mat(body), scale=(length, 0.55, height))
+    sphere((0.05, -0.05, -0.12), 0.45, mat(belly), scale=(length * 0.85, 0.5, 0.5 * height), outline=False)
+    cyl((-0.5 * length - 0.25, 0, 0), 0.38, 0.55, mat(fin), r2=0.0, rot=(0, 90, 0), scale=(1, 0.12, 1), verts=3)
+    cyl((-0.05, 0, 0.36 * height + 0.12), 0.25, 0.35, mat(fin), r2=0.0, scale=(1.4, 0.12, 1), verts=3)
+    sphere((0.38 * length, -0.24, 0.08), 0.07, mat(eye, rough=0.2), outline=False)
+    sphere((0.38 * length + 0.01, -0.29, 0.1), 0.025, glow('#ffffff', 2), outline=False)
+
+
+def minnow():
+    fish_body('#a8b4c0', '#e8eef5', '#8a96a8', length=1.7, height=0.6)
+    sphere((0, -0.27, 0.0), 0.4, mat('#6fa0c8'), scale=(1.6, 0.05, 0.12), outline=False)
+    group(rot=(0, 0, -20))
+
+
+def trout():
+    fish_body('#7a8a4a', '#f0e0c8', '#6b7a3a', length=1.9, height=0.75)
+    sphere((0, -0.27, 0.02), 0.4, mat('#e88aa0'), scale=(1.7, 0.06, 0.18), outline=False)
+    for _ in range(12):
+        sphere((R.uniform(-0.6, 0.6), -0.27, R.uniform(0.05, 0.3)), 0.04, mat('#2a2a1a'), scale=(1, 0.4, 1), outline=False)
+    group(rot=(0, 0, -20))
+
+
+def spinefin():
+    sphere((0, 0, 0), 0.65, mat('#f2c14e'))
+    sphere((0, -0.05, -0.2), 0.55, mat('#fff1c8'), scale=(1, 1, 0.5), outline=False)
+    for i in range(26):
+        a, b = R.uniform(0, 6.28), R.uniform(-1.2, 1.3)
+        d = (math.cos(b) * math.cos(a), math.cos(b) * math.sin(a), math.sin(b))
+        o = cyl((d[0] * 0.66, d[1] * 0.66, d[2] * 0.66), 0.05, 0.25, mat('#8a6a2a'), r2=0.0, verts=6)
+        o.rotation_euler = Vector(d).to_track_quat('Z', 'Y').to_euler()
+    cyl((-0.85, 0, 0), 0.3, 0.4, mat('#e0a838'), r2=0.0, rot=(0, 90, 0), scale=(1, 0.15, 1), verts=3)
+    for s in (-1, 1):
+        sphere((0.4, -0.45, 0.2 * s + 0.15), 0.1, mat('#1b1426', rough=0.2), outline=False) if s > 0 else None
+    sphere((0.42, -0.5, 0.25), 0.11, mat('#ffffff'), outline=False)
+    sphere((0.45, -0.58, 0.26), 0.06, mat('#1b1426'), outline=False)
+    sphere((0.62, -0.3, -0.05), 0.08, mat('#e86a4a'), outline=False)
+    group(rot=(0, 0, -25))
+
+
+def shark():
+    fish_body('#7f8a96', '#eef2f6', '#6f7a86', length=2.4, height=0.7)
+    cyl((0.0, 0, 0.55), 0.35, 0.6, mat('#6f7a86'), r2=0.0, scale=(1.2, 0.12, 1), verts=3, rot=(0, -15, 0))
+    cyl((-1.45, 0, 0.25), 0.3, 0.9, mat('#6f7a86'), r2=0.0, scale=(1, 0.12, 1), verts=3, rot=(0, -40, 0))
+    for s in (-1, 1):
+        cyl((0.4, s * 0.3, -0.25), 0.2, 0.5, mat('#6f7a86'), r2=0.0, scale=(1.2, 0.2, 1), verts=3, rot=(s * 60, 0, 0))
+    for i in range(3):
+        box((0.62 - i * 0.07, -0.27, 0.0), (0.02, 0.02, 0.16), mat('#4f5a66'), outline=False)
+    group(rot=(0, 0, -20))
+
+
+def eel():
+    pts, rad = [], []
+    for i in range(16):
+        t = i / 15
+        a = t * 3.6 * math.pi
+        r = 0.75 - 0.35 * t
+        pts.append((r * math.cos(a), r * math.sin(a), 0.1 + t * 0.6))
+        rad.append(0.2 - 0.06 * t)
+    tube(pts, rad, mat('#2f5a3f'), res=6)
+    head = pts[-1]
+    sphere((head[0] + 0.05, head[1], head[2] + 0.12), 0.24, mat('#2f5a3f'), scale=(1.4, 1, 0.9))
+    sphere((head[0] + 0.2, head[1] - 0.17, head[2] + 0.2), 0.06, glow('#d1ff3a', 5), outline=False)
+    for i in range(0, 16, 2):
+        sphere((pts[i][0], pts[i][1], pts[i][2] + rad[i] * 0.8), 0.06, mat('#d1ff3a', emit=1), outline=False)
+
+
+# ---------------- herbs ----------------
+def mintleaf():
+    tube([(0, 0, -0.6), (0.05, 0, 0.1), (0, 0, 0.7)], [0.04, 0.035, 0.02], mat('#3f7a3a'))
+    for i, z in enumerate((-0.25, 0.1, 0.45)):
+        for s in (-1, 1):
+            sphere((s * 0.3, 0, z), 0.28, mat('#5cc46a'), scale=(1.2, 0.25, 0.7), rot=(0, s * -30, 90 * (i % 2)))
+    sphere((0, 0, 0.75), 0.18, mat('#7fdc7a'), scale=(0.8, 0.25, 1.1))
+
+
+def sunpetal():
+    tube([(0, 0, -0.9), (0, 0, 0.2)], [0.04, 0.04], mat('#3f7a3a'))
+    for i in range(10):
+        a = i * 36
+        sphere((0.42 * math.cos(math.radians(a)), 0.42 * math.sin(math.radians(a)) * 0.3, 0.35 + 0.42 * math.sin(math.radians(a)) * 0.95),
+               0.22, mat('#ffd84a'), scale=(1.6, 0.25, 0.7), rot=(90, 0, a) if False else (0, -a, 0))
+    sphere((0, -0.08, 0.35), 0.2, mat('#c8742a'), scale=(1, 0.5, 1))
+    sphere((0.3, 0, -0.5), 0.2, mat('#5cc46a'), scale=(1.6, 0.2, 0.6), rot=(0, -30, 0))
+
+
+def moonbloom():
+    tube([(0, 0, -0.9), (0.1, 0, -0.1), (0, 0, 0.25)], [0.04, 0.035, 0.03], mat('#3f6a5a'))
+    for i in range(5):
+        a = i * 72
+        o = sphere((0.25 * math.cos(math.radians(a)), 0.25 * math.sin(math.radians(a)), 0.55), 0.26,
+                   mat('#cfe6ff', emit=0.8), scale=(0.6, 0.6, 1.3), rot=(0, 35, a))
+    sphere((0, 0, 0.45), 0.12, glow('#9fdcff', 6), outline=False)
+    sphere((-0.3, 0, -0.45), 0.2, mat('#4f8a7a'), scale=(1.6, 0.2, 0.6), rot=(0, 30, 0))
+
+
+def dragonroot():
+    for s, ang in ((-1, -20), (0, 0), (1, 22)):
+        tube([(s * 0.12, 0, 0.5), (s * 0.3, 0, 0.0), (s * 0.2 - 0.1, 0, -0.5), (s * 0.35, 0, -0.85)],
+             [0.17, 0.15, 0.09, 0.01], mat('#d93a2a', rough=0.35))
+    for a in (0, 120, 240):
+        sphere((0.12 * math.cos(math.radians(a)), 0.12 * math.sin(math.radians(a)), 0.7), 0.15, mat('#4fa64a'), scale=(0.7, 0.4, 1.4), rot=(0, 20, a))
+
+
+def starmoss():
+    for _ in range(9):
+        sphere((R.uniform(-0.55, 0.55), R.uniform(-0.4, 0.4), R.uniform(-0.15, 0.2)), R.uniform(0.25, 0.4),
+               mat(R.choice(('#7a5ad1', '#5a8a5a', '#8f6ae0'))), seg=12, rings=8)
+    for _ in range(9):
+        sphere((R.uniform(-0.6, 0.6), R.uniform(-0.6, -0.2), R.uniform(0.1, 0.55)), 0.045, glow('#fff1a8', 8), outline=False)
+
+
+# ---------------- smithing ----------------
+METAL = ['#c87533', '#8f959e', '#e2e8ef', '#3fd0c0', '#9b6cff']
+METAL_EMIT = [0, 0, 0, 0.5, 1.2]
+
+
+def bar(i):
+    m = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i])
+    for dy, dz in ((0, 0), (0.95, 0)):
+        box((0, dy - 0.45, dz), (1.6, 0.8, 0.42), m, bevel=0.1)
+        box((0, dy - 0.45, dz + 0.24), (1.25, 0.52, 0.08), m, bevel=0.03)
+    box((0.0, -0.2, 0.6), (1.6, 0.8, 0.42), m, bevel=0.1, rot=(0, 0, 90))
+    group(rot=(0, 0, 20))
+
+
+def blade(i):
+    m = mat(METAL[i], rough=0.2, metal=0.9, emit=METAL_EMIT[i])
+    box((0, 0, 0.55), (0.2, 0.05, 1.7), m)
+    cyl((0, 0, 1.5), 0.14, 0.25, m, r2=0.0, verts=4, scale=(1, 0.3, 1), rot=(0, 0, 45))
+    box((0, 0, 0.55), (0.04, 0.06, 1.5), mat('#ffffff', rough=0.1, metal=0.5), outline=False)
+    box((0, 0, -0.35), (0.75, 0.14, 0.12), mat(['#8a5a35', '#4f5a66', '#f2c14e', '#2a8a80', '#6a3fc0'][i], rough=0.3, metal=0.7), bevel=0.03)
+    cyl((0, 0, -0.65), 0.07, 0.5, mat('#5a3d22'))
+    sphere((0, 0, -0.95), 0.11, mat(['#c87533', '#8f959e', '#f2c14e', '#3fd0c0', '#ffd84a'][i], rough=0.3, metal=0.8, emit=METAL_EMIT[i]))
+    if i >= 3:
+        sphere((0, -0.06, -0.35), 0.07, glow(['#3fd0c0', '#ff9af0'][i - 3], 5), outline=False)
+    group(rot=(0, 45, 0))
+
+
+def plate(i):
+    m = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.6)
+    cyl((0, 0, 0), 0.62, 1.15, m, r2=0.5, verts=24, scale=(1, 0.62, 1))
+    for s in (-1, 1):
+        sphere((s * 0.62, 0, 0.42), 0.32, m, scale=(1, 0.9, 0.6))
+    cyl((0, 0, 0.58), 0.25, 0.05, mat('#1b1426'), scale=(1, 0.7, 1), outline=False)
+    torus((0, 0, -0.42), 0.6, 0.06, mat('#5a3d22'), scale=(1, 0.64, 1))
+    sphere((0, -0.4, 0.15), 0.1, glow(['#ffb04a', '#9fdcff', '#7fd6ff', '#4dffd2', '#ff9af0'][i], 3 if i > 1 else 1), outline=False)
+    box((0, -0.38, 0.0), (0.06, 0.02, 0.9), mat(METAL[i], rough=0.4, metal=0.6), outline=False)
+
+
+# ---------------- cooking ----------------
+def plate_dish(r=0.95):
+    cyl((0, 0, -0.35), r, 0.08, mat('#f4f0e8', rough=0.3), verts=40)
+    torus((0, 0, -0.31), r - 0.05, 0.04, mat('#d8d2c8', rough=0.3), outline=False)
+
+
+def grilled_minnow():
+    cyl((0, 0, 0), 0.03, 2.2, mat('#c9a66b'), rot=(0, 70, 0))
+    for x in (-0.4, 0.4):
+        sphere((x, 0, x * 0.36), 0.25, mat('#b8743a', rough=0.5), scale=(1.5, 0.5, 0.6), rot=(0, -20, 0))
+        for k in range(3):
+            box((x - 0.15 + k * 0.15, -0.13, x * 0.36), (0.03, 0.02, 0.25), mat('#4a2a14'), outline=False)
+
+
+def baked_trout():
+    plate_dish()
+    sphere((0, 0, -0.15), 0.32, mat('#c8783a', rough=0.45), scale=(2.2, 0.9, 0.5))
+    cyl((-0.85, 0, -0.15), 0.25, 0.4, mat('#a8602a'), r2=0.0, rot=(0, 90, 0), scale=(1, 0.2, 1), verts=3)
+    cyl((0.55, -0.45, -0.25), 0.2, 0.04, mat('#ffe66b'), verts=16)
+    sphere((-0.3, -0.35, -0.2), 0.12, mat('#4fa64a'), scale=(1.4, 0.6, 0.4))
+
+
+def stew():
+    sphere((0, 0, -0.1), 0.85, mat('#8a5a35', rough=0.4), scale=(1, 1, 0.55))
+    cyl((0, 0, 0.12), 0.74, 0.04, mat('#c8742a', rough=0.3), verts=32, outline=False)
+    for _ in range(7):
+        sphere((R.uniform(-0.45, 0.45), R.uniform(-0.45, 0.45), 0.16), R.uniform(0.08, 0.14), mat(R.choice(('#f2c14e', '#e86a4a', '#5cc46a', '#f0e0c8'))), outline=False)
+    cyl((0.5, -0.1, 0.45), 0.05, 1.0, mat('#c9cfd8', metal=0.8, rough=0.3), rot=(0, 35, 0))
+    for _ in range(3):
+        sphere((R.uniform(-0.3, 0.3), 0, R.uniform(0.6, 1.0)), 0.12, mat('#ffffff', emit=0.6, alpha=0.35), outline=False)
+
+
+def steak():
+    plate_dish()
+    box((0, 0, -0.15), (1.1, 0.8, 0.28), mat('#a8503a', rough=0.5), bevel=0.15)
+    for k in range(4):
+        box((-0.36 + k * 0.24, 0, 0.0), (0.05, 0.85, 0.02), mat('#3a1a10'), rot=(0, 0, 30), outline=False)
+    sphere((0.6, -0.45, -0.22), 0.15, mat('#4fa64a'), scale=(1.4, 0.6, 0.4))
+
+
+def eel_feast():
+    cyl((0, 0, -0.35), 1.0, 0.08, mat('#d9b46b', rough=0.3, metal=0.6), verts=40, scale=(1.3, 0.85, 1))
+    pts = [(0.6 * math.cos(t), 0.4 * math.sin(t), -0.15 + 0.03 * t) for t in [i * 0.55 for i in range(18)]]
+    tube(pts, [0.15] * 17 + [0.05], mat('#8a4a2a', rough=0.35), res=6)
+    for _ in range(6):
+        sphere((R.uniform(-0.9, 0.9), R.uniform(-0.5, 0.5), -0.2), 0.09, mat(R.choice(('#4fa64a', '#e8434a', '#ffe66b'))), outline=False)
+
+
+def bread():
+    sphere((0, 0, 0), 0.6, mat('#d9a35a', rough=0.6), scale=(1.6, 0.95, 0.75))
+    sphere((0, 0, -0.18), 0.6, mat('#b8803a', rough=0.7), scale=(1.65, 1.0, 0.45), outline=False)
+    for k in range(3):
+        box((-0.45 + k * 0.45, 0, 0.42), (0.1, 0.55, 0.05), mat('#f2d6a0'), rot=(0, 0, 25), outline=False)
+
+
+def burnt():
+    for _ in range(6):
+        ico((R.uniform(-0.35, 0.35), R.uniform(-0.25, 0.25), R.uniform(-0.15, 0.15)), R.uniform(0.3, 0.45), mat('#241a16', rough=0.95), sub=1)
+    for _ in range(4):
+        sphere((R.uniform(-0.3, 0.3), R.uniform(-0.3, 0), R.uniform(0.0, 0.2)), 0.05, glow('#ff6a1a', 4), outline=False)
+    for k in range(3):
+        sphere((0.1 * k - 0.1, 0, 0.6 + k * 0.3), 0.18 + k * 0.05, mat('#9a9a9a', emit=0.2, alpha=0.4), outline=False)
+
+
+# ---------------- alchemy ----------------
+def potion(liquid, emit=0.6, glow_extra=False):
+    sphere((0, 0, -0.15), 0.62, mat(liquid, rough=0.12, emit=emit))                       # the filled flask
+    sphere((0, -0.05, 0.25), 0.5, mat('#ffffff', emit=0.3, alpha=0.25), scale=(1, 1, 0.35), outline=False)  # air gap / glass top
+    cyl((0, 0, 0.6), 0.17, 0.55, mat('#d8ecff', rough=0.05))
+    cyl((0, 0, 0.92), 0.19, 0.22, mat('#a8743a', rough=0.8))
+    torus((0, 0, 0.45), 0.2, 0.04, mat('#c9a14a', metal=0.8, rough=0.3), outline=False)
+    sphere((-0.22, -0.48, 0.1), 0.1, glow('#ffffff', 2), scale=(0.6, 0.3, 1.3), outline=False)
+    if glow_extra:
+        for _ in range(5):
+            sphere((R.uniform(-0.6, 0.6), R.uniform(-0.6, 0), R.uniform(0.2, 1.0)), 0.04, glow('#fff1a8', 8), outline=False)
+
+
+ITEMS = {
+    'log0': lambda: log('#8a5a35', '#e8c99a', '#b8925a'),
+    'log1': lambda: log('#efe9dc', '#f2e2c4', '#cdb08a', marks='#2a2420'),
+    'log2': lambda: log('#7a2a1f', '#f2905a', '#c85a2a', glow_c='#ffb04a'),
+    'log3': lambda: log('#a8b0ba', '#eef0f4', '#b8c0cc'),
+    'log4': lambda: log('#3f2a3a', '#d8c8a8', '#8a6a5a', glow_c='#7dff9a'),
+    'ore0': lambda: ore('#6f6a66', '#d9823a'),
+    'ore1': lambda: ore('#6f6a66', '#9a6a5a', metallic=False),
+    'ore2': lambda: ore('#5f5a58', '#eef2f6'),
+    'ore3': lambda: ore('#4f5a5a', '#3fd0c0', emit=1.2),
+    'ore4': lambda: ore('#2a2438', '#9b6cff', emit=1.8, sparkle='#fff1a8'),
+    'fish0': minnow, 'fish1': trout, 'fish2': spinefin, 'fish3': shark, 'fish4': eel,
+    'herb0': mintleaf, 'herb1': sunpetal, 'herb2': moonbloom, 'herb3': dragonroot, 'herb4': starmoss,
+    'food0': grilled_minnow, 'food1': baked_trout, 'food2': stew, 'food3': steak, 'food4': eel_feast,
+    'pot0': lambda: potion('#e8434a'),
+    'pot1': lambda: potion('#8a96a8', emit=0.2),
+    'pot2': lambda: potion('#5cc46a'),
+    'pot3': lambda: potion('#4fc3ff', emit=1.0),
+    'pot4': lambda: potion('#ffd84a', emit=2.0, glow_extra=True),
+    'bread': bread, 'burnt': burnt,
+}
+for i in range(5):
+    ITEMS[f'bar{i}'] = (lambda i: lambda: bar(i))(i)
+    ITEMS[f'sword{i}'] = (lambda i: lambda: blade(i))(i)
+    ITEMS[f'armor{i}'] = (lambda i: lambda: plate(i))(i)
+
+
+def build(item_id):
+    R.seed(sum(map(ord, item_id)))
+    reset(transparent=True, samples=32)
+    world_color('#9a94b8', 0.8)
+    ITEMS[item_id]()
+    add_outlines(0.03)
+    sun((48, 0, -35), 3.0, '#fff4e0')
+    sun((65, 0, 110), 1.0, '#c9d8ff')
+    sun((-120, 0, 15), 1.6, '#ffe6c0')
+    cam = camera((3.0, -6.0, 4.5), (0, 0, 0), ortho=3)
+    frame_ortho(cam, 1.12)
+    render(os.path.join(OUT, item_id + '.webp'), 128, 128, quality=88)
+
+
+if __name__ == '__main__':
+    os.makedirs(OUT, exist_ok=True)
+    for n in [a for a in sys.argv[1:] if not a.startswith('-')] or list(ITEMS):
+        build(n)
+        print('rendered', n, flush=True)

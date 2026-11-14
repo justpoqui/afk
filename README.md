@@ -22,6 +22,7 @@ Every sprite and background is modeled and rendered by code in Blender. Nothing 
 |---|---|
 | `art/blender/sprites.py` | `assets/sprites/*.webp`: 24 heroes, 13 monsters, 4 bosses (256×256, transparent, cartoon outline), each in a portrait pose and a `_side` battle pose |
 | `art/blender/backgrounds.py` | `assets/bg/battle_ch1-6.webp`: a side-view arena per chapter (720×1280; stands and crowd, wall and banners, scenery, sky), plus `camp.webp` (1024×512) |
+| `art/blender/items.py` | `assets/items/<item id>.webp`: a 128×128 icon for **every item** (47), modeled to look like its name |
 | `art/blender/common.py` | Shared helpers: materials, shapes, outlines, lights, auto-framed camera |
 
 To re-render, install Blender's Python module (`pip install bpy==5.3.0`, needs Python 3.13) or use Blender itself:
@@ -31,6 +32,13 @@ python art/blender/sprites.py nyx wolf      # just these
 python art/blender/backgrounds.py camp ch3  # specific backgrounds
 blender -b -P art/blender/sprites.py        # same thing with a Blender install
 ```
+### Adding items (including future monster drops)
+Every item must look like its name. When you add an item (`addItem_` in `js/skilldata.js`):
+1. Add a builder for its id to `ITEMS` in `art/blender/items.py` and render it: `python art/blender/items.py <id>`.
+2. Run `node art/check-item-icons.js`. It lists any item still missing an icon and exits with an error if one is.
+
+The game loads `assets/items/<id>.webp` for every item automatically, and shows the item's emoji only if the image is missing.
+
 Rendering uses Cycles on the CPU, so no GPU is needed. Sprites take about 1s each, backgrounds 30–60s each.
 
 ## Features
@@ -87,7 +95,7 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
 ### Combat
 - Side-on arena battles, like Swords & Sandals: fighters stand on the arena floor (crowd and banners behind), you on the right, enemies on the left (melee nearest, casters behind). Ranged attacks arc overhead. Damage numbers linger, and status badges stay up while effects last.
 - **Auto ⟳** keeps fighting the next stage after each win. **✕** retreats (XP still counts). Speed 1x/2x/3x, and Skip.
-- **Dungeons** (the campaign): 6 dungeons (Goblin Warren → Abyssal Citadel), 10 floors each with a boss on floor 10. Dungeon monsters are 35% stronger than the hunting grounds, with bigger rewards. Battles use the arena backgrounds. A character whose combat skills are at about level L, with matching gear, can clear about stage L.
+- **Arena** (the campaign): 6 arenas (Mistvale Colosseum → Crystal Abyss Arena), 10 rounds each with a champion in round 10. Arena fighters are 35% stronger than the hunting grounds, with bigger rewards. A character whose combat skills are at about level L, with matching gear, can clear about stage L.
 
 ## Code layout
 | File | Purpose |

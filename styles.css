@@ -547,3 +547,9 @@ body.nav-open #scrim { display: block; }
 .exchange > div:first-child { flex: 1; }
 .exchange small { display: block; color: var(--muted); font-size: 12px; }
 .exchange .btn.sm { margin: 0; }
+
+/* ---------- Rendered item icons ---------- */
+.item-img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; filter: drop-shadow(0 2px 2px #0007); }
+.ico .item-img { width: 92%; height: 92%; }
+.bank-item .item-img, .inv-slot .item-img { width: 84%; height: 84%; }
+.bank-item, .inv-slot { padding: 0; }

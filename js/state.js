@@ -248,7 +248,7 @@ const chapterOf = stage => Math.ceil(stage / 10);
 const chapterName = stage => CHAPTER_NAMES[(chapterOf(stage) - 1) % CHAPTER_NAMES.length];
 const stageLabel = stage => `${chapterOf(stage)}-${((stage - 1) % 10) + 1}`;
 
-const DUNGEON_POWER = 1.35; // dungeon monsters are tougher than the hunting grounds
+const ARENA_POWER = 1.35; // arena fighters are tougher than the hunting grounds
 const floorOf = stage => ((stage - 1) % 10) + 1;
 function stageEnemies(stage) {
   const n = stage - 1;
@@ -256,7 +256,7 @@ function stageEnemies(stage) {
   const mk = (tpl, boss) => ({
     key: tpl.sprite.replace(/^(mon|boss)_/, ''), name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss, lvl: stage,
     proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (boss ? 'bolt' : null), bolt: tpl.bolt || (boss ? '#ff5d5d' : null),
-    hp: Math.round(520 * mult * DUNGEON_POWER * (boss ? 3.2 : 1)), atk: Math.round(40 * mult * DUNGEON_POWER * (boss ? 1.4 : 1)),
+    hp: Math.round(520 * mult * ARENA_POWER * (boss ? 3.2 : 1)), atk: Math.round(40 * mult * ARENA_POWER * (boss ? 1.4 : 1)),
     def: Math.round(18 * mult), spd: boss ? 80 : 90,
     skill: boss ? { name: 'Cataclysm', type: 'aoe', power: 1.8 } : { name: 'Frenzy', type: 'nuke', power: 2.0 },
   });

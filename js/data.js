@@ -110,8 +110,8 @@ const BOSSES = [
   { name: 'Kraken', sprite: 'boss_kraken',       emoji: '🐙' },
 ];
 
-// The campaign is a chain of dungeons, 10 floors each (floor 10 is the boss).
-const CHAPTER_NAMES = ['Goblin Warren', 'Thornroot Catacombs', 'Ashen Crypt', 'Frozen Halls', 'Drowned Temple', 'Abyssal Citadel'];
+// The campaign is a chain of arenas, 10 rounds each (round 10 is the champion).
+const CHAPTER_NAMES = ['Mistvale Colosseum', 'Thornwood Ring', 'Ashfire Pit', 'Frostpeak Coliseum', 'Sunken Amphitheatre', 'Crystal Abyss Arena'];
 // Fighting styles. Looks are grouped the same way in the Library.
 const COMBAT_TYPES = {
   melee:   { name: 'Melee',   icon: '⚔️', perk: '+10% damage, fights up close' },
