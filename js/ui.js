@@ -4,6 +4,8 @@ let fightTab = 'campaign';
 let lookCat = 'all'; // all | melee | archery | magic
 let shopTab = 'upgrades';
 let hunt = null; // active hunting session
+const skillGroup = {}; // which recipe group each crafting skill page shows
+const GROUP_ICON = { Weapons: '⚔️', Armor: '🛡️', Shields: '🛡️', Planks: '🪵', Glass: '🫧', Vials: '🧪', Orbs: '🔮', Bars: '🧱' };
 let battle = null;
 let autoTimer = null;
 
@@ -31,7 +33,8 @@ const NAV = [
   ['Character', [['sheet', '🧍', 'Character Sheet'], ['equipment', '🛡️', 'Equipment'], ['summon', '🎁', 'Summon Looks'], ['library', '📚', 'Look Library']]],
   ['Combat Skills', skillNav('combat')],
   ['Gathering', skillNav('gather')],
-  ['Crafting', skillNav('craft')],
+  ['Crafting', skillNav('craft').filter(([id]) => SKILLS[id.slice(6)].group === 'crafting')],
+  ['Cooking & Brewing', skillNav('craft').filter(([id]) => SKILLS[id.slice(6)].group === 'kitchen')],
   ['General', [['inventory', '🎒', 'Inventory'], ['bank', '🏦', 'Bank'], ['tasks', '📋', 'Tasks'], ['quests', '📜', 'Quests'], ['skills', '🧠', 'All Skills']]],
 ];
 const pageTitle = () => {
@@ -151,7 +154,7 @@ const pages = {
         ${tile('bank', '🏦', 'Bank', `${Object.keys(state.bank).length} item types`)}
         ${tile('inventory', '🎒', 'Inventory', `${invUsed()} / ${invSize()} slots`, invFull() ? 'alert' : '')}
         ${tile('sheet', '🧍', 'Character Sheet', `Combat level ${combatLevel()}`)}
-        ${tile('equipment', '🛡️', 'Equipment', GEAR_SLOTS.map(sl => gearItem(sl) ? gearItem(sl).icon : '▫️').join(' ') + ` · 🍽️ ${foodCarried()}`)}
+        ${tile('equipment', '🛡️', 'Equipment', `${GEAR_SLOTS.filter(gearItem).length}/${GEAR_SLOTS.length} slots · 🍽️ ${foodCarried()}`)}
         ${tile('shop', '🏪', 'Shop', 'Tools, backpacks, supplies')}
       </div>
       <div class="footer-links"><button class="link" data-act="reset">Reset save</button></div>`;
@@ -231,19 +234,28 @@ const pages = {
   },
 
   equipment() {
-    const gearSlot = slot => {
-      const it = gearItem(slot);
-      return `<button class="gear-slot" data-act="pickgear" data-slot="${slot}">
-        ${it ? icon(it.id, 'lg') : `<span class="ico lg empty">${slot === 'weapon' ? '🗡️' : '🛡️'}</span>`}
-        <div><b>${it ? it.name : slot === 'weapon' ? 'No weapon' : 'No armor'}</b><small>${it ? describeItem(it.id) : 'Tap to equip'}</small></div></button>`;
+    const st = playerStats(), w = gearItem('weapon');
+    const slot = sl => {
+      const it = gearItem(sl), info = GEAR_SLOT_INFO[sl];
+      return `<button class="doll-slot ${it ? 'filled' : ''}" style="grid-area:${sl}" data-act="pickgear" data-slot="${sl}">
+        ${it ? `<span class="ds-ico" style="--t:${it.tint}">${itemImg(it.id)}</span>` : `<span class="ds-ico empty">${info.icon}</span>`}
+        <small>${info.name}</small></button>`;
     };
-    const st = playerStats();
     return `
-      <section class="panel equip-doll">
-        <div class="doll-art">${art(skin())}</div>
-        <div class="gear">${GEAR_SLOTS.map(gearSlot).join('')}</div>
-        <div class="doll-stats">❤️ ${fmt(st.hp)} · ⚔️ ${fmt(st.atk)} · 🛡️ ${fmt(st.def)}</div>
+      <section class="panel">
+        <div class="doll">
+          <div class="doll-figure">${art(skin())}</div>
+          ${GEAR_SLOTS.map(slot).join('')}
+        </div>
+        <div class="doll-stats">❤️ ${fmt(st.hp)} · ⚔️ ${fmt(st.atk)} · 🛡️ ${fmt(st.def)} · ${COMBAT_TYPES[state.player.ctype].icon} ${COMBAT_TYPES[state.player.ctype].name}</div>
+        ${w && !weaponMatches(w) ? `<p class="warn">⚠️ Your ${w.name} is a ${COMBAT_TYPES[w.wtype].name} weapon but you fight with ${COMBAT_TYPES[state.player.ctype].name}: half damage. Change your fighting style on the Character Sheet.</p>` : ''}
       </section>
+      <section class="panel"><div class="panel-title">Equipped</div>
+        <div class="equipped-list">${GEAR_SLOTS.map(sl => {
+          const it = gearItem(sl);
+          return `<button class="eq-row" data-act="pickgear" data-slot="${sl}">${it ? icon(it.id) : `<span class="ico empty">${GEAR_SLOT_INFO[sl].icon}</span>`}
+            <div><b>${it ? it.name : `No ${GEAR_SLOT_INFO[sl].name.toLowerCase()}`}</b><small>${it ? describeItem(it.id) : 'Tap to equip'}</small></div></button>`;
+        }).join('')}</div></section>
       <section class="panel"><div class="panel-title">Battle preparation</div>${prepPanel()}</section>
       <section class="panel"><div class="panel-title">🎒 Inventory ${invUsed()}/${invSize()}</div>${invGrid(true)}</section>`;
   },
@@ -284,12 +296,12 @@ const pages = {
   },
 
   skills() {
-    const group = (title, type) => `<div class="sub">${title}</div><div class="skill-list">${Object.entries(SKILLS).filter(([, s]) => s.type === type).map(([k, sk]) => {
+    const group = (title, type) => `<div class="sub">${title}</div><div class="skill-list">${Object.entries(SKILLS).filter(([, s]) => s.type === type || s.group === type).map(([k, sk]) => {
       const b = xpBar(k), on = state.active && ACTIONS[state.active.action].skill === k;
       return `<button class="skill-row ${on ? 'running' : ''}" data-page="skill:${k}"><span>${sk.icon}</span>
         <div><div class="cs-top"><b>${sk.name}</b><span>${b.lv} / ${MAX_SKILL}</span></div><div class="bar-track sm xp"><i style="width:${b.pct}%"></i></div></div></button>`;
     }).join('')}</div>`;
-    return `<div class="sub">Total level ${totalSkillLevel()}</div>${group('Combat', 'combat')}${group('Gathering', 'gather')}${group('Crafting', 'craft')}`;
+    return `<div class="sub">Total level ${totalSkillLevel()}</div>${group('Combat', 'combat')}${group('Gathering', 'gather')}${group('Crafting', 'crafting')}${group('Cooking & Brewing', 'kitchen')}`;
   },
 
   shop() {
@@ -367,10 +379,12 @@ const pages = {
     }
     const acts = Object.values(ACTIONS).filter(a => a.skill === id);
     const groups = [...new Set(acts.map(a => a.group))];
-    return `${head}${invBar()}
+    const cur = groups.includes(skillGroup[id]) ? skillGroup[id] : groups[0];
+    const picker = groups.length > 1 ? `<label class="select"><select data-change="actgroup" data-skill="${id}">${groups.map(g =>
+      `<option value="${g}" ${g === cur ? 'selected' : ''}>${GROUP_ICON[g] || '📦'} ${g}</option>`).join('')}</select></label>` : '';
+    return `${head}${invBar()}${picker}
       ${id === 'cooking' ? `<p class="hint">Food can burn: ${Math.round(burnChance(ACTIONS.food0) * 100)}% for ${ACTIONS.food0.name} at your level. Burnt dishes become stackable 🍖 Burnt Food.</p>` : ''}
-      ${groups.map(g => `${g ? `<div class="sub">${g}</div>` : ''}
-        <div class="act-grid">${acts.filter(a => a.group === g).map(actCard).join('')}</div>`).join('')}
+      <div class="act-grid">${acts.filter(a => a.group === cur).map(actCard).join('')}</div>
       <p class="hint">You can do one thing at a time: one skill action, or fighting. Items go into your inventory one slot each, and the action stops when it's full, so deposit in the bank, where items stack. Skills keep going while the game is closed (up to 12h).</p>`;
   },
 
@@ -444,8 +458,11 @@ function actCard(a) {
 
 function describeItem(id) {
   const it = ITEMS[id];
-  if (it.slot === 'weapon') return `Weapon · Damage +${it.atk}`;
-  if (it.slot === 'armor') return `Armor · HP +${it.hp}, Defence +${it.def}`;
+  if (it.slot) {
+    const stats = [it.atk && `Damage +${it.atk}`, it.hp && `HP +${it.hp}`, it.def && `Defence +${it.def}`].filter(Boolean).join(', ');
+    const kind = it.slot === 'weapon' ? `${COMBAT_TYPES[it.wtype].icon} ${COMBAT_TYPES[it.wtype].name} weapon` : GEAR_SLOT_INFO[it.slot].name;
+    return `${kind} · ${stats}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
+  }
   if (it.heal) return `Food · heals ${it.heal} HP in battle`;
   if (it.effect) return `Potion · ${it.effectText} for ${POTION_BATTLES} battles`;
   if (it.burnt) return 'Ruined while cooking. Stacks in your inventory. Only good for selling.';
@@ -491,13 +508,13 @@ function pickGear(slot) {
   const cur = state.player.gear[slot];
   openModal(`
     <button class="close" data-act="close">✕</button>
-    <h2>Choose ${slot}</h2>
+    <h2>${GEAR_SLOT_INFO[slot].icon} Choose ${GEAR_SLOT_INFO[slot].name.toLowerCase()}</h2>
     <div class="pick-list">
       ${options.map(id => `<button class="pick" data-act="equip" data-item="${id}">${icon(id, 'lg')}
         <div><b>${ITEMS[id].name}</b><small>${describeItem(id)} · ×${haveCount(id)}</small></div></button>`).join('')
-        || `<p class="muted">No ${slot === 'weapon' ? 'weapons' : 'armor'} in your bank. Forge some with Smithing!</p>`}
+        || `<p class="muted">You have no ${GEAR_SLOT_INFO[slot].name.toLowerCase()} gear yet. ${slot === 'weapon' ? 'Forge blades with Metalworking, or make bows and staves with Carpentry.' : slot === 'shield' ? 'Forge kite shields with Metalworking or make wooden shields with Carpentry.' : 'Forge it with Metalworking.'}</p>`}
       ${cur ? `<button class="btn ghost" data-act="unequip" data-slot="${slot}">Unequip ${ITEMS[cur].name}</button>` : ''}
-      ${options.length ? '' : `<button class="btn" data-act="gosmith">Go to Smithing</button>`}
+      ${options.length ? '' : `<button class="btn" data-act="gosmith">Go to ${slot === 'weapon' || slot === 'shield' ? 'Metalworking' : 'Metalworking'}</button>`}
     </div>`);
 }
 
@@ -760,7 +777,7 @@ document.addEventListener('click', e => {
       case 'buycourier': if (buyCourier()) { render(); toast('🦉 The Bank Courier is hired!'); } else toast('Not enough gold'); break;
       case 'buytool': if (buyTool(d.skill)) { render(); toast(`${SKILLS[d.skill].icon} ${TOOLS[d.skill][toolTier(d.skill) - 1]} bought!`); } else toast('Need more gold or a higher skill level'); break;
       case 'quest': { const q = QUESTS.find(x => x.id === d.id); if (completeQuest(q)) { render(); toast(`📜 Quest complete! ${questRewardText(q.r)}`); } break; }
-      case 'gosmith': closeModal(); go('skill:smithing'); break;
+      case 'gosmith': closeModal(); go('skill:metalworking'); break;
       case 'close': closeModal(); break;
       case 'style': state.player.style = d.style; save(); render(); toast(`Now training ${SKILLS[d.style].icon} ${SKILLS[d.style].name}`); break;
       case 'pickgear': pickGear(d.slot); break;
@@ -789,6 +806,7 @@ document.addEventListener('change', e => {
   const k = e.target.dataset.change;
   if (k === 'ctype') { state.player.ctype = e.target.value; save(); render(); toast(`Fighting style: ${COMBAT_TYPES[e.target.value].icon} ${COMBAT_TYPES[e.target.value].name}`); }
   if (k === 'lookcat') { lookCat = e.target.value; render(); }
+  if (k === 'actgroup') { skillGroup[e.target.dataset.skill] = e.target.value; render(); }
 });
 
 $('#btn-speed').addEventListener('click', () => {

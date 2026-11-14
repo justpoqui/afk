@@ -553,3 +553,20 @@ body.nav-open #scrim { display: block; }
 .ico .item-img { width: 92%; height: 92%; }
 .bank-item .item-img, .inv-slot .item-img { width: 84%; height: 84%; }
 .bank-item, .inv-slot { padding: 0; }
+
+/* ---------- Paper-doll equipment ---------- */
+.doll { position: relative; display: grid; gap: 8px; justify-content: center;
+  grid-template-columns: 78px 78px 78px;
+  grid-template-areas: ". helmet ." "weapon chest shield" "gloves legs ." ". boots ."; }
+.doll-figure { grid-column: 1 / -1; grid-row: 1 / -1; justify-self: center; align-self: center; width: 210px; height: 210px; opacity: .22; pointer-events: none; }
+.doll-slot { position: relative; z-index: 1; aspect-ratio: 1; border-radius: 14px; background: #120f1acc; border: 1.5px dashed #3a3156;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px; }
+.doll-slot.filled { border-style: solid; border-color: var(--gold); background: #1f1a30e6; }
+.doll-slot small { font-size: 10px; color: var(--muted); }
+.ds-ico { width: 48px; height: 48px; display: grid; place-items: center; font-size: 26px; border-radius: 10px;
+  background: color-mix(in srgb, var(--t, #444) 18%, transparent); }
+.ds-ico.empty { opacity: .35; }
+.equipped-list { display: flex; flex-direction: column; gap: 6px; }
+.eq-row { display: flex; gap: 10px; align-items: center; text-align: left; background: var(--panel2); border-radius: 10px; padding: 6px 8px; }
+.eq-row small { display: block; color: var(--muted); font-size: 11.5px; }
+.doll-stats { text-align: center; color: var(--muted); font-size: 13px; margin-top: 10px; }

@@ -22,7 +22,7 @@ Every sprite and background is modeled and rendered by code in Blender. Nothing 
 |---|---|
 | `art/blender/sprites.py` | `assets/sprites/*.webp`: 24 heroes, 13 monsters, 4 bosses (256×256, transparent, cartoon outline), each in a portrait pose and a `_side` battle pose |
 | `art/blender/backgrounds.py` | `assets/bg/battle_ch1-6.webp`: a side-view arena per chapter (720×1280; stands and crowd, wall and banners, scenery, sky), plus `camp.webp` (1024×512) |
-| `art/blender/items.py` | `assets/items/<item id>.webp`: a 128×128 icon for **every item** (47), modeled to look like its name |
+| `art/blender/items.py` | `assets/items/<item id>.webp`: a 128×128 icon for **every item** (100), modeled to look like its name |
 | `art/blender/common.py` | Shared helpers: materials, shapes, outlines, lights, auto-framed camera |
 
 To re-render, install Blender's Python module (`pip install bpy==5.3.0`, needs Python 3.13) or use Blender itself:
@@ -63,7 +63,7 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
   | 🥇 Gold | 📜 4 | 📜 20 | Epic 70%, Legendary 30% |
 
   Scrolls are used only for chests. 💎 Gems are used only to buy scrolls (**1,000 💎 = 1 📜**). Scrolls also drop from dungeon floors, bosses and tasks.
-- **Equipment** slots (weapon, armor; built to take more slots later), **food** carried in your inventory, eaten automatically below 45% HP (one tap fills your free slots from the bank), and **potions** for 5 battles.
+- **Equipment**: a paper doll with 7 slots: ⛑️ Helmet, 👕 Chest, 👖 Legs, 🧤 Gloves, 👢 Boots, 🗡️ Weapon, 🛡️ Shield. Gear comes in 5 metal or wood tiers. Weapons match a fighting style (blade = Melee, bow = Archery, staff = Magic), and a mismatched weapon gives half damage, **food** carried in your inventory, eaten automatically below 45% HP (one tap fills your free slots from the bank), and **potions** for 5 battles.
 
 ### Hunting grounds (Fight → Hunting Grounds)
 - Each area has its own scene: a flower meadow, a thorn forest, a moonlit graveyard, an ice cave, underwater ruins, and a volcanic lair.
@@ -83,7 +83,12 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
 
 ### Skills (sidebar)
 - **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers, up to level 99.
-- **Crafting**: Smithing (bars → blades and plate armor), Cooking (food), Alchemy (potions).
+- **Crafting** group:
+  - 🔥 **Smithing**: smelt ore and logs into bars.
+  - 🔨 **Metalworking**: bars into gear, with a dropdown for **Weapons** (blades, for melee) and **Armor** (helmets, chestplates, platelegs, gauntlets, boots, kite shields).
+  - 🪚 **Carpentry**: logs into planks, then **bows** (archery), **staves** (magic, need an orb) and wooden shields.
+  - 🫙 **Glassworking**: sand (dug with Mining) into molten glass, then **vials** (every potion needs one) and magic **orbs**.
+- **Cooking & Brewing** group: Cooking (food), Alchemy (potions, bottled in vials).
 - Skill actions keep running while the game is closed (up to 12h). Skill XP is tuned by `SKILL_XP_MULT` in `js/skilldata.js`.
 - **Inventory (28 slots)**: everything you gather or craft goes here, **one item per slot**. Only the **bank** stacks items, except stackable items like 🍖 **Burnt Food** (every dish that burns while cooking turns into it). Skill actions stop when the inventory is full, so deposit in the bank. Crafting takes materials from the inventory first, then the bank.
 - **Bank**: deposit or withdraw, sell, equip gear, choose battle food, drink potions.

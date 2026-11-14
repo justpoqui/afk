@@ -298,7 +298,141 @@ def potion(liquid, emit=0.6, glow_extra=False):
             sphere((R.uniform(-0.6, 0.6), R.uniform(-0.6, 0), R.uniform(0.2, 1.0)), 0.04, glow('#fff1a8', 8), outline=False)
 
 
+# ---------------- crafting gear (metalworking, carpentry, glassworking) ----------------
+WOOD = ['#c8935a', '#efe2c4', '#b8523a', '#c8ccd4', '#5a3a4a']
+ORB = ['#5cdc6a', '#ffb02e', '#cfe6ff', '#ff4a2a', '#b48cff']
+
+
+def prism(points, depth, m, loc=(0, 0, 0)):
+    """Extrude a 2D outline (x, z points) along y: used for kite shields."""
+    n = len(points)
+    verts = [(x, -depth / 2, z) for x, z in points] + [(x, depth / 2, z) for x, z in points]
+    faces = [list(range(n))[::-1], list(range(n, 2 * n))] + [[i, (i + 1) % n, (i + 1) % n + n, i + n] for i in range(n)]
+    me = bpy.data.meshes.new('prism')
+    me.from_pydata(verts, [], faces)
+    me.update()
+    o = bpy.data.objects.new('prism', me)
+    o.location = loc
+    bpy.context.collection.objects.link(o)
+    o.data.materials.append(m)
+    o['outline'] = True
+    return o
+
+
+def sand():
+    cyl((0, 0, -0.2), 0.95, 0.6, mat('#e2cf9a', rough=1), r2=0.15, verts=24)
+    for _ in range(14):
+        sphere((R.uniform(-0.6, 0.6), R.uniform(-0.6, 0.2), R.uniform(-0.1, 0.2)), 0.05, mat('#c9b47a'), outline=False)
+
+
+def molten_glass():
+    sphere((0, 0, 0), 0.6, mat('#bfe6ff', rough=0.05), scale=(1.2, 1, 0.8))
+    sphere((0, -0.1, 0.05), 0.35, glow('#ff8a2a', 5), outline=False)
+    sphere((-0.25, -0.45, 0.25), 0.1, glow('#ffffff', 2), scale=(0.6, 0.3, 1), outline=False)
+
+
+def vial():
+    cyl((0, 0, -0.1), 0.28, 1.2, mat('#d8ecff', rough=0.05), verts=20)
+    sphere((0, 0, -0.7), 0.28, mat('#d8ecff', rough=0.05))
+    cyl((0, 0, 0.6), 0.22, 0.25, mat('#a8743a', rough=0.8))
+    sphere((-0.12, -0.25, 0.0), 0.06, glow('#ffffff', 2), scale=(0.5, 0.3, 3), outline=False)
+    group(rot=(0, 15, 0))
+
+
+def plank(i):
+    for k, (dz, dx) in enumerate(((0, 0), (0.24, 0.12), (0.48, -0.08))):
+        box((dx, 0, dz), (1.9, 0.55, 0.2), mat(WOOD[i], rough=0.8), rot=(0, 0, k * 8 - 8), bevel=0.03)
+        for g in range(3):
+            box((dx + R.uniform(-0.6, 0.6), -0.28, dz), (0.5, 0.01, 0.025), mat('#00000033' if False else '#7a5a3a'), outline=False)
+    group(rot=(0, 0, 20))
+
+
+def bow(i):
+    pts = [(0.15, 0, 1.2), (0.5, 0, 0.7), (0.62, 0, 0.0), (0.5, 0, -0.7), (0.15, 0, -1.2)]
+    tube(pts, [0.03, 0.07, 0.09, 0.07, 0.03], mat(WOOD[i], rough=0.6))
+    tube([(0.15, 0, 1.2), (0.15, 0, -1.2)], [0.012, 0.012], mat('#f5efe0'), outline=False)
+    cyl((0.62, 0, 0), 0.11, 0.35, mat('#5a3d22'))
+    if i >= 2:
+        for z in (0.8, -0.8):
+            sphere((0.48, -0.05, z), 0.07, glow(ORB[i], 4), outline=False)
+    group(rot=(0, -30, 0))
+
+
+def staff(i):
+    cyl((0, 0, -0.2), 0.06, 2.3, mat(WOOD[i], rough=0.6))
+    for a in range(3):
+        tube([(0, 0, 0.85), (0.22 * math.cos(a * 2.1), 0.22 * math.sin(a * 2.1), 1.05), (0.12 * math.cos(a * 2.1), 0.12 * math.sin(a * 2.1), 1.3)],
+             [0.05, 0.04, 0.02], mat(WOOD[i], rough=0.6))
+    sphere((0, 0, 1.12), 0.2, mat(ORB[i], emit=3), outline=False)
+    torus((0, 0, -0.1), 0.08, 0.025, mat('#c9a14a', metal=0.8, rough=0.3), outline=False)
+    group(rot=(0, 35, 0))
+
+
+def wshield(i):
+    cyl((0, 0, 0), 0.9, 0.14, mat(WOOD[i], rough=0.8), rot=(90, 0, 0), verts=36)
+    for x in (-0.45, 0, 0.45):
+        box((x, -0.08, 0), (0.03, 0.02, 1.6), mat('#5a3d22'), outline=False)
+    torus((0, -0.02, 0), 0.9, 0.06, mat('#9aa4ae', metal=0.8, rough=0.3), rot=(90, 0, 0))
+    sphere((0, -0.1, 0), 0.2, mat('#9aa4ae', metal=0.8, rough=0.3), scale=(1, 0.6, 1))
+    group(rot=(0, 0, -25))
+
+
+def orb(i):
+    cyl((0, 0, -0.62), 0.4, 0.25, mat('#5a3d22'), r2=0.25, verts=16)
+    sphere((0, 0, 0.05), 0.6, mat(ORB[i], rough=0.05, emit=0.6))
+    sphere((0.05, -0.1, 0.05), 0.3, glow(ORB[i], 6), outline=False)
+    sphere((-0.22, -0.48, 0.3), 0.09, glow('#ffffff', 3), scale=(0.6, 0.3, 1), outline=False)
+
+
+def helm(i):
+    m = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.5)
+    sphere((0, 0, 0.1), 0.7, m, scale=(1, 1, 1.05))
+    box((0, -0.62, -0.05), (0.62, 0.2, 0.36), mat('#120d18'), outline=False)
+    box((0, -0.7, 0.1), (0.1, 0.1, 0.55), m)
+    cyl((0, 0, -0.5), 0.72, 0.18, m, verts=28)
+    if i >= 3:
+        tube([(0, 0.1, 0.75), (0, 0.4, 0.95), (0, 0.75, 0.8)], [0.1, 0.12, 0.04], mat(['#3fd0c0', '#ff4a7a'][i - 3]))
+
+
+def gauntlet(i):
+    m = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.5)
+    cyl((0, 0, -0.55), 0.38, 0.55, m, r2=0.32, verts=20)
+    box((0, 0, 0.05), (0.62, 0.32, 0.6), m, bevel=0.08)
+    for k in range(4):
+        cyl((-0.22 + k * 0.15, 0, 0.55), 0.06, 0.4, m, verts=10)
+    cyl((0.42, 0, 0.1), 0.07, 0.35, m, rot=(0, 50, 0), verts=10)
+    group(rot=(0, 0, -20))
+
+
+def boots(i):
+    m = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.5)
+    for x in (-0.38, 0.38):
+        cyl((x, 0.05, 0.15), 0.25, 0.8, m, verts=18)
+        box((x, -0.22, -0.32), (0.42, 0.75, 0.25), m, bevel=0.08)
+        torus((x, 0.05, 0.52), 0.26, 0.05, mat('#5a3d22'), outline=False)
+    group(rot=(0, 0, -30))
+
+
+def kite(i):
+    m = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.5)
+    outline = [(0, 0.95), (0.65, 0.6), (0.6, -0.1), (0, -1.1), (-0.6, -0.1), (-0.65, 0.6)]
+    prism(outline, 0.12, m)
+    prism([(x * 0.75, z * 0.75 + 0.02) for x, z in outline], 0.04, mat(['#b84a3a', '#3f6fd1', '#f2c14e', '#2a8a80', '#6a3fc0'][i]), loc=(0, -0.08, 0))
+    sphere((0, -0.13, 0.15), 0.13, glow(ORB[i], 2) if i >= 2 else m, outline=False)
+    group(rot=(0, 0, -25))
+
+
+def platelegs(i):
+    m = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.5)
+    box((0, 0, 0.55), (0.95, 0.5, 0.3), m, bevel=0.08)
+    for x in (-0.25, 0.25):
+        cyl((x, 0, -0.15), 0.22, 1.2, m, r2=0.17, verts=18)
+        sphere((x, -0.08, -0.05), 0.15, m, scale=(1, 0.8, 0.8))
+    box((0, -0.26, 0.55), (0.95, 0.03, 0.08), mat('#5a3d22'), outline=False)
+
+
 ITEMS = {
+    'sand': sand, 'glass': molten_glass, 'vial': vial,
     'log0': lambda: log('#8a5a35', '#e8c99a', '#b8925a'),
     'log1': lambda: log('#efe9dc', '#f2e2c4', '#cdb08a', marks='#2a2420'),
     'log2': lambda: log('#7a2a1f', '#f2905a', '#c85a2a', glow_c='#ffb04a'),
@@ -323,6 +457,9 @@ for i in range(5):
     ITEMS[f'bar{i}'] = (lambda i: lambda: bar(i))(i)
     ITEMS[f'sword{i}'] = (lambda i: lambda: blade(i))(i)
     ITEMS[f'armor{i}'] = (lambda i: lambda: plate(i))(i)
+    for pre, fn in (('plank', plank), ('bow', bow), ('staff', staff), ('wshield', wshield), ('orb', orb),
+                    ('helm', helm), ('gloves', gauntlet), ('boots', boots), ('kite', kite), ('legs', platelegs)):
+        ITEMS[f'{pre}{i}'] = (lambda fn, i: lambda: fn(i))(fn, i)
 
 
 def build(item_id):

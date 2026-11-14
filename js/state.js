@@ -1,7 +1,9 @@
 // Save state, the player character, stages, idle economy and skin rerolls.
 const SAVE_KEY = 'idle-realms-save-v1';
 const IDLE_CAP_MS = 12 * 3600 * 1000;
-const GEAR_SLOTS = ['weapon', 'armor']; // more slots (helmet, ring...) can be added here later
+// Equipment slots, in paper-doll order. Add a slot here + GEAR_SLOT_INFO (skilldata.js) to extend.
+const GEAR_SLOTS = ['helmet', 'chest', 'legs', 'gloves', 'boots', 'weapon', 'shield'];
+const emptyGear = () => Object.fromEntries(GEAR_SLOTS.map(s => [s, null]));
 const START_HP_LEVEL = 10;
 
 let state;
@@ -10,7 +12,7 @@ function newState() {
   return {
     gold: 300, gems: 120, scrolls: 3,
     stage: 1, lastClaim: Date.now(),
-    player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: { weapon: null, armor: null } },
+    player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: emptyGear() },
     looks: { tobin: 0 }, // owned looks -> duplicate stars
     upgrades: { tools: {}, backpack: 0, courier: false }, bonusSlots: 0, quests: {},
     bank: {}, inv: [], skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
@@ -39,7 +41,10 @@ function load() {
       }
       delete state.seenSkins; delete state.pendingSkin; delete state.pity;
       if (!state.player.ctype) state.player.ctype = CLASS_TYPE[HERO_BY_ID[state.player.skin].cls];
-      state.player.gear = Object.assign({ weapon: null, armor: null }, state.player.gear);
+      const g = state.player.gear || {};
+      if (g.armor && !g.chest) g.chest = g.armor; // the old 'armor' slot is now 'chest'
+      delete g.armor;
+      state.player.gear = Object.assign(emptyGear(), g);
       return;
     }
   } catch (e) { /* ignore corrupt save */ }
@@ -51,8 +56,8 @@ function migrateTeamSave(saved) {
   const heroes = (saved.heroes || []).filter(h => HERO_BY_ID[h.id]);
   const rank = { L: 3, E: 2, R: 1 };
   const best = [...heroes].sort((a, b) => rank[HERO_BY_ID[b.id].rarity] - rank[HERO_BY_ID[a.id].rarity] || b.level - a.level)[0];
-  state.player = { skin: best ? best.id : 'tobin', style: 'strength', gear: { weapon: null, armor: null } };
-  for (const h of heroes) for (const s of GEAR_SLOTS) if (h[s]) addItem(h[s]);
+  state.player = { skin: best ? best.id : 'tobin', style: 'strength', gear: emptyGear() };
+  for (const h of heroes) for (const s of ['weapon', 'armor']) if (h[s]) addItem(h[s]);
   state.looks = Object.fromEntries([...new Set(['tobin', ...heroes.map(h => h.id)])].map(id => [id, 0]));
   delete state.heroes; delete state.team; delete state.nextUid;
 }
@@ -114,14 +119,26 @@ const atkSpeedBonus = l => Math.min(0.3, l * 0.003);
 const playerHitChance = (attackLvl, enemyLvl) => Math.min(0.98, Math.max(0.55, 0.82 + (attackLvl - enemyLvl) * 0.008));
 const enemyHitChance = (defenceLvl, enemyLvl) => Math.min(0.95, Math.max(0.45, 0.85 - (defenceLvl - enemyLvl) * 0.006));
 const gearItem = slot => (state.player.gear[slot] ? ITEMS[state.player.gear[slot]] : null);
+// A weapon made for another fighting style (blade / bow / staff) only gives half its damage.
+const weaponMatches = it => !it.wtype || it.wtype === state.player.ctype;
+function gearTotals() {
+  const t = { hp: 0, atk: 0, def: 0 };
+  for (const slot of GEAR_SLOTS) {
+    const it = gearItem(slot);
+    if (!it) continue;
+    t.hp += it.hp || 0; t.def += it.def || 0;
+    t.atk += (it.atk || 0) * (slot === 'weapon' && !weaponMatches(it) ? 0.5 : 1);
+  }
+  return t;
+}
 function playerStats(withPotion = false) {
   const a = skillLevel('attack'), s = skillLevel('strength'), d = skillLevel('defence'), h = skillLevel('hitpoints');
-  const sk = skinBonus(state.player.skin), w = gearItem('weapon'), ar = gearItem('armor');
+  const sk = skinBonus(state.player.skin), g = gearTotals();
   const pe = withPotion ? potionEffect() : {};
   const st = {
-    hp: (baseHp(h) + (ar ? ar.hp : 0)) * (1 + (sk.hp || 0)) * (1 + (pe.hp || 0)),
-    atk: (baseAtk(s) + (w ? w.atk : 0)) * (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)),
-    def: (baseDef(d) + (ar ? ar.def : 0)) * (1 + (sk.def || 0)) * (1 + (pe.def || 0)),
+    hp: (baseHp(h) + g.hp) * (1 + (sk.hp || 0)) * (1 + (pe.hp || 0)),
+    atk: (baseAtk(s) + g.atk) * (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)),
+    def: (baseDef(d) + g.def) * (1 + (sk.def || 0)) * (1 + (pe.def || 0)),
     spd: 100 * (1 + atkSpeedBonus(a)) * (1 + (sk.spd || 0)) * (1 + (pe.spd || 0)),
     accLvl: a, defLvl: d, regen: sk.regen || 0, ult: sk.ult || 0, energyMult: 1,
   };
@@ -291,7 +308,10 @@ function monsterUnit(areaIdx, monIdx) {
 function rollLoot(areaIdx, lvl) {
   const t = Math.min(4, areaIdx), loot = { gold: Math.round(lvl * (3 + Math.random() * 3)), items: {}, gems: 0 };
   if (Math.random() < 0.35) { const id = ['log', 'ore', 'fish', 'herb'][Math.floor(Math.random() * 4)] + t; loot.items[id] = 1 + Math.floor(Math.random() * 2); }
-  if (Math.random() < 0.015) loot.items[(Math.random() < 0.5 ? 'sword' : 'armor') + t] = 1;
+  if (Math.random() < 0.02) { // a rare piece of gear of the area's tier
+    const kinds = ['sword', 'bow', 'staff', 'helm', 'armor', 'legs', 'gloves', 'boots', 'kite', 'wshield'];
+    loot.items[kinds[Math.floor(Math.random() * kinds.length)] + t] = 1;
+  }
   if (Math.random() < 0.08) loot.gems = 1 + Math.floor(areaIdx / 2);
   return loot;
 }

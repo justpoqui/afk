@@ -17,14 +17,19 @@ const SKILLS = {
   mining:      { name: 'Mining',      icon: '⛏️', type: 'gather', verb: 'Mine' },
   fishing:     { name: 'Fishing',     icon: '🎣', type: 'gather', verb: 'Catch' },
   herbalism:   { name: 'Herbalism',   icon: '🌿', type: 'gather', verb: 'Gather' },
-  smithing:    { name: 'Smithing',    icon: '🔨', type: 'craft',  verb: 'Smith' },
-  cooking:     { name: 'Cooking',     icon: '🍳', type: 'craft',  verb: 'Cook' },
-  alchemy:     { name: 'Alchemy',     icon: '⚗️', type: 'craft',  verb: 'Brew' },
+  // Crafting: turn raw materials into gear
+  smithing:    { name: 'Smithing',     icon: '🔥', type: 'craft', group: 'crafting', verb: 'Smelt' },
+  metalworking:{ name: 'Metalworking', icon: '🔨', type: 'craft', group: 'crafting', verb: 'Forge' },
+  carpentry:   { name: 'Carpentry',    icon: '🪚', type: 'craft', group: 'crafting', verb: 'Craft' },
+  glassworking:{ name: 'Glassworking', icon: '🫙', type: 'craft', group: 'crafting', verb: 'Blow' },
+  // Cooking & brewing: consumables
+  cooking:     { name: 'Cooking',     icon: '🍳', type: 'craft', group: 'kitchen', verb: 'Cook' },
+  alchemy:     { name: 'Alchemy',     icon: '⚗️', type: 'craft', group: 'kitchen', verb: 'Brew' },
 };
 
 const ITEMS = {};
 const ACTIONS = {}; // keyed by output item id (each item has exactly one recipe)
-const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Weapons', 'Armor', 'Food', 'Potions', 'Misc'];
+const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Misc'];
 
 // Every item has a Blender-rendered icon at assets/items/<id>.webp (see art/blender/items.py).
 // New items, including future monster drops, need a model there too; run `node art/check-item-icons.js`.
@@ -63,22 +68,74 @@ const ARMOR_HP = [200, 500, 1100, 2200, 4200];
 const ARMOR_DEF = [10, 25, 55, 110, 210];
 const POTION_BATTLES = 5;
 
+// ---- Gear: seven equipment slots. Stats per tier scale off a chestplate / blade of that tier. ----
+const GEAR_SLOT_INFO = {
+  helmet: { name: 'Helmet', icon: '⛑️' }, chest: { name: 'Chest', icon: '👕' }, legs: { name: 'Legs', icon: '👖' },
+  gloves: { name: 'Gloves', icon: '🧤' }, boots: { name: 'Boots', icon: '👢' }, weapon: { name: 'Weapon', icon: '🗡️' },
+  shield: { name: 'Shield', icon: '🛡️' },
+};
+const WOODS = ['Pine', 'Birch', 'Emberwood', 'Silverbark', 'Elderheart'];
+const BOWS = ['Pine Shortbow', 'Birch Longbow', 'Emberwood Bow', 'Silverbark Bow', 'Elderheart Greatbow'];
+const ORBS = ['Verdant Orb', 'Sunfire Orb', 'Moonlight Orb', 'Dragonfire Orb', 'Starlight Orb'];
+// Metal armor pieces: [id prefix, name, slot, bars, level offset, hp share, def share, atk share of a blade]
+const METAL_PIECES = [
+  ['helm',   'Helmet',     'helmet', 2, 0, 0.3, 0.4, 0],
+  ['gloves', 'Gauntlets',  'gloves', 2, 3, 0,   0.2, 0.15],
+  ['boots',  'Boots',      'boots',  2, 4, 0.2, 0.3, 0],
+  ['kite',   'Kite Shield','shield', 4, 5, 0.2, 0.8, 0],
+  ['legs',   'Platelegs',  'legs',   4, 6, 0.6, 0.6, 0],
+  ['armor',  'Chestplate', 'chest',  5, 8, 1,   1,   0],
+];
+
+// Smelting is Smithing; bars become gear in Metalworking.
+const smelt = i => addAction_('smithing', 'bar' + i, { level: T_LEVEL[i], dur: 3, xp: Math.round(T_XP[i] * 1.5), inputs: { ['ore' + i]: 2, ['log' + i]: 1 }, group: 'Bars' });
+
+// Glassworking basics (sand is dug up with Mining)
+addItem_('sand', { name: 'Sand', icon: '⏳', tint: '#e2cf9a', cat: 'Glass', tier: 0, sell: 1 });
+addAction_('mining', 'sand', { level: 1, dur: 2.5, xp: 6 });
+addItem_('glass', { name: 'Molten Glass', icon: '🫧', tint: '#9fdcff', cat: 'Glass', tier: 0, sell: 6 });
+addAction_('glassworking', 'glass', { level: 1, dur: 3, xp: 12, inputs: { sand: 2, log0: 1 }, group: 'Glass' });
+addItem_('vial', { name: 'Glass Vial', icon: '🧪', tint: '#cfe8ff', cat: 'Glass', tier: 0, sell: 8 });
+addAction_('glassworking', 'vial', { level: 3, dur: 2.5, xp: 14, inputs: { glass: 1 }, group: 'Vials' });
+
 for (let i = 0; i < 5; i++) {
-  const t = TIER_TINT[i], cx = Math.round(T_XP[i] * 1.5);
-  addItem_('bar' + i, { name: METALS[i] + ' Bar', icon: '🧱', tint: t, cat: 'Bars', tier: i, sell: T_SELL[i] * 3 + 2 });
-  addAction_('smithing', 'bar' + i, { level: T_LEVEL[i], dur: 3, xp: cx, inputs: { ['ore' + i]: 2, ['log' + i]: 1 }, group: 'Bars' });
+  const t = TIER_TINT[i], cx = Math.round(T_XP[i] * 1.5), barSell = T_SELL[i] * 3 + 2;
+  addItem_('bar' + i, { name: METALS[i] + ' Bar', icon: '🧱', tint: t, cat: 'Bars', tier: i, sell: barSell });
+  smelt(i);
 
-  addItem_('sword' + i, { name: METALS[i] + ' Blade', icon: '🗡️', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', atk: SWORD_ATK[i], sell: (T_SELL[i] * 3 + 2) * 4 });
-  addAction_('smithing', 'sword' + i, { level: T_LEVEL[i] + 5, dur: 5, xp: cx * 3, inputs: { ['bar' + i]: 3 }, group: 'Weapons' });
+  // Metalworking: weapons (melee blades)
+  addItem_('sword' + i, { name: METALS[i] + ' Blade', icon: '🗡️', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'melee', atk: SWORD_ATK[i], sell: barSell * 4 });
+  addAction_('metalworking', 'sword' + i, { level: T_LEVEL[i] + 2, dur: 5, xp: cx * 3, inputs: { ['bar' + i]: 3 }, group: 'Weapons' });
+  // Metalworking: armor pieces
+  for (const [pre, name, slot, bars, lo, hpS, defS, atkS] of METAL_PIECES) {
+    const it = { name: `${METALS[i]} ${name}`, icon: GEAR_SLOT_INFO[slot].icon, tint: t, cat: slot === 'shield' ? 'Shields' : 'Armor', tier: i, slot, sell: barSell * (bars + 1) };
+    if (hpS) it.hp = Math.round(ARMOR_HP[i] * hpS);
+    if (defS) it.def = Math.round(ARMOR_DEF[i] * defS);
+    if (atkS) it.atk = Math.round(SWORD_ATK[i] * atkS);
+    addItem_(pre + i, it);
+    addAction_('metalworking', pre + i, { level: T_LEVEL[i] + lo, dur: 3 + bars * 0.6, xp: cx * bars, inputs: { ['bar' + i]: bars }, group: 'Armor' });
+  }
 
-  addItem_('armor' + i, { name: METALS[i] + ' Plate', icon: '🛡️', tint: t, cat: 'Armor', tier: i, slot: 'armor', hp: ARMOR_HP[i], def: ARMOR_DEF[i], sell: (T_SELL[i] * 3 + 2) * 6 });
-  addAction_('smithing', 'armor' + i, { level: T_LEVEL[i] + 8, dur: 6, xp: cx * 5, inputs: { ['bar' + i]: 5 }, group: 'Armor' });
+  // Carpentry: planks, bows (archery), staves (magic), wooden shields
+  addItem_('plank' + i, { name: WOODS[i] + ' Plank', icon: '🪵', tint: t, cat: 'Planks', tier: i, sell: T_SELL[i] * 3 });
+  addAction_('carpentry', 'plank' + i, { level: T_LEVEL[i], dur: 2.5, xp: Math.round(T_XP[i] * 1.2), inputs: { ['log' + i]: 2 }, group: 'Planks' });
+  addItem_('bow' + i, { name: BOWS[i], icon: '🏹', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'archery', atk: Math.round(SWORD_ATK[i] * 0.95), sell: T_SELL[i] * 12 });
+  addAction_('carpentry', 'bow' + i, { level: T_LEVEL[i] + 3, dur: 4.5, xp: Math.round(T_XP[i] * 3.6), inputs: { ['plank' + i]: 3 }, group: 'Weapons' });
+  addItem_('staff' + i, { name: WOODS[i] + ' Staff', icon: '🪄', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'magic', atk: Math.round(SWORD_ATK[i] * 0.95), sell: T_SELL[i] * 16 });
+  addAction_('carpentry', 'staff' + i, { level: T_LEVEL[i] + 6, dur: 5, xp: Math.round(T_XP[i] * 4.2), inputs: { ['plank' + i]: 2, ['orb' + i]: 1 }, group: 'Weapons' });
+  addItem_('wshield' + i, { name: WOODS[i] + ' Shield', icon: '🛡️', tint: t, cat: 'Shields', tier: i, slot: 'shield', hp: Math.round(ARMOR_HP[i] * 0.3), def: Math.round(ARMOR_DEF[i] * 0.5), sell: T_SELL[i] * 14 });
+  addAction_('carpentry', 'wshield' + i, { level: T_LEVEL[i] + 4, dur: 5, xp: Math.round(T_XP[i] * 4.4), inputs: { ['plank' + i]: 4 }, group: 'Shields' });
+
+  // Glassworking: magic orbs (glass infused with herbs), used for staves
+  addItem_('orb' + i, { name: ORBS[i], icon: '🔮', tint: t, cat: 'Orbs', tier: i, sell: T_SELL[i] * 8 });
+  addAction_('glassworking', 'orb' + i, { level: T_LEVEL[i] + 2, dur: 4, xp: Math.round(T_XP[i] * 2.6), inputs: { glass: 2, ['herb' + i]: 2 }, group: 'Orbs' });
 
   addItem_('food' + i, { name: FOOD[i][0], icon: FOOD[i][1], tint: t, cat: 'Food', tier: i, heal: FOOD_HEAL[i], sell: Math.round(T_SELL[i] * 1.6) });
   addAction_('cooking', 'food' + i, { level: T_LEVEL[i], dur: 2.5, xp: Math.round(T_XP[i] * 1.2), inputs: { ['fish' + i]: 1 } });
 
-  addItem_('pot' + i, { name: POTIONS[i][0], icon: '🧪', tint: t, cat: 'Potions', tier: i, effect: POTIONS[i][1], effectText: POTIONS[i][2], sell: T_SELL[i] * 6 });
-  addAction_('alchemy', 'pot' + i, { level: T_LEVEL[i], dur: 4, xp: T_XP[i] * 2, inputs: { ['herb' + i]: 3, ...POTION_SECOND[i] } });
+  // Potions are bottled in a Glass Vial from Glassworking
+  addItem_('pot' + i, { name: POTIONS[i][0], icon: '🧪', tint: t, cat: 'Potions', tier: i, effect: POTIONS[i][1], effectText: POTIONS[i][2], sell: T_SELL[i] * 6 + 8 });
+  addAction_('alchemy', 'pot' + i, { level: T_LEVEL[i], dur: 4, xp: T_XP[i] * 2, inputs: { ['herb' + i]: 3, vial: 1, ...POTION_SECOND[i] } });
 }
 
 // Stackable items share one inventory slot (everything else takes one slot per item).
