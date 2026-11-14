@@ -1,5 +1,9 @@
 // Pages, navigation, modals and battle flow.
-let page = 'camp';
+let page = 'home';
+let fightTab = 'campaign';
+let lookCat = 'all';
+let shopTab = 'upgrades';
+let hunt = null; // active hunting session
 let battle = null;
 let autoTimer = null;
 
@@ -21,11 +25,12 @@ const modalOpen = () => !$('#modal').classList.contains('hidden');
 // ---------------- Chrome: sidebar, top bar, active strip ----------------
 const skillNav = type => Object.entries(SKILLS).filter(([, s]) => s.type === type).map(([k, s]) => ['skill:' + k, s.icon, s.name]);
 const NAV = [
-  ['Adventure', [['camp', '🏕️', 'Camp'], ['character', '🧍', 'Character'], ['wardrobe', '🎲', 'Wardrobe']]],
-  ['Combat', skillNav('combat')],
+  ['Main', [['home', '🏠', 'Home'], ['fight', '⚔️', 'Fight'], ['shop', '🏪', 'Shop']]],
+  ['Character', [['sheet', '🧍', 'Character Sheet'], ['equipment', '🛡️', 'Equipment'], ['summon', '🎁', 'Summon Looks'], ['library', '📚', 'Look Library']]],
+  ['Combat Skills', skillNav('combat')],
   ['Gathering', skillNav('gather')],
   ['Crafting', skillNav('craft')],
-  ['General', [['inventory', '🎒', 'Inventory'], ['bank', '🏦', 'Bank'], ['tasks', '📋', 'Tasks']]],
+  ['General', [['inventory', '🎒', 'Inventory'], ['bank', '🏦', 'Bank'], ['tasks', '📋', 'Tasks'], ['quests', '📜', 'Quests'], ['skills', '🧠', 'All Skills']]],
 ];
 const pageTitle = () => {
   for (const [, items] of NAV) for (const [id, ic, name] of items) if (id === page) return `${ic} ${name}`;
@@ -41,11 +46,12 @@ function renderNav() {
       let right = '';
       if (id.startsWith('skill:')) right = `<span class="lvl">${skillLevel(id.slice(6))}<small>/${MAX_SKILL}</small></span>`;
       if (id === 'tasks' && claim) right = `<span class="badge">${claim}</span>`;
-      if (id === 'camp') right = `<span class="lvl">${stageLabel(state.stage)}</span>`;
-      if (id === 'character') right = `<span class="lvl">⚡${fmt(playerPower())}</span>`;
-      if (id === 'wardrobe' && state.scrolls) right = `<span class="lvl">📜${state.scrolls}</span>`;
+      if (id === 'fight') right = `<span class="lvl">${stageLabel(state.stage)}</span>`;
+      if (id === 'sheet') right = `<span class="lvl">Cb ${combatLevel()}</span>`;
+      if (id === 'library') right = `<span class="lvl">${Object.keys(state.looks).length}/${HEROES.length}</span>`;
+      if (id === 'quests' && QUESTS.some(questReady)) right = `<span class="badge">!</span>`;
       if (id === 'bank') right = `<span class="lvl">${Object.keys(state.bank).length}</span>`;
-      if (id === 'inventory') right = `<span class="lvl ${invFull() ? 'full' : ''}">${invUsed()}/${INV_SIZE}</span>`;
+      if (id === 'inventory') right = `<span class="lvl ${invFull() ? 'full' : ''}">${invUsed()}/${invSize()}</span>`;
       const running = id === 'skill:' + activeSkill;
       return `<button class="nav-item ${page === id ? 'on' : ''} ${running ? 'running' : ''}" data-page="${id}">
         <span class="ni">${ic}</span><span class="nn">${name}</span>${right}
@@ -64,7 +70,7 @@ function renderTop() {
     const a = ACTIONS[state.active.action];
     strip.classList.remove('hidden');
     strip.dataset.page = 'skill:' + a.skill;
-    strip.innerHTML = `<span>${SKILLS[a.skill].icon} ${a.name}</span><span class="muted">🎒 ${invUsed()}/${INV_SIZE}</span><i class="strip-prog"></i>`;
+    strip.innerHTML = `<span>${SKILLS[a.skill].icon} ${a.name}</span><span class="muted">🎒 ${invUsed()}/${invSize()}</span><i class="strip-prog"></i>`;
   } else if (invFull() && page !== 'inventory' && page !== 'bank') {
     strip.classList.remove('hidden');
     strip.dataset.page = 'inventory';
@@ -75,7 +81,7 @@ function renderTop() {
 // 28-slot inventory grid. Stackable items show their count.
 function invGrid(small = false) {
   const cells = [];
-  for (let i = 0; i < INV_SIZE; i++) {
+  for (let i = 0; i < invSize(); i++) {
     const x = state.inv[i];
     cells.push(x ? `<button class="inv-slot ${ITEMS[x.id].burnt ? 'burnt' : ''}" data-inv="${i}" style="--t:${ITEMS[x.id].tint}">${ITEMS[x.id].icon}${x.n > 1 ? `<span class="qty">${fmt(x.n)}</span>` : ''}</button>`
                  : '<div class="inv-slot empty"></div>');
@@ -83,7 +89,7 @@ function invGrid(small = false) {
   return `<div class="inv-grid ${small ? 'small' : ''}">${cells.join('')}</div>`;
 }
 function invBar() {
-  return `<div class="inv-bar ${invFull() ? 'is-full' : ''}"><span>🎒 Inventory <b>${invUsed()}/${INV_SIZE}</b>${invFull() ? ' · full!' : ''}</span>
+  return `<div class="inv-bar ${invFull() ? 'is-full' : ''}"><span>🎒 Inventory <b>${invUsed()}/${invSize()}</b>${invFull() ? ' · full!' : ''}</span>
     <button class="btn sm ghost" data-act="depositall">Deposit all</button><button class="btn sm ghost" data-page="inventory">Open</button></div>`;
 }
 
@@ -111,71 +117,93 @@ function lookCard(id, extra = '') {
 }
 
 // ---------------- Pages ----------------
+// Small helpers shared by several pages
+const tile = (pg, ic, name, sub, extra = '') => `<button class="tile ${extra}" data-page="${pg}"><span class="t-ic">${ic}</span><b>${name}</b><small>${sub}</small></button>`;
+const tabs = (cur, act, list) => `<div class="tabs">${list.map(([k, label]) => `<button class="${cur === k ? 'on' : ''}" data-act="${act}" data-k="${k}">${label}</button>`).join('')}</div>`;
+const diffClass = lvl => { const d = lvl - combatLevel(); return d <= -5 ? 'easy' : d <= 4 ? 'even' : 'hard'; };
+
 const pages = {
-  camp() {
+  home() {
     const p = pendingIdle(), r = idleRates();
-    const tp = playerPower(), sp = stagePower(state.stage);
-    const ratio = tp / sp;
-    const diff = ratio > 1.15 ? ['Easy', 'easy'] : ratio > 0.85 ? ['Even', 'even'] : ['Hard', 'hard'];
-    const rw = stageReward(state.stage);
+    const busy = state.active ? ACTIONS[state.active.action] : null;
+    const claim = claimableCount(), readyQ = QUESTS.filter(questReady).length;
     const ti = currentTierIndex();
     const nextTask = ti < TASK_TIERS.length ? TASK_TIERS[ti].tasks.find(t => !taskClaimed(t)) : null;
-    const busy = state.active ? SKILLS[ACTIONS[state.active.action].skill] : null;
     return `
-      ${nextTask ? `<button class="panel next-task" data-page="tasks">
-        <span class="nt-label">📋 Next task</span><span>${taskText(nextTask)}</span>
-        <span class="muted">${taskProgress(nextTask).map(fmt).join(' / ')}</span></button>` : ''}
-      <section class="panel">
-        <div class="chapter">Chapter ${chapterOf(state.stage)} · ${chapterName(state.stage)}</div>
+      <section class="panel home-head">
         <img class="camp-banner" src="assets/bg/camp.webp" alt="Your camp" draggable="false">
         <div class="idle-box">
-          <div class="idle-title">Idle Rewards <small>${fmtTime(p.ms)} / 12h</small></div>
+          <div class="idle-title">Idle Rewards <small>${fmtTime(p.ms)} / 12h · ${r.gold} 🪙/min · ${r.gemsPerHour} 💎/h</small></div>
           <div class="bar-track"><i style="width:${100 * p.ms / IDLE_CAP_MS}%"></i></div>
-          <div class="idle-loot">🪙 ${fmt(p.gold)} &nbsp; 💎 ${fmt(p.gems)}</div>
-          <div class="idle-rate">${r.gold} 🪙/min · ${r.gemsPerHour} 💎/h</div>
-          <button class="btn gold" data-act="claim">Collect</button>
+          <div class="row-btns"><div class="idle-loot">🪙 ${fmt(p.gold)} &nbsp; 💎 ${fmt(p.gems)}</div><button class="btn gold sm" data-act="claim">Collect</button></div>
         </div>
+        <div class="doing">${busy ? `Now: ${SKILLS[busy.skill].icon} <b>${busy.name}</b> · 🎒 ${invUsed()}/${invSize()}` : 'Idle: pick a skill or go fight.'}</div>
       </section>
+      <div class="tiles">
+        ${tile('fight', '⚔️', 'Fight', `Campaign ${stageLabel(state.stage)} · Hunting`)}
+        ${tile('skills', '🧠', 'Skills', `Total level ${totalSkillLevel()}`)}
+        ${tile('summon', '🎁', 'Summon Looks', `💎 ${fmt(state.gems)} · 📜 ${state.scrolls}`)}
+        ${tile('library', '📚', 'Look Library', `${Object.keys(state.looks).length} / ${HEROES.length} looks`)}
+        ${tile('tasks', '📋', 'Tasks', claim ? `${claim} to claim!` : nextTask ? taskText(nextTask) : 'All done', claim ? 'alert' : '')}
+        ${tile('quests', '📜', 'Quests', readyQ ? `${readyQ} ready to complete!` : `${QUESTS.filter(questDone).length} / ${QUESTS.length} done`, readyQ ? 'alert' : '')}
+        ${tile('bank', '🏦', 'Bank', `${Object.keys(state.bank).length} item types`)}
+        ${tile('inventory', '🎒', 'Inventory', `${invUsed()} / ${invSize()} slots`, invFull() ? 'alert' : '')}
+        ${tile('sheet', '🧍', 'Character Sheet', `Combat level ${combatLevel()}`)}
+        ${tile('equipment', '🛡️', 'Equipment', GEAR_SLOTS.map(sl => gearItem(sl) ? gearItem(sl).icon : '▫️').join(' ') + ` · 🍽️ ${foodCarried()}`)}
+        ${tile('shop', '🏪', 'Shop', 'Tools, backpacks, supplies')}
+      </div>
+      <div class="footer-links"><button class="link" data-act="reset">Reset save</button></div>`;
+  },
+
+  fight() {
+    const busy = state.active ? SKILLS[ACTIONS[state.active.action].skill] : null;
+    const warn = busy ? `<p class="warn">⚠️ Fighting stops ${busy.icon} ${busy.name}. You can do one thing at a time.</p>` : '';
+    const head = `${tabs(fightTab, 'fighttab', [['campaign', '🏟️ Campaign'], ['hunting', '🗺️ Hunting Grounds']])}
+      <div class="prep-line">Combat level <b>${combatLevel()}</b> · training <b>${SKILLS[state.player.style].icon} ${SKILLS[state.player.style].name}</b> + ❤️ · ${prepLine().replace(/<\/?div[^>]*>/g, '')}</div>${warn}`;
+    if (fightTab === 'hunting') {
+      return `${head}
+        <p class="hint">Fight one monster at a time, over and over. Your HP carries between kills, so carry food in your inventory. Loot goes to your inventory.</p>
+        ${AREAS.map((a, ai) => {
+          const lv = a.monsters.map(m => m[1]);
+          return `<section class="panel area"><div class="area-head"><span>${a.icon}</span><b>${a.name}</b><small>Lv ${Math.min(...lv)}–${Math.max(...lv)}</small></div>
+            ${a.monsters.map(([key, lvl], mi) => {
+              const m = monsterUnit(ai, mi);
+              return `<div class="mon-row"><span class="mon-art">${art(m, 'flip', true)}</span>
+                <div class="mon-info"><b>${m.name}</b><small>Lv <span class="lv ${diffClass(lvl)}">${lvl}</span> · ❤️ ${fmt(m.hp)} · ⚔️ ${fmt(m.atk)}${state.stats.mkills[key] ? ` · ☠ ${fmt(state.stats.mkills[key])}` : ''}</small></div>
+                <button class="btn sm" data-act="hunt" data-a="${ai}" data-m="${mi}">Fight</button></div>`;
+            }).join('')}</section>`;
+        }).join('')}`;
+    }
+    const tp = playerPower(), sp = stagePower(state.stage), ratio = tp / sp;
+    const diff = ratio > 1.15 ? ['Easy', 'easy'] : ratio > 0.85 ? ['Even', 'even'] : ['Hard', 'hard'];
+    const rw = stageReward(state.stage);
+    return `${head}
       <section class="panel stage-box">
+        <div class="chapter">Chapter ${chapterOf(state.stage)} · ${chapterName(state.stage)}</div>
         <div class="stage-title">${isBoss(state.stage) ? '👑 Boss ' : ''}Stage ${stageLabel(state.stage)}</div>
         <div class="vs-preview">
           <div class="enemy-preview">${stageEnemies(state.stage).filter(Boolean).map(e => `<span class="${e.boss ? 'big' : ''}">${art(e, 'flip', true)}</span>`).join('')}</div>
           <span class="vs">VS</span>
           <div class="enemy-preview"><span class="big">${art(skin(), '', true)}</span></div>
         </div>
-        <div class="power-cmp">
-          <div>Enemy power<b>${fmt(sp)}</b></div>
-          <div class="diff ${diff[1]}">${diff[0]}</div>
-          <div>Your power<b>${fmt(tp)}</b></div>
-        </div>
-        <div class="prep-line">Training: <b>${SKILLS[state.player.style].icon} ${SKILLS[state.player.style].name}</b> + ❤️ Hitpoints</div>
-        ${prepLine()}
+        <div class="power-cmp"><div>Enemy power<b>${fmt(sp)}</b></div><div class="diff ${diff[1]}">${diff[0]}</div><div>Your power<b>${fmt(tp)}</b></div></div>
         <div class="reward-line">Rewards: 🪙 ${fmt(rw.gold)} 💎 ${rw.gems}${rw.scrolls ? ' 📜 ' + rw.scrolls : ''} + combat XP</div>
-        ${busy ? `<p class="warn">⚠️ Fighting stops ${busy.icon} ${busy.name}. You can do one thing at a time.</p>` : ''}
         <button class="btn big" data-act="fight">⚔️ Battle</button>
-      </section>
-      <div class="footer-links"><button class="link" data-act="reset">Reset save</button></div>`;
+      </section>`;
   },
 
-  character() {
+  sheet() {
     const st = playerStats(), d = skin();
-    const interval = 120 / st.spd;
-    const gearSlot = slot => {
-      const it = gearItem(slot);
-      return `<button class="gear-slot" data-act="pickgear" data-slot="${slot}">
-        ${it ? icon(it.id, 'lg') : `<span class="ico lg empty">${slot === 'weapon' ? '🗡️' : '🛡️'}</span>`}
-        <div><b>${it ? it.name : slot === 'weapon' ? 'No weapon' : 'No armor'}</b><small>${it ? describeItem(it.id) : 'Tap to equip'}</small></div></button>`;
-    };
     return `
       <section class="panel">
         ${lookCard(d.id, 'big')}
-        <button class="btn ghost" data-page="wardrobe">🎲 Change look in the Wardrobe</button>
+        <button class="btn ghost" data-page="library">📚 Change look in the Library</button>
       </section>
       <section class="panel">
-        <div class="panel-title">Combat stats <span class="muted">· Power ${fmt(power(st))}</span></div>
+        <div class="panel-title">Combat level ${combatLevel()} <span class="muted">· Power ${fmt(power(st))}</span></div>
         <div class="stats">
           <div>❤️ Max HP<b>${fmt(st.hp)}</b></div><div>⚔️ Damage<b>${fmt(st.atk)}</b></div>
-          <div>🛡️ Defence<b>${fmt(st.def)}</b></div><div>💨 Attacks/s<b>${(1 / interval).toFixed(2)}</b></div>
+          <div>🛡️ Defence<b>${fmt(st.def)}</b></div><div>💨 Attacks/s<b>${(st.spd / 120).toFixed(2)}</b></div>
         </div>
       </section>
       <section class="panel">
@@ -190,38 +218,109 @@ const pages = {
             <div><div class="cs-top"><b>${SKILLS[k].name}</b><span>${b.lv}</span></div>
             <div class="bar-track sm xp"><i style="width:${b.pct}%"></i></div></div></button>`;
         }).join('')}</div>
-      </section>
-      <section class="panel">
-        <div class="panel-title">Equipment</div>
-        <div class="gear">${GEAR_SLOTS.map(gearSlot).join('')}</div>
-      </section>
-      <section class="panel">
-        <div class="panel-title">Battle preparation</div>
-        ${prepPanel()}
       </section>`;
   },
 
-  wardrobe() {
-    const cost = state.scrolls >= 1 ? '📜 1 scroll' : `💎 ${REROLL_GEMS}`;
+  equipment() {
+    const gearSlot = slot => {
+      const it = gearItem(slot);
+      return `<button class="gear-slot" data-act="pickgear" data-slot="${slot}">
+        ${it ? icon(it.id, 'lg') : `<span class="ico lg empty">${slot === 'weapon' ? '🗡️' : '🛡️'}</span>`}
+        <div><b>${it ? it.name : slot === 'weapon' ? 'No weapon' : 'No armor'}</b><small>${it ? describeItem(it.id) : 'Tap to equip'}</small></div></button>`;
+    };
+    const st = playerStats();
     return `
-      <section class="panel">
-        <div class="panel-title">Your look</div>
-        ${lookCard(state.player.skin, 'big')}
+      <section class="panel equip-doll">
+        <div class="doll-art">${art(skin())}</div>
+        <div class="gear">${GEAR_SLOTS.map(gearSlot).join('')}</div>
+        <div class="doll-stats">❤️ ${fmt(st.hp)} · ⚔️ ${fmt(st.atk)} · 🛡️ ${fmt(st.def)}</div>
       </section>
-      <section class="panel summon">
-        <div class="portal">🎲</div>
-        <h2>Reroll your look</h2>
-        <p class="muted">Each look gives its own bonus and special attack, on top of your weapon and armor.</p>
-        <p class="muted">Legendary ${RARITY.L.rate * 100}% · Epic ${RARITY.E.rate * 100}% · Rare ${RARITY.R.rate * 100}% · bonus ×${RARITY_BONUS.E} Epic, ×${RARITY_BONUS.L} Legendary</p>
-        <p class="pity">Legendary guaranteed within <b>${PITY_LIMIT - state.pity}</b> rerolls</p>
-        <button class="btn gold big" data-act="reroll">Reroll<small>${cost}</small></button>
-        <p class="hint">After each roll you choose whether to keep the new look or your current one.</p>
-      </section>
-      <div class="sub">Looks seen ${state.seenSkins.length} / ${HEROES.length}</div>
-      <div class="codex">${HEROES.map(d => {
-        const seen = state.seenSkins.includes(d.id);
-        return `<div class="codex-item r-${d.rarity} ${seen ? '' : 'locked'} ${d.id === state.player.skin ? 'current' : ''}" style="--c:${FACTIONS[d.faction].color}">${art(d)}</div>`;
+      <section class="panel"><div class="panel-title">Battle preparation</div>${prepPanel()}</section>
+      <section class="panel"><div class="panel-title">🎒 Inventory ${invUsed()}/${invSize()}</div>${invGrid(true)}</section>`;
+  },
+
+  summon() {
+    return `
+      <p class="hint">Spend 💎 gems on chests to unlock looks for your Library. Duplicates add a ★ (+${LOOK_STAR_BONUS * 100}% look bonus each, up to ★${MAX_LOOK_STARS}). A 📜 scroll pays for one Bronze spin.</p>
+      ${CHESTS.map(c => `<section class="panel chest chest-${c.id}">
+        <div class="chest-head"><span class="chest-ic">${c.icon}</span><div><b>${c.name}</b>
+          <small>${['L', 'E', 'R'].filter(r => c.odds[r]).map(r => `<span class="r-${r} odd">${RARITY[r].name} ${Math.round(c.odds[r] * 100)}%</span>`).join(' ')}</small></div></div>
+        <div class="row-btns">
+          <button class="btn" data-act="spin" data-c="${c.id}" data-n="1">Spin ×1<small>${c.id === 'bronze' && state.scrolls ? '📜 1' : '💎 ' + c.cost1}</small></button>
+          <button class="btn gold" data-act="spin" data-c="${c.id}" data-n="6">Spin ×6<small>💎 ${c.cost6}</small></button>
+        </div></section>`).join('')}`;
+  },
+
+  library() {
+    const cats = [['all', 'All'], ...Object.entries(CLASSES).map(([k, c]) => [k, c.name + 's'])];
+    const list = HEROES.filter(d => lookCat === 'all' || d.cls === lookCat)
+      .sort((a, b) => ownsLook(b.id) - ownsLook(a.id) || 'LER'.indexOf(a.rarity) - 'LER'.indexOf(b.rarity));
+    return `
+      <section class="panel"><div class="panel-title">Wearing</div>${lookCard(state.player.skin, 'big')}</section>
+      ${tabs(lookCat, 'lookcat', cats)}
+      <div class="sub">Owned ${Object.keys(state.looks).length} / ${HEROES.length} · tap an owned look to wear it</div>
+      <div class="lib-grid">${list.map(d => {
+        const own = ownsLook(d.id), cur = d.id === state.player.skin;
+        return `<button class="lib-card r-${d.rarity} ${own ? '' : 'locked'} ${cur ? 'current' : ''}" ${own ? `data-act="look" data-id="${d.id}"` : ''} style="--c:${FACTIONS[d.faction].color}">
+          <div class="lib-art">${art(d)}</div><b>${d.name.split(' ')[0]}</b>
+          <small>${own ? (lookStars(d.id) ? '★'.repeat(lookStars(d.id)) : RARITY[d.rarity].name) : '🔒 ' + RARITY[d.rarity].name}</small>
+          ${cur ? '<span class="wearing">Wearing</span>' : ''}</button>`;
       }).join('')}</div>`;
+  },
+
+  skills() {
+    const group = (title, type) => `<div class="sub">${title}</div><div class="skill-list">${Object.entries(SKILLS).filter(([, s]) => s.type === type).map(([k, sk]) => {
+      const b = xpBar(k), on = state.active && ACTIONS[state.active.action].skill === k;
+      return `<button class="skill-row ${on ? 'running' : ''}" data-page="skill:${k}"><span>${sk.icon}</span>
+        <div><div class="cs-top"><b>${sk.name}</b><span>${b.lv} / ${MAX_SKILL}</span></div><div class="bar-track sm xp"><i style="width:${b.pct}%"></i></div></div></button>`;
+    }).join('')}</div>`;
+    return `<div class="sub">Total level ${totalSkillLevel()}</div>${group('Combat', 'combat')}${group('Gathering', 'gather')}${group('Crafting', 'craft')}`;
+  },
+
+  shop() {
+    const head = `${tabs(shopTab, 'shoptab', [['upgrades', '🛠️ Upgrades'], ['supplies', '🧺 Supplies']])}<div class="sub">You have 🪙 ${fmt(state.gold)}</div>`;
+    if (shopTab === 'supplies') {
+      return `${head}<p class="hint">Purchases go to your bank.</p>
+        <div class="shop-list">${SHOP_STOCK.map(([id, price]) => `<div class="shop-row">${icon(id, 'lg')}
+          <div class="shop-info"><b>${ITEMS[id].name}</b><small>${describeItem(id) || ITEMS[id].cat} · 🪙 ${price} each</small></div>
+          <div class="shop-buy">${[1, 10, 100].map(q => `<button class="btn sm ${state.gold < price * q ? 'off' : ''}" data-act="buy" data-item="${id}" data-n="${q}">×${q}</button>`).join('')}</div></div>`).join('')}
+          <div class="shop-row"><span class="ico lg">💎</span><div class="shop-info"><b>${GEM_PACK.gems} Gems</b><small>For summoning looks</small></div>
+          <div class="shop-buy"><button class="btn sm gold ${state.gold < GEM_PACK.gold ? 'off' : ''}" data-act="buygems">🪙 ${fmt(GEM_PACK.gold)}</button></div></div></div>`;
+    }
+    const bp = state.upgrades.backpack;
+    return `${head}
+      <div class="shop-list">
+        <div class="shop-row"><span class="ico lg">🎒</span><div class="shop-info"><b>Backpack ${bp >= BACKPACK_COST.length ? '(max)' : `+4 slots (${bp + 1}/${BACKPACK_COST.length})`}</b>
+          <small>Inventory ${invSize()} slots</small></div>
+          ${bp < BACKPACK_COST.length ? `<button class="btn sm ${state.gold < BACKPACK_COST[bp] ? 'off' : 'gold'}" data-act="buypack">🪙 ${fmt(BACKPACK_COST[bp])}</button>` : '<span class="owned">✓</span>'}</div>
+        <div class="shop-row"><span class="ico lg">🦉</span><div class="shop-info"><b>Bank Courier</b>
+          <small>When your inventory fills while skilling, everything except food is sent to the bank, even offline.</small></div>
+          ${state.upgrades.courier ? '<span class="owned">✓ Hired</span>' : `<button class="btn sm ${state.gold < COURIER_COST ? 'off' : 'gold'}" data-act="buycourier">🪙 ${fmt(COURIER_COST)}</button>`}</div>
+      </div>
+      <div class="sub">Tools: each tier makes that skill ${TOOL_SPEED * 100}% faster</div>
+      <div class="shop-list">${Object.entries(TOOLS).map(([sk, names]) => {
+        const t = toolTier(sk), maxed = t >= 3;
+        return `<div class="shop-row"><span class="ico lg">${SKILLS[sk].icon}</span>
+          <div class="shop-info"><b>${maxed ? names[2] + ' (max)' : names[t]}</b>
+          <small>${t ? `Owned: ${names[t - 1]} (−${t * 10}%)` : 'No tool yet'}${maxed ? '' : ` · needs ${SKILLS[sk].name} ${TOOL_REQ[t]}`}</small></div>
+          ${maxed ? '<span class="owned">✓</span>' : `<button class="btn sm ${state.gold < TOOL_COST[t] || skillLevel(sk) < TOOL_REQ[t] ? 'off' : 'gold'}" data-act="buytool" data-skill="${sk}">🪙 ${fmt(TOOL_COST[t])}</button>`}</div>`;
+      }).join('')}</div>`;
+  },
+
+  quests() {
+    return QUESTS.map(q => {
+      const done = questDone(q), open = questUnlocked(q);
+      return `<section class="panel quest ${done ? 'done' : ''} ${open ? '' : 'locked'}">
+        <div class="quest-head"><span>${q.icon}</span><div><b>${q.name}</b><small>${done ? '✓ Completed' : open ? q.desc : '🔒 Complete the previous quest first'}</small></div></div>
+        ${open && !done ? q.steps.map(st => {
+          const [c, n] = questStep(st);
+          const label = st.t === 'deliver' ? `Deliver ${n} × ${ITEMS[st.id].icon} ${ITEMS[st.id].name}` : st.t === 'kill' ? `Defeat ${n} × ${monsterTemplate(st.id).name}` : `Reach ${SKILLS[st.skill].name} level ${n}`;
+          return `<div class="q-step ${c >= n ? 'ok' : ''}"><span>${c >= n ? '✓' : '•'} ${label}</span><small>${fmt(c)}/${fmt(n)}</small></div>`;
+        }).join('') : ''}
+        <div class="q-reward">Reward: ${questRewardText(q.r)}</div>
+        ${questReady(q) ? `<button class="btn gold" data-act="quest" data-id="${q.id}">Complete quest${q.steps.some(st => st.t === 'deliver') ? ' (hands over the items)' : ''}</button>` : ''}
+      </section>`;
+    }).join('');
   },
 
   skill(id) {
@@ -249,7 +348,7 @@ const pages = {
           ${id === 'hitpoints' ? '<p class="muted">Trained automatically by every fight.</p>'
             : state.player.style === id ? `<p class="good">✓ You are training ${sk.name} (${STYLES[id]} style).</p>`
             : `<button class="btn" data-act="style" data-style="${id}">Train ${sk.name} (${STYLES[id]} style)</button>`}
-          <button class="btn ghost" data-page="camp">⚔️ Go fight</button></section>`;
+          <button class="btn ghost" data-page="fight">⚔️ Go fight</button></section>`;
     }
     const acts = Object.values(ACTIONS).filter(a => a.skill === id);
     const groups = [...new Set(acts.map(a => a.group))];
@@ -263,7 +362,7 @@ const pages = {
   bank() {
     const ids = Object.keys(state.bank);
     const value = ids.reduce((s, id) => s + ITEMS[id].sell * state.bank[id], 0);
-    const top = `<section class="panel"><div class="panel-title">🎒 Inventory ${invUsed()}/${INV_SIZE}</div>${invGrid(true)}
+    const top = `<section class="panel"><div class="panel-title">🎒 Inventory ${invUsed()}/${invSize()}</div>${invGrid(true)}
       <div class="row-btns"><button class="btn ghost" data-act="depositall">Deposit all</button><button class="btn ghost" data-act="depositkeep">Deposit all but food</button></div></section>`;
     if (!ids.length) return `${top}<section class="panel center"><div class="big-emoji">🏦</div><p class="muted">Your bank is empty. Train a gathering skill to collect materials.</p></section>`;
     return `${top}
@@ -279,7 +378,7 @@ const pages = {
   inventory() {
     return `
       <section class="panel">
-        <div class="panel-title">🎒 Inventory <span class="muted">· ${invUsed()}/${INV_SIZE} slots</span></div>
+        <div class="panel-title">🎒 Inventory <span class="muted">· ${invUsed()}/${invSize()} slots</span></div>
         ${invGrid()}
         <div class="row-btns"><button class="btn ghost" data-act="depositall">Deposit all</button><button class="btn ghost" data-act="depositkeep">Deposit all but food</button></div>
         <p class="hint">Each item takes one slot. Only the bank stacks items, except stackables like 🍖 Burnt Food. Skill actions stop when your inventory is full. Food you carry here is what you eat in battle.</p>
@@ -319,7 +418,7 @@ function actCard(a) {
   const inputs = Object.entries(a.inputs);
   return `<button class="act-card ${locked ? 'locked' : ''} ${active ? 'active' : ''}" data-action="${a.id}">
     <div class="ac-top">${icon(a.id, 'lg')}<div><div class="ac-name">${a.name}</div>
-      <div class="ac-meta">⏱ ${a.dur}s · +${a.xp} XP</div></div></div>
+      <div class="ac-meta">⏱ ${actionDur(a)}s · +${a.xp} XP</div></div></div>
     ${inputs.length ? `<div class="ac-inputs">${inputs.map(([id, n]) =>
       `<span class="${haveCount(id) < n ? 'lack' : ''}">${icon(id, 'sm')} ${n}<small>(${fmt(haveCount(id))})</small></span>`).join('')}</div>` : ''}
     ${describeItem(a.id) ? `<div class="ac-desc">${describeItem(a.id)}</div>` : ''}
@@ -421,15 +520,19 @@ function showItem(id, from = 'bank') {
       <button class="btn ghost" data-act="sell" data-from="${from}" data-item="${id}" data-n="${n}">Sell all (🪙 ${fmt(it.sell * n)})</button></div>`);
 }
 
-function showReroll() {
-  const id = state.pendingSkin;
-  if (!id) return;
-  openModal(`<h2 class="center">New look!</h2>
-    <div class="reroll-new">${lookCard(id, 'big reveal')}</div>
-    <div class="sub">Your current look</div>
-    ${lookCard(state.player.skin, 'small')}
-    <div class="row-btns"><button class="btn ghost" data-act="keepold">Keep current</button>
-      <button class="btn gold" data-act="keepnew">Use new look</button></div>`);
+function showSpin(results) {
+  openModal(`<h2 class="center">Chest opened!</h2>
+    <div class="summon-results ${results.length === 1 ? 'one' : ''}">${results.map((r, i) => {
+      const d = HERO_BY_ID[r.id];
+      return `<div class="sr r-${d.rarity}" style="animation-delay:${i * 110}ms;--c:${FACTIONS[d.faction].color}">
+        <div class="hc-art">${art(d)}</div><div class="hc-name">${d.name.split(' ')[0]}</div><div class="sr-note">${r.note}</div></div>`;
+    }).join('')}</div>
+    <div class="row-btns"><button class="btn ghost" data-act="close">OK</button><button class="btn" data-act="golib">Open Library</button></div>`);
+}
+function showLook(id) {
+  openModal(`<button class="close" data-act="close">✕</button>${lookCard(id, 'big')}
+    <p class="muted">${lookStars(id) ? `★${lookStars(id)}: bonus +${lookStars(id) * LOOK_STAR_BONUS * 100}%` : 'Get duplicates from chests to add stars.'}</p>
+    ${id === state.player.skin ? '<p class="good center">✓ You are wearing this look</p>' : `<button class="btn gold" data-act="wear" data-id="${id}">Wear this look</button>`}`);
 }
 
 // ---------------- Skilling loop ----------------
@@ -453,37 +556,114 @@ function onSkillTick(sum, offline) {
 const autoOn = () => localGet('auto') === '1';
 function renderAutoBtn() { $('#btn-auto').classList.toggle('on', autoOn()); }
 
-function startBattle() {
-  clearTimeout(autoTimer);
-  // One activity at a time: fighting stops any running skill.
-  if (state.active) {
-    const sk = SKILLS[ACTIONS[state.active.action].skill];
-    processSkilling();
-    state.active = null; save();
-    toast(`Stopped ${sk.icon} ${sk.name} to fight`);
-  }
+// One activity at a time: fighting stops any running skill.
+function stopSkillForFight() {
+  if (!state.active) return;
+  const sk = SKILLS[ACTIONS[state.active.action].skill];
+  processSkilling();
+  state.active = null; save();
+  toast(`Stopped ${sk.icon} ${sk.name} to fight`);
+}
+function openBattleScreen(title, bg) {
   closeModal();
-  const stage = state.stage;
-  $('#battle-title').textContent = `${isBoss(stage) ? '👑 ' : ''}Stage ${stageLabel(stage)}`;
-  $('#battle-info').innerHTML = prepLine();
-  $('#battle').style.setProperty('--bg', `url(${battleBg(stage)})`);
+  $('#battle-title').textContent = title;
+  $('#battle').style.setProperty('--bg', `url(${bg})`);
   $('#battle').classList.remove('hidden');
-  const b = new Battle(playerBattleUnit(), stageEnemies(stage), win => { if (battle === b) endBattle(b, win, stage); });
-  battle = b;
-  battle.speed = Number(localGet('speed') || 1);
-  $('#btn-speed').textContent = battle.speed + 'x';
+  $('#btn-speed').textContent = (Number(localGet('speed') || 1)) + 'x';
+  $('#btn-auto').classList.toggle('hidden', !!hunt);
   renderAutoBtn();
-  battle.mount();
+}
+function runBattle(b) {
+  battle = b;
+  b.speed = Number(localGet('speed') || 1);
+  b.mount();
   let last = performance.now();
   const loop = now => {
-    if (!battle || battle.over) return;
-    let dt = Math.min(0.1, (now - last) / 1000) * battle.speed;
+    if (battle !== b || b.over) return;
+    let dt = Math.min(0.1, (now - last) / 1000) * b.speed;
     last = now;
-    while (dt > 0) { const s = Math.min(dt, 0.05); battle.step(s); dt -= s; }
-    battle.render();
+    while (dt > 0) { const st = Math.min(dt, 0.05); b.step(st); dt -= st; }
+    b.render();
+    if (hunt) huntHud();
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
+}
+
+function startBattle() {
+  clearTimeout(autoTimer);
+  if (hunt) return;
+  stopSkillForFight();
+  const stage = state.stage;
+  openBattleScreen(`${isBoss(stage) ? '👑 ' : ''}Stage ${stageLabel(stage)}`, battleBg(stage));
+  $('#battle-info').innerHTML = prepLine();
+  const b = new Battle(playerBattleUnit(), stageEnemies(stage), win => { if (battle === b) endBattle(b, win, stage); });
+  runBattle(b);
+}
+
+// ---- Hunting: one monster at a time, on repeat, HP carried between kills ----
+function startHunt(ai, mi) {
+  stopSkillForFight();
+  const [, lvl] = AREAS[ai].monsters[mi];
+  hunt = { ai, mi, kills: 0, gold: 0, gems: 0, items: {}, lost: 0, xp: 0, hpXp: 0, ups: {}, hp: null, energy: 0, style: state.player.style };
+  const m = monsterUnit(ai, mi);
+  openBattleScreen(`${AREAS[ai].icon} ${m.name} · Lv ${lvl}`, `assets/bg/battle_ch${AREAS[ai].ch}.webp`);
+  nextHuntFight(true);
+}
+function nextHuntFight(first = false) {
+  if (!hunt) return;
+  const p = playerBattleUnit();
+  if (hunt.hp != null) { p.startHp = hunt.hp; p.startEnergy = hunt.energy; }
+  const b = new Battle(p, [monsterUnit(hunt.ai, hunt.mi)], win => { if (battle === b) huntFightEnd(b, win); }, { hunt: true, cont: !first });
+  runBattle(b);
+  huntHud();
+}
+function huntHud() {
+  if (!hunt) return;
+  $('#battle-timer').textContent = '☠ ' + hunt.kills;
+  $('#battle-info').innerHTML = `<div class="prep-line">🪙 ${fmt(hunt.gold)}${hunt.gems ? ` · 💎 ${hunt.gems}` : ''} · loot ${Object.values(hunt.items).reduce((a, b) => a + b, 0)} · 🍽️ ${foodCarried()} food · 🎒 ${invUsed()}/${invSize()}</div>`;
+}
+function bankHuntXp(b) {
+  const xp = grantCombatXp(b.dealt);
+  hunt.xp += xp.xp; hunt.hpXp += xp.hpXp;
+  for (const [k, l] of xp.ups) { hunt.ups[k] = l; toast(`${SKILLS[k].icon} ${SKILLS[k].name} level ${l}!`); }
+}
+function huntFightEnd(b, win) {
+  battle = null;
+  bankHuntXp(b);
+  if (!win) { endHunt(true); return; }
+  hunt.kills++; state.stats.kills++;
+  const lvl = AREAS[hunt.ai].monsters[hunt.mi][1], loot = rollLoot(hunt.ai, lvl);
+  state.gold += loot.gold; hunt.gold += loot.gold;
+  state.gems += loot.gems; hunt.gems += loot.gems;
+  for (const [id, n] of Object.entries(loot.items)) {
+    let k = invAdd(id, n);
+    if (k < n && state.upgrades.courier) { depositAll(true); k += invAdd(id, n - k); }
+    hunt.items[id] = (hunt.items[id] || 0) + k;
+    hunt.lost += n - k;
+  }
+  hunt.hp = b.player.hp; hunt.energy = b.player.energy;
+  save();
+  setTimeout(() => nextHuntFight(), 250);
+}
+function endHunt(died) {
+  const h = hunt;
+  hunt = null;
+  battle = null;
+  if (state.potion && --state.potion.battles <= 0) state.potion = null;
+  save();
+  $('#battle').classList.add('hidden');
+  render();
+  const m = monsterTemplate(AREAS[h.ai].monsters[h.mi][0]);
+  openModal(`<div class="result ${died ? 'lose' : 'win'}"><h2>${died ? 'You were defeated' : 'Hunt over'}</h2>
+    <div class="big-emoji">${died ? '💀' : '🏹'}</div>
+    <p><b>${h.kills}</b> × ${m.name} defeated</p>
+    <p>🪙 ${fmt(h.gold)}${h.gems ? ` &nbsp; 💎 ${h.gems}` : ''}</p>
+    <div class="loot">${Object.entries(h.items).filter(([, n]) => n).map(([id, n]) => `<span>${icon(id)} +${n} ${ITEMS[id].name}</span>`).join('')}</div>
+    ${h.lost ? `<p class="warn">🎒 ${h.lost} drops were lost because your inventory was full.</p>` : ''}
+    <p class="xp-line">${SKILLS[h.style].icon} +${fmt(h.xp)} ${SKILLS[h.style].name} XP · ❤️ +${fmt(h.hpXp)} Hitpoints XP</p>
+    ${Object.entries(h.ups).map(([k, l]) => `<div class="lvl-up">${SKILLS[k].icon} ${SKILLS[k].name} is now level ${l}!</div>`).join('')}
+    <div class="row-btns"><button class="btn ghost" data-act="close">Done</button><button class="btn" data-act="hunt" data-a="${h.ai}" data-m="${h.mi}">Fight again</button></div></div>`);
 }
 
 function endBattle(b, win, stage) {
@@ -515,7 +695,7 @@ function endBattle(b, win, stage) {
     openModal(`<div class="result lose"><h2>Defeat</h2><div class="big-emoji">💀</div>
       <p class="xp-line">${xpLine}</p>${ups}
       <p class="muted">Tips: train Strength, Defence and Hitpoints, forge a better weapon and armor, cook food, brew potions, or reroll your look for a stronger bonus.</p>
-      <div class="row-btns"><button class="btn ghost" data-act="gochar">Character</button><button class="btn" data-act="fightnow">Retry</button></div></div>`);
+      <div class="row-btns"><button class="btn ghost" data-act="gochar">Equipment</button><button class="btn" data-act="fightnow">Retry</button></div></div>`);
   }
 }
 
@@ -549,7 +729,21 @@ document.addEventListener('click', e => {
     switch (d.act) {
       case 'claim': { const p = claimIdle(); toast(`Collected 🪙${fmt(p.gold)} 💎${p.gems}`); render(); break; }
       case 'fight': case 'fightnow': startBattle(); break;
-      case 'gochar': closeModal(); go('character'); break;
+      case 'gochar': closeModal(); go('equipment'); break;
+      case 'golib': closeModal(); go('library'); break;
+      case 'hunt': closeModal(); startHunt(Number(d.a), Number(d.m)); break;
+      case 'fighttab': fightTab = d.k; render(); break;
+      case 'lookcat': lookCat = d.k; render(); break;
+      case 'shoptab': shopTab = d.k; render(); break;
+      case 'spin': { const r = spinChest(d.c, Number(d.n)); if (r) { render(); showSpin(r); } else toast('Not enough 💎 gems'); break; }
+      case 'look': showLook(d.id); break;
+      case 'wear': wearLook(d.id); closeModal(); render(); toast(`Now wearing ${skin().name}`); break;
+      case 'buy': if (buyItem(d.item, Number(d.n))) { render(); toast(`Bought ${d.n} × ${ITEMS[d.item].name} (sent to bank)`); } else toast('Not enough gold'); break;
+      case 'buygems': if (buyGems()) { render(); toast(`+${GEM_PACK.gems} 💎`); } else toast('Not enough gold'); break;
+      case 'buypack': if (buyBackpack()) { render(); toast(`🎒 Inventory is now ${invSize()} slots`); } else toast('Not enough gold'); break;
+      case 'buycourier': if (buyCourier()) { render(); toast('🦉 The Bank Courier is hired!'); } else toast('Not enough gold'); break;
+      case 'buytool': if (buyTool(d.skill)) { render(); toast(`${SKILLS[d.skill].icon} ${TOOLS[d.skill][toolTier(d.skill) - 1]} bought!`); } else toast('Need more gold or a higher skill level'); break;
+      case 'quest': { const q = QUESTS.find(x => x.id === d.id); if (completeQuest(q)) { render(); toast(`📜 Quest complete! ${questRewardText(q.r)}`); } break; }
       case 'gosmith': closeModal(); go('skill:smithing'); break;
       case 'close': closeModal(); break;
       case 'style': state.player.style = d.style; save(); render(); toast(`Now training ${SKILLS[d.style].icon} ${SKILLS[d.style].name}`); break;
@@ -566,16 +760,13 @@ document.addEventListener('click', e => {
       case 'depositall': depositAll(false); render(); toast('Deposited everything in the bank'); break;
       case 'depositkeep': depositAll(true); render(); toast('Deposited everything except food'); break;
       case 'fillfood': { const k = withdraw(state.provision, invFree()); render(); toast(`Packed ${k} × ${ITEMS[state.provision].name}`); break; }
-      case 'reroll': if (rerollSkin()) { render(); showReroll(); } else toast(`Need a 📜 scroll or 💎 ${REROLL_GEMS}`); break;
-      case 'keepnew': resolveReroll(true); closeModal(); render(); toast(`New look: ${skin().name}`); break;
-      case 'keepold': resolveReroll(false); closeModal(); render(); break;
       case 'claimtask': { const task = TASK_TIERS.flatMap(x => x.tasks).find(x => x.key === d.key); if (claimTask(task)) toast('Reward: ' + rewardText(task.r)); render(); break; }
       case 'claimtier': { const ti = Number(d.tier); if (claimTier(ti)) toast(`Tier complete! ${rewardText(TASK_TIERS[ti].reward)}`); render(); break; }
-      case 'reset': if (confirm('Delete your save and start over?')) { resetSave(); go('camp'); } break;
+      case 'reset': if (confirm('Delete your save and start over?')) { resetSave(); go('home'); } break;
     }
     return;
   }
-  if (t.id === 'modal' && !state.pendingSkin) closeModal();
+  if (t.id === 'modal') closeModal();
 });
 
 $('#btn-speed').addEventListener('click', () => {
@@ -592,6 +783,12 @@ $('#btn-auto').addEventListener('click', () => {
 });
 $('#btn-retreat').addEventListener('click', () => {
   // Leave the fight: stop auto and go back to camp (no rewards, XP still counts).
+  if (hunt) {
+    const b = battle;
+    if (b && !b.over) { b.over = true; bankHuntXp(b); }
+    endHunt(false);
+    return;
+  }
   localSet('auto', '0');
   clearTimeout(autoTimer);
   if (battle && !battle.over) { battle.over = true; const b = battle; battle = null; grantCombatXp(b.dealt); save(); }
@@ -605,17 +802,16 @@ load();
 const offline = processSkilling();
 render();
 onSkillTick(offline, true);
-if (state.pendingSkin) showReroll();
 setInterval(() => { onSkillTick(processSkilling(), false); tickBars(); }, 100);
 setInterval(() => {
-  if (page === 'camp' && !modalOpen() && !battle) render(); else renderTop();
+  if (page === 'home' && !modalOpen() && !battle) render(); else renderTop();
 }, 1000);
 
 // Android back button: close whatever is open first; return false to let the app exit.
 window.handleBack = function () {
   if (battle || !$('#battle').classList.contains('hidden')) { $('#btn-retreat').click(); return true; }
-  if (modalOpen()) { if (!state.pendingSkin) closeModal(); return true; }
+  if (modalOpen()) { closeModal(); return true; }
   if (document.body.classList.contains('nav-open')) { document.body.classList.remove('nav-open'); return true; }
-  if (page !== 'camp') { go('camp'); return true; }
+  if (page !== 'home') { go('home'); return true; }
   return false;
 };

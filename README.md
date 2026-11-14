@@ -34,6 +34,9 @@ blender -b -P art/blender/sprites.py        # same thing with a Blender install
 Rendering uses Cycles on the CPU, so no GPU is needed. Sprites take about 1s each, backgrounds 30–60s each.
 
 ## Features
+### Home hub
+The game opens on **Home**: idle rewards, what you're doing right now, and tiles for **Fight, Skills, Summon Looks, Look Library, Tasks, Quests, Bank, Inventory, Character Sheet, Equipment, Shop**. The sidebar has the same sections.
+
 ### One character, Melvor-style
 - You play **one character**. Its stats come from four **combat skills**, plus gear and its look:
   - 🎯 **Attack**: hit chance and attack speed
@@ -42,8 +45,29 @@ Rendering uses Cycles on the CPU, so no GPU is needed. Sprites take about 1s eac
   - ❤️ **Hitpoints**: max HP (starts at level 10)
 - Damage you deal in battle becomes combat XP. Your **attack style** (Accurate, Aggressive or Defensive) picks which skill gets it, and Hitpoints always gets a third.
 - **One activity at a time**: fighting stops any running skill action, just like starting another skill would.
-- **Wardrobe**: spend a 📜 scroll (or 💎 150) to **reroll your look**, chosen from 24 designs. Each look gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear, and brings its own special attack. You choose whether to keep the new look, and a Legendary is guaranteed within 30 rerolls.
+- **Looks**: open **chests** with 💎 to unlock looks into your **Look Library** (24 looks, filtered by class: Tanks, Warriors, Rangers, Mages, Supports). Wear any look you own. Each gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear, plus its own special attack. Duplicates add ★ (+15% bonus each, up to ★5).
+
+  | Chest | ×1 | ×6 | Odds |
+  |---|---|---|---|
+  | 🥉 Bronze | 💎 20 (or a 📜 scroll) | 💎 100 | Rare 85%, Epic 13%, Legendary 2% |
+  | 🥈 Silver | 💎 40 | 💎 200 | Rare 40%, Epic 50%, Legendary 10% |
+  | 🥇 Gold | 💎 80 | 💎 400 | Epic 70%, Legendary 30% |
 - **Equipment** slots (weapon, armor; built to take more slots later), **food** carried in your inventory, eaten automatically below 45% HP (one tap fills your free slots from the bank), and **potions** for 5 battles.
+
+### Hunting grounds (Fight → Hunting Grounds)
+- Melvor-style **1v1 monster hunting** on repeat across 6 areas, from Mistvale Meadows (Lv 2–9) to the Boss Lairs (Lv 70–99). Levels are colored against your combat level.
+- HP carries over between kills, and you eat food from your inventory. Each kill gives gold, a chance at area-tier materials, rare gear and gems, plus combat XP.
+- Kills count toward quests. Retreating or falling shows a session summary.
+
+### Shop
+- **Tools** for every gathering and crafting skill (3 tiers, each 10% faster), **Backpacks** (+4 inventory slots, 5 tiers), and the **Bank Courier** (auto-deposits everything but food when your inventory fills, offline too).
+- **Supplies**: bread, cooked food, potions and tier 1–2 materials (sent to the bank), plus gem packs for gold.
+
+### Quests
+- 7 story quests that unlock in order: deliver items, defeat monsters, reach levels. Rewards include gold, gems, gear and extra inventory slots.
+
+### XP curve
+- Early levels are cheap and each level costs about 7% more than the last (the cost doubles every 10 levels). **87 → 97 costs as much as 1 → 87, and 97 → 99 costs as much as 1 → 97.** Level 10 needs 1,164 XP, 87 needs 520k, 99 needs 2.08M.
 
 ### Skills (sidebar)
 - **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers, up to level 99.

@@ -12,7 +12,10 @@ const SPOTS = {
 
 class Battle {
   // One player character (from playerBattleUnit) against a group of enemies.
-  constructor(player, enemySlots, onEnd) {
+  // opts.hunt: endless 1v1 hunting (no time limit, HP carried over between kills via player.startHp).
+  constructor(player, enemySlots, onEnd, opts = {}) {
+    this.hunt = !!opts.hunt;
+    this.cont = !!opts.cont;
     this.units = [];
     this.onEnd = onEnd;
     this.time = 0;
@@ -26,7 +29,8 @@ class Battle {
   }
 
   makeUnit(side, slot, d) {
-    return { ...d, side, slot, row: slot < 2 ? 'front' : 'back', maxHp: d.hp, hp: d.hp, shownHp: d.hp, energy: 0,
+    const hp = d.startHp != null ? Math.min(d.hp, d.startHp) : d.hp;
+    return { ...d, side, slot, row: slot < 2 ? 'front' : 'back', maxHp: d.hp, hp, shownHp: hp, energy: d.startEnergy || 0,
       timer: Math.random() * 0.5, eatCd: 0, stun: 0, shield: 0, buff: 0, buffT: 0, el: null };
   }
 
@@ -67,7 +71,10 @@ class Battle {
     tgt.shield -= absorbed;
     const lost = Math.min(tgt.hp, dmg - absorbed);
     tgt.hp -= lost;
-    if (src.side === 'ally') { this.dealt += lost; if (tgt.hp <= 0) this.kills++; }
+    if (src.side === 'ally') {
+      this.dealt += lost;
+      if (tgt.hp <= 0) { this.kills++; if (tgt.key) state.stats.mkills[tgt.key] = (state.stats.mkills[tgt.key] || 0) + 1; }
+    }
     tgt.energy = Math.min(100, tgt.energy + 8);
     this.later(delay, () => {
       tgt.shownHp = tgt.hp;
@@ -162,14 +169,14 @@ class Battle {
       if (!this.alive('ally').length || !this.alive('enemy').length) break;
     }
     const allyLeft = this.alive('ally').length, enemyLeft = this.alive('enemy').length;
-    if (!enemyLeft || !allyLeft || this.time >= BATTLE_TIME) {
+    if (!enemyLeft || !allyLeft || (!this.hunt && this.time >= BATTLE_TIME)) {
       this.over = true;
-      if (state.potion && --state.potion.battles <= 0) state.potion = null;
+      if (!this.hunt && state.potion && --state.potion.battles <= 0) state.potion = null;
       setTimeout(() => {
         this.units.forEach(x => { x.shownHp = x.hp; });
         this.render();
       }, this.silent ? 0 : PROJ_MS / this.speed);
-      setTimeout(() => this.onEnd(enemyLeft === 0 && allyLeft > 0), this.silent ? 300 : 1300);
+      setTimeout(() => this.onEnd(enemyLeft === 0 && allyLeft > 0), this.silent ? 300 : (this.hunt && allyLeft ? 650 : 1300));
     }
   }
 
@@ -242,7 +249,7 @@ class Battle {
     // Fill each column top-to-bottom in slot order so formations look the same every time.
     for (const u of [...this.units].sort((a, b) => a.slot - b.slot)) {
       const el = document.createElement('div');
-      el.className = `unit enter ${u.side} ${u.row}` + (u.boss ? ' boss' : '') + (u.hero ? ' hero' : '') + (u.range === 'melee' ? ' melee' : ' ranged');
+      el.className = `unit ${this.cont && u.side === 'ally' ? '' : 'enter'} ${u.side} ${u.row}` + (u.boss ? ' boss' : '') + (u.hero ? ' hero' : '') + (u.range === 'melee' ? ' melee' : ' ranged');
       // Side-on arena: everyone stands on the floor in a line; units further back sit slightly higher.
       const p = SPOTS[u.side][u.boss ? 'boss' : u.slot];
       el.style.left = p[0] + '%';
@@ -277,7 +284,7 @@ class Battle {
         (u.stun > 0 ? `<span title="Stunned">💫<small>${Math.ceil(u.stun)}</small></span>` : '');
       if (st !== u._st) { u.el.querySelector('.u-status').innerHTML = st; u._st = st; }
     }
-    document.getElementById('battle-timer').textContent = Math.max(0, Math.ceil(BATTLE_TIME - this.time));
+    if (!this.hunt) document.getElementById('battle-timer').textContent = Math.max(0, Math.ceil(BATTLE_TIME - this.time));
   }
 
   fx(u, cls) {

@@ -1,13 +1,30 @@
 // Skilling engine (real-time + offline), XP curve and the task chain.
 const MAX_SKILL = 99;
-const xpForLevel = L => (L <= 1 ? 0 : Math.floor(60 * Math.pow(L - 1, 2.3) + 40 * (L - 1)));
-function levelFromXp(xp) { let L = 1; while (L < MAX_SKILL && xp >= xpForLevel(L + 1)) L++; return L; }
+// XP curve: cheap early levels that gather momentum (each level ~7% pricier than the last, so the
+// cost doubles every 10 levels). 87 → 97 costs as much as 1 → 87, and 97 → 99 costs as much as 1 → 97.
+const XP_BASE = 90, XP_GROWTH = Math.pow(2, 0.1);
+const XP_TABLE = (() => {
+  const t = [0, 0];
+  for (let L = 2; L <= 97; L++) t[L] = Math.round(XP_BASE * XP_GROWTH * (Math.pow(XP_GROWTH, L - 1) - 1) / (XP_GROWTH - 1));
+  t[98] = Math.round(t[97] * 1.5);
+  t[99] = t[97] * 2;
+  return t;
+})();
+const xpForLevel = L => XP_TABLE[Math.max(1, Math.min(MAX_SKILL, L))];
+function levelFromXp(xp) { let L = 1; while (L < MAX_SKILL && xp >= XP_TABLE[L + 1]) L++; return L; }
 const skillLevel = id => levelFromXp(state.skills[id].xp);
 const totalSkillLevel = () => Object.keys(SKILLS).reduce((s, k) => s + skillLevel(k), 0);
 // Gathering: chance to get double items. Crafting: chance to keep the materials.
 const bonusChance = id => Math.min(SKILLS[id].type === 'gather' ? 0.25 : 0.2, skillLevel(id) * (SKILLS[id].type === 'gather' ? 0.0025 : 0.002));
 const bonusLabel = id => (SKILLS[id].type === 'gather' ? 'Double-item chance' : 'Keep-materials chance');
 
+// Shop tools make actions faster (10% per tier).
+const actionDur = act => +(act.dur * (1 - TOOL_SPEED * toolTier(act.skill))).toFixed(2);
+// The Bank Courier (shop) empties the inventory into the bank, keeping food, when it fills up.
+function courierCheck(act) {
+  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(true); return true; }
+  return false;
+}
 const hasInputs = act => Object.entries(act.inputs).every(([id, n]) => haveCount(id) >= n);
 // Every finished item needs a free inventory slot (cooking can also produce stackable Burnt Food).
 const hasRoom = act => invRoomFor(act.id, 1) > 0;
@@ -20,6 +37,7 @@ function toggleAction(id) {
   const act = ACTIONS[id];
   if (skillLevel(act.skill) < act.level) return 'level';
   if (!hasInputs(act)) return 'inputs';
+  courierCheck(act);
   if (!hasRoom(act)) return 'full';
   state.active = { action: id, start: Date.now() };
   save();
@@ -52,12 +70,13 @@ function doAction(act, sum) {
 function processSkilling(now = Date.now()) {
   const a = state.active;
   if (!a) return null;
-  const act = ACTIONS[a.action], dur = act.dur * 1000;
+  const act = ACTIONS[a.action], dur = actionDur(act) * 1000;
   let elapsed = Math.min(now - a.start, IDLE_CAP_MS);
   if (elapsed < dur) return null;
   const n = Math.floor(elapsed / dur);
   const sum = { skill: act.skill, items: {}, xp: 0, count: 0, levelUp: 0, stopped: false, ms: now - a.start };
   for (let i = 0; i < n; i++) {
+    if (courierCheck(act)) sum.couriered = true;
     if (!canDo(act)) { sum.stopped = true; sum.full = !hasRoom(act); break; }
     doAction(act, sum);
   }
@@ -68,7 +87,7 @@ function processSkilling(now = Date.now()) {
 }
 const activeProgress = () => {
   if (!state.active) return 0;
-  return Math.min(1, (Date.now() - state.active.start) / (ACTIONS[state.active.action].dur * 1000));
+  return Math.min(1, (Date.now() - state.active.start) / (actionDur(ACTIONS[state.active.action]) * 1000));
 };
 
 // ---- Tasks ----

@@ -8,13 +8,14 @@ let state;
 
 function newState() {
   return {
-    gold: 300, gems: 300, scrolls: 3,
-    stage: 1, lastClaim: Date.now(), pity: 0,
+    gold: 300, gems: 120, scrolls: 3,
+    stage: 1, lastClaim: Date.now(),
     player: { skin: 'tobin', style: 'strength', gear: { weapon: null, armor: null } },
-    seenSkins: ['tobin'], pendingSkin: null,
+    looks: { tobin: 0 }, // owned looks -> duplicate stars
+    upgrades: { tools: {}, backpack: 0, courier: false }, bonusSlots: 0, quests: {},
     bank: {}, inv: [], skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
     active: null, provision: null, potion: null, tasksClaimed: [], tiersClaimed: [],
-    stats: { actions: {}, summons: 0, claims: 0, equips: 0, potions: 0, eaten: 0, kills: 0, burnt: 0 },
+    stats: { actions: {}, summons: 0, claims: 0, equips: 0, potions: 0, eaten: 0, kills: 0, burnt: 0, mkills: {} },
   };
 }
 
@@ -31,6 +32,12 @@ function load() {
       state.stats = Object.assign(newState().stats, saved.stats || {});
       if (!saved.player) migrateTeamSave(saved);
       if (!Array.isArray(state.inv)) state.inv = [];
+      state.upgrades = Object.assign(newState().upgrades, saved.upgrades || {});
+      if (!saved.looks) { // older saves: every look seen through rerolls is now owned
+        state.looks = {};
+        for (const id of [...(saved.seenSkins || []), state.player.skin]) if (HERO_BY_ID[id]) state.looks[id] = 0;
+      }
+      delete state.seenSkins; delete state.pendingSkin; delete state.pity;
       state.player.gear = Object.assign({ weapon: null, armor: null }, state.player.gear);
       return;
     }
@@ -45,12 +52,12 @@ function migrateTeamSave(saved) {
   const best = [...heroes].sort((a, b) => rank[HERO_BY_ID[b.id].rarity] - rank[HERO_BY_ID[a.id].rarity] || b.level - a.level)[0];
   state.player = { skin: best ? best.id : 'tobin', style: 'strength', gear: { weapon: null, armor: null } };
   for (const h of heroes) for (const s of GEAR_SLOTS) if (h[s]) addItem(h[s]);
-  state.seenSkins = [...new Set(['tobin', ...heroes.map(h => h.id)])];
+  state.looks = Object.fromEntries([...new Set(['tobin', ...heroes.map(h => h.id)])].map(id => [id, 0]));
   delete state.heroes; delete state.team; delete state.nextUid;
 }
 function resetSave() { state = newState(); save(); }
 
-// ---- Skins: rerolled with scrolls, each gives a bonus on top of gear ----
+// ---- Looks: owned in a library, unlocked from chests; each gives a bonus on top of gear ----
 const SKIN_BONUS = {
   warrior: { dmg: 0.06 },
   tank:    { hp: 0.08, def: 0.05 },
@@ -60,40 +67,38 @@ const SKIN_BONUS = {
 };
 const RARITY_BONUS = { R: 1, E: 1.6, L: 2.6 };
 const BONUS_LABEL = { dmg: 'damage', hp: 'max HP', def: 'defence', spd: 'attack speed', ult: 'special power', regen: 'HP regen /s' };
+const lookStars = id => state.looks[id] || 0;
+const ownsLook = id => id in state.looks;
 function skinBonus(id) {
-  const d = HERO_BY_ID[id], m = RARITY_BONUS[d.rarity];
+  const d = HERO_BY_ID[id], m = RARITY_BONUS[d.rarity] * (1 + LOOK_STAR_BONUS * lookStars(id));
   return Object.fromEntries(Object.entries(SKIN_BONUS[d.cls]).map(([k, v]) => [k, v * m]));
 }
 const skinBonusText = id => Object.entries(skinBonus(id))
   .map(([k, v]) => `+${(v * 100).toFixed(k === 'regen' ? 1 : 0)}% ${BONUS_LABEL[k]}`).join(', ');
+function wearLook(id) { if (ownsLook(id)) { state.player.skin = id; save(); } }
 
-const REROLL_GEMS = 150, PITY_LIMIT = 30;
-function rollRarity() {
-  state.pity++;
-  if (state.pity >= PITY_LIMIT) { state.pity = 0; return 'L'; }
-  const r = Math.random();
-  if (r < RARITY.L.rate) { state.pity = 0; return 'L'; }
-  if (r < RARITY.L.rate + RARITY.E.rate) return 'E';
-  return 'R';
-}
-// Rolls a new look and holds it in pendingSkin until the player keeps it or not.
-function rerollSkin() {
-  if (state.scrolls >= 1) state.scrolls -= 1;
-  else if (state.gems >= REROLL_GEMS) state.gems -= REROLL_GEMS;
+// Open `count` spins of a chest. A Bronze single spin can also be paid with a 📜 scroll.
+function spinChest(chestId, count) {
+  const c = CHESTS.find(x => x.id === chestId);
+  const cost = count === 6 ? c.cost6 : c.cost1 * count;
+  if (chestId === 'bronze' && count === 1 && state.scrolls >= 1) state.scrolls -= 1;
+  else if (state.gems >= cost) state.gems -= cost;
   else return null;
-  const rar = rollRarity();
-  const pool = HEROES.filter(h => h.rarity === rar && h.id !== state.player.skin);
-  const id = pool[Math.floor(Math.random() * pool.length)].id;
-  state.pendingSkin = id;
-  state.stats.summons++;
-  if (!state.seenSkins.includes(id)) state.seenSkins.push(id);
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    const r = Math.random();
+    const rar = r < c.odds.L ? 'L' : r < c.odds.L + c.odds.E ? 'E' : 'R';
+    const pool = HEROES.filter(h => h.rarity === rar);
+    const id = pool[Math.floor(Math.random() * pool.length)].id;
+    let note;
+    if (!ownsLook(id)) { state.looks[id] = 0; note = 'NEW'; }
+    else if (state.looks[id] < MAX_LOOK_STARS) { state.looks[id]++; note = '★' + state.looks[id]; }
+    else { const g = Math.round(c.cost1 / 2); state.gems += g; note = `+${g}💎`; }
+    results.push({ id, note });
+  }
+  state.stats.summons += count;
   save();
-  return id;
-}
-function resolveReroll(keepNew) {
-  if (keepNew && state.pendingSkin) state.player.skin = state.pendingSkin;
-  state.pendingSkin = null;
-  save();
+  return results;
 }
 
 // ---- Player stats come from combat skills + gear + skin ----
@@ -119,6 +124,7 @@ function playerStats(withPotion = false) {
   for (const k of ['hp', 'atk', 'def']) st[k] = Math.round(st[k]);
   return st;
 }
+const combatLevel = () => Math.floor((skillLevel('attack') + skillLevel('strength') + skillLevel('defence') + skillLevel('hitpoints')) / 4);
 const power = st => Math.round(st.hp * 0.1 + st.atk * 3 + st.def * 2);
 const playerPower = () => power(playerStats());
 
@@ -142,10 +148,11 @@ function grantCombatXp(dmg) {
 }
 
 // ---- Inventory: INV_SIZE slots, one item per slot unless the item stacks ----
-const INV_SIZE = 28;
+const BASE_INV = 28;
+const invSize = () => BASE_INV + 4 * state.upgrades.backpack + (state.bonusSlots || 0);
 const invCount = id => state.inv.reduce((s, x) => (x.id === id ? s + x.n : s), 0);
 const invUsed = () => state.inv.length;
-const invFree = () => INV_SIZE - state.inv.length;
+const invFree = () => invSize() - state.inv.length;
 const invFull = () => invFree() <= 0;
 function invRoomFor(id, qty = 1) {
   if (ITEMS[id].stack) return state.inv.some(x => x.id === id) || invFree() > 0 ? qty : 0;
@@ -236,7 +243,7 @@ function stageEnemies(stage) {
   const n = stage - 1;
   const mult = 1 + 0.15 * n + 0.0012 * n * n;
   const mk = (tpl, boss) => ({
-    name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss, lvl: stage,
+    key: tpl.sprite.replace(/^(mon|boss)_/, ''), name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss, lvl: stage,
     proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (boss ? 'bolt' : null), bolt: tpl.bolt || (boss ? '#ff5d5d' : null),
     hp: Math.round(520 * mult * (boss ? 3.2 : 1)), atk: Math.round(40 * mult * (boss ? 1.4 : 1)),
     def: Math.round(18 * mult), spd: boss ? 80 : 90,
@@ -256,6 +263,27 @@ function stageEnemies(stage) {
   for (const s of [0, 2, 1].slice(0, count)) slots[s] = mk(pickFor(s), false);
   return slots;
 }
+// One monster for the hunting grounds, sized for a 1v1 fight at its level.
+function monsterUnit(areaIdx, monIdx) {
+  const [key, lvl] = AREAS[areaIdx].monsters[monIdx];
+  const tpl = monsterTemplate(key), boss = tpl.sprite.startsWith('boss_'), n = lvl - 1;
+  const mult = 1 + 0.15 * n + 0.0012 * n * n;
+  return {
+    key, name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss, lvl,
+    proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (boss ? 'bolt' : null), bolt: tpl.bolt || (boss ? '#ff5d5d' : null),
+    hp: Math.round(520 * mult * (boss ? 0.9 : 0.33)), atk: Math.round(40 * mult * (boss ? 2.6 : 1.25)),
+    def: Math.round(18 * mult), spd: boss ? 80 : 90,
+    skill: boss ? { name: 'Cataclysm', type: 'nuke', power: 2.6 } : { name: 'Frenzy', type: 'nuke', power: 2.0 },
+  };
+}
+// Gold and item drops for a hunting kill: materials of the area's tier, rare gear, the odd gem.
+function rollLoot(areaIdx, lvl) {
+  const t = Math.min(4, areaIdx), loot = { gold: Math.round(lvl * (3 + Math.random() * 3)), items: {}, gems: 0 };
+  if (Math.random() < 0.35) { const id = ['log', 'ore', 'fish', 'herb'][Math.floor(Math.random() * 4)] + t; loot.items[id] = 1 + Math.floor(Math.random() * 2); }
+  if (Math.random() < 0.015) loot.items[(Math.random() < 0.5 ? 'sword' : 'armor') + t] = 1;
+  if (Math.random() < 0.08) loot.gems = 1 + Math.floor(areaIdx / 2);
+  return loot;
+}
 const stagePower = stage => stageEnemies(stage).reduce((s, e) => s + (e ? power(e) : 0), 0);
 function stageReward(stage) {
   return {
@@ -264,6 +292,54 @@ function stageReward(stage) {
     scrolls: isBoss(stage) ? 2 : (stage % 5 === 0 ? 1 : 0),
   };
 }
+
+// ---- Shop ----
+const toolTier = skill => state.upgrades.tools[skill] || 0;
+function buyTool(skill) {
+  const t = toolTier(skill);
+  if (t >= 3 || skillLevel(skill) < TOOL_REQ[t] || state.gold < TOOL_COST[t]) return false;
+  state.gold -= TOOL_COST[t]; state.upgrades.tools[skill] = t + 1; save(); return true;
+}
+function buyBackpack() {
+  const t = state.upgrades.backpack;
+  if (t >= BACKPACK_COST.length || state.gold < BACKPACK_COST[t]) return false;
+  state.gold -= BACKPACK_COST[t]; state.upgrades.backpack++; save(); return true;
+}
+function buyCourier() {
+  if (state.upgrades.courier || state.gold < COURIER_COST) return false;
+  state.gold -= COURIER_COST; state.upgrades.courier = true; save(); return true;
+}
+function buyItem(id, qty) {
+  const price = SHOP_STOCK.find(x => x[0] === id)[1] * qty;
+  if (state.gold < price) return false;
+  state.gold -= price; addItem(id, qty); save(); return true;
+}
+function buyGems() {
+  if (state.gold < GEM_PACK.gold) return false;
+  state.gold -= GEM_PACK.gold; state.gems += GEM_PACK.gems; save(); return true;
+}
+
+// ---- Quests ----
+function questStep(step) {
+  if (step.t === 'deliver') return [Math.min(step.n, haveCount(step.id)), step.n];
+  if (step.t === 'kill') return [Math.min(step.n, state.stats.mkills[step.id] || 0), step.n];
+  if (step.t === 'lvl') return [Math.min(step.n, skillLevel(step.skill)), step.n];
+  return [0, 1];
+}
+const questDone = q => state.quests[q.id] === 'done';
+const questUnlocked = q => { const i = QUESTS.indexOf(q); return i === 0 || questDone(QUESTS[i - 1]); };
+const questReady = q => !questDone(q) && questUnlocked(q) && q.steps.every(st => { const [c, n] = questStep(st); return c >= n; });
+function completeQuest(q) {
+  if (!questReady(q)) return false;
+  for (const st of q.steps) if (st.t === 'deliver') take(st.id, st.n);
+  state.gold += q.r.gold || 0; state.gems += q.r.gems || 0;
+  if (q.r.slots) state.bonusSlots = (state.bonusSlots || 0) + q.r.slots;
+  for (const [id, n] of Object.entries(q.r.items || {})) addItem(id, n);
+  state.quests[q.id] = 'done'; save();
+  return true;
+}
+const questRewardText = r => [r.gold && `🪙 ${r.gold}`, r.gems && `💎 ${r.gems}`, r.slots && `🎒 +${r.slots} slots`,
+  ...Object.entries(r.items || {}).map(([id, n]) => `${ITEMS[id].icon} ${ITEMS[id].name}${n > 1 ? ' ×' + n : ''}`)].filter(Boolean).join('  ');
 
 // ---- Idle rewards ----
 function idleRates() {

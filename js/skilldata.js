@@ -81,6 +81,7 @@ for (let i = 0; i < 5; i++) {
 
 // Stackable items share one inventory slot (everything else takes one slot per item).
 // Every dish that burns while cooking turns into this.
+addItem_('bread', { name: 'Bread', icon: '🍞', tint: '#d9a35a', cat: 'Food', tier: 0, heal: 220, sell: 8 });
 addItem_('burnt', { name: 'Burnt Food', icon: '🍖', tint: '#3a2a22', cat: 'Misc', tier: 0, sell: 1, stack: true, burnt: true });
 
 // ---- Task chain: complete every task in a tier to unlock the next ----
