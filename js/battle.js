@@ -8,9 +8,11 @@ class Battle {
     this.time = 0;
     this.speed = 1;
     this.over = false;
+    const pe = potionEffect();
     allySlots.forEach((h, i) => {
       if (!h) return;
       const def = HERO_BY_ID[h.id], st = heroStats(h);
+      for (const k of ['hp', 'atk', 'def', 'spd']) st[k] = Math.round(st[k] * (1 + (pe[k] || 0)));
       this.units.push(this.makeUnit('ally', i, { ...st, name: def.name, emoji: def.emoji,
         range: CLASSES[def.cls].range, cls: def.cls, skill: def.skill, color: FACTIONS[def.faction].color }));
     });
@@ -19,7 +21,7 @@ class Battle {
 
   makeUnit(side, slot, d) {
     return { ...d, side, slot, row: slot < 2 ? 'front' : 'back', maxHp: d.hp, hp: d.hp, energy: 0,
-      timer: Math.random() * 0.5, stun: 0, shield: 0, buff: 0, buffT: 0, el: null };
+      timer: Math.random() * 0.5, eatCd: 0, stun: 0, shield: 0, buff: 0, buffT: 0, el: null };
   }
 
   alive(side) { return this.units.filter(u => u.side === side && u.hp > 0); }
@@ -60,6 +62,16 @@ class Battle {
     this.float(tgt, '+' + amt, 'heal');
   }
 
+  // Heroes eat the selected provisions from the bank when they get low.
+  eat(u) {
+    const id = state.provision;
+    if (!id || !itemCount(id)) return;
+    removeItem(id); state.stats.eaten++;
+    u.eatCd = 4;
+    this.float(u, ITEMS[id].icon, 'heal');
+    this.heal(u, ITEMS[id].heal);
+  }
+
   basic(u) {
     if (u.cls === 'support' && Math.random() < 0.4) {
       const t = this.weakest(this.friends(u));
@@ -96,6 +108,8 @@ class Battle {
     for (const u of this.units) {
       if (u.hp <= 0) continue;
       if (u.buffT > 0) u.buffT -= dt;
+      if (u.eatCd > 0) u.eatCd -= dt;
+      if (u.side === 'ally' && u.hp < u.maxHp * 0.45 && u.eatCd <= 0) this.eat(u);
       if (u.stun > 0) { u.stun -= dt; continue; }
       u.timer += dt;
       if (u.energy >= 100) { this.ultimate(u); u.timer = 0; }
@@ -105,6 +119,7 @@ class Battle {
     const allyLeft = this.alive('ally').length, enemyLeft = this.alive('enemy').length;
     if (!enemyLeft || !allyLeft || this.time >= BATTLE_TIME) {
       this.over = true;
+      if (state.potion && --state.potion.battles <= 0) state.potion = null;
       this.render();
       setTimeout(() => this.onEnd(enemyLeft === 0 && allyLeft > 0), 700);
     }

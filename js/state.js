@@ -10,6 +10,9 @@ function newState() {
     gold: 600, exp: 400, gems: 600, scrolls: 10,
     stage: 1, lastClaim: Date.now(), pity: 0, nextUid: 1,
     heroes: [], team: [null, null, null, null, null],
+    bank: {}, skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: 0 }])),
+    active: null, provision: null, potion: null, tasksClaimed: [], tiersClaimed: [],
+    stats: { actions: {}, summons: 0, claims: 0, equips: 0, potions: 0, eaten: 0 },
   };
   for (const id of ['tobin', 'mira', 'pim']) s.heroes.push({ uid: s.nextUid++, id, level: 1, stars: 0 });
   s.team = [s.heroes[0].uid, null, s.heroes[1].uid, s.heroes[2].uid, null];
@@ -22,7 +25,13 @@ function save() {
 function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) { state = Object.assign(newState(), JSON.parse(raw)); return; }
+    if (raw) {
+      const base = newState(), saved = JSON.parse(raw);
+      state = Object.assign(base, saved);
+      state.skills = Object.assign(newState().skills, saved.skills || {});
+      state.stats = Object.assign(newState().stats, saved.stats || {});
+      return;
+    }
   } catch (e) { /* ignore corrupt save */ }
   state = newState();
 }
@@ -37,10 +46,41 @@ function levelCost(level) {
 function heroStats(h) {
   const def = HERO_BY_ID[h.id], c = CLASSES[def.cls];
   const m = RARITY[def.rarity].mult * (1 + 0.1 * (h.level - 1)) * (1 + 0.2 * h.stars);
+  const w = h.weapon ? ITEMS[h.weapon] : null, a = h.armor ? ITEMS[h.armor] : null;
   return {
-    hp: Math.round(c.hp * m), atk: Math.round(c.atk * m), def: Math.round(c.def * m), spd: c.spd,
+    hp: Math.round(c.hp * m) + (a ? a.hp : 0), atk: Math.round(c.atk * m) + (w ? w.atk : 0),
+    def: Math.round(c.def * m) + (a ? a.def : 0), spd: c.spd,
   };
 }
+
+// ---- Bank ----
+const itemCount = id => state.bank[id] || 0;
+function addItem(id, n = 1) { state.bank[id] = (state.bank[id] || 0) + n; }
+function removeItem(id, n = 1) {
+  state.bank[id] = Math.max(0, (state.bank[id] || 0) - n);
+  if (!state.bank[id]) delete state.bank[id];
+}
+function sellItem(id, n) {
+  n = Math.min(n, itemCount(id));
+  removeItem(id, n); state.gold += ITEMS[id].sell * n; save();
+  return ITEMS[id].sell * n;
+}
+function equipItem(uid, itemId) {
+  const h = getHero(uid), slot = ITEMS[itemId].slot;
+  if (!itemCount(itemId)) return;
+  if (h[slot]) addItem(h[slot]);
+  removeItem(itemId); h[slot] = itemId; state.stats.equips++; save();
+}
+function unequip(uid, slot) {
+  const h = getHero(uid);
+  if (h[slot]) { addItem(h[slot]); h[slot] = null; save(); }
+}
+function drinkPotion(id) {
+  if (!itemCount(id)) return false;
+  removeItem(id); state.potion = { id, battles: POTION_BATTLES }; state.stats.potions++; save();
+  return true;
+}
+const potionEffect = () => (state.potion ? ITEMS[state.potion.id].effect : {});
 const power = st => Math.round(st.hp * 0.1 + st.atk * 3 + st.def * 2);
 const heroPower = h => power(heroStats(h));
 const getHero = uid => state.heroes.find(h => h.uid === uid);
@@ -100,6 +140,7 @@ function claimIdle() {
   const p = pendingIdle();
   state.gold += p.gold; state.exp += p.exp; state.gems += p.gems;
   state.lastClaim = Date.now();
+  if (p.gold > 0) state.stats.claims++;
   save();
   return p;
 }
@@ -122,6 +163,7 @@ function summon(count) {
     state.gems -= cost;
   }
   const results = [];
+  state.stats.summons += count;
   for (let i = 0; i < count; i++) {
     const rar = rollRarity();
     const pool = HEROES.filter(h => h.rarity === rar);
