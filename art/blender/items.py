@@ -197,17 +197,44 @@ def bar(i):
     group(rot=(0, 0, 20))
 
 
-def blade(i):
+GUARD = ['#8a5a35', '#4f5a66', '#f2c14e', '#2a8a80', '#6a3fc0']
+POMMEL = ['#c87533', '#8f959e', '#f2c14e', '#3fd0c0', '#ffd84a']
+
+
+def melee(i, length=1.7, width=0.2, grip=0.5, guard=0.75, curve_guard=False):
+    """Blade weapons: dagger, short sword, long sword and 2H sword share this, scaled."""
     m = mat(METAL[i], rough=0.2, metal=0.9, emit=METAL_EMIT[i])
-    box((0, 0, 0.55), (0.2, 0.05, 1.7), m)
-    cyl((0, 0, 1.5), 0.14, 0.25, m, r2=0.0, verts=4, scale=(1, 0.3, 1), rot=(0, 0, 45))
-    box((0, 0, 0.55), (0.04, 0.06, 1.5), mat('#ffffff', rough=0.1, metal=0.5), outline=False)
-    box((0, 0, -0.35), (0.75, 0.14, 0.12), mat(['#8a5a35', '#4f5a66', '#f2c14e', '#2a8a80', '#6a3fc0'][i], rough=0.3, metal=0.7), bevel=0.03)
-    cyl((0, 0, -0.65), 0.07, 0.5, mat('#5a3d22'))
-    sphere((0, 0, -0.95), 0.11, mat(['#c87533', '#8f959e', '#f2c14e', '#3fd0c0', '#ffd84a'][i], rough=0.3, metal=0.8, emit=METAL_EMIT[i]))
+    base = -0.3
+    box((0, 0, base + length / 2), (width, 0.05, length), m)
+    cyl((0, 0, base + length + width * 0.45), width * 0.7, width * 1.25, m, r2=0.0, verts=4, scale=(1, 0.3, 1), rot=(0, 0, 45))
+    box((0, 0, base + length / 2), (width * 0.2, 0.06, length * 0.88), mat('#ffffff', rough=0.1, metal=0.5), outline=False)
+    box((0, 0, base - 0.05), (guard, 0.14, 0.12), mat(GUARD[i], rough=0.3, metal=0.7), bevel=0.03)
+    if curve_guard:
+        for s_ in (-1, 1):
+            sphere((s_ * guard / 2, 0, base - 0.02), 0.09, mat(GUARD[i], rough=0.3, metal=0.7))
+    cyl((0, 0, base - 0.1 - grip / 2), 0.07, grip, mat('#5a3d22'))
+    for k in range(int(grip / 0.12)):
+        torus((0, 0, base - 0.16 - k * 0.12), 0.075, 0.015, mat('#3a2614'), outline=False)
+    sphere((0, 0, base - 0.12 - grip), 0.11, mat(POMMEL[i], rough=0.3, metal=0.8, emit=METAL_EMIT[i]))
     if i >= 3:
-        sphere((0, -0.06, -0.35), 0.07, glow(['#3fd0c0', '#ff9af0'][i - 3], 5), outline=False)
+        sphere((0, -0.06, base - 0.05), 0.07, glow(['#3fd0c0', '#ff9af0'][i - 3], 5), outline=False)
     group(rot=(0, 45, 0))
+
+
+def blade(i):   # short sword
+    melee(i)
+
+
+def dagger(i):
+    melee(i, length=0.8, width=0.17, grip=0.32, guard=0.45)
+
+
+def longsword(i):
+    melee(i, length=2.3, width=0.2, grip=0.7, guard=0.9, curve_guard=True)
+
+
+def greatsword(i):
+    melee(i, length=2.8, width=0.34, grip=1.0, guard=1.25, curve_guard=True)
 
 
 def plate(i):
@@ -413,12 +440,24 @@ def boots(i):
     group(rot=(0, 0, -30))
 
 
+# Ore looks (rock colour, nugget colour, nugget glow): shared by the ore icons and kite shields.
+ORE_STYLE = [('#6f6a66', '#d9823a', 0), ('#6f6a66', '#9a6a5a', 0), ('#5f5a58', '#eef2f6', 0), ('#4f5a5a', '#3fd0c0', 1.2), ('#2a2438', '#9b6cff', 1.8)]
+
+
 def kite(i):
-    m = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.5)
+    """Kite shield in the style of its ore: metal rim, ore-rock face studded with that ore's nuggets."""
+    rock, nug, emit = ORE_STYLE[i]
+    rim = mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.5)
     outline = [(0, 0.95), (0.65, 0.6), (0.6, -0.1), (0, -1.1), (-0.6, -0.1), (-0.65, 0.6)]
-    prism(outline, 0.12, m)
-    prism([(x * 0.75, z * 0.75 + 0.02) for x, z in outline], 0.04, mat(['#b84a3a', '#3f6fd1', '#f2c14e', '#2a8a80', '#6a3fc0'][i]), loc=(0, -0.08, 0))
-    sphere((0, -0.13, 0.15), 0.13, glow(ORB[i], 2) if i >= 2 else m, outline=False)
+    prism(outline, 0.12, rim)
+    prism([(x * 0.82, z * 0.82 + 0.01) for x, z in outline], 0.05, mat(rock, rough=0.95), loc=(0, -0.07, 0))
+    nm = mat(nug, rough=0.25, metal=0.9 if i != 1 else 0.3, emit=emit)
+    for x, z, r in ((0, 0.62, 0.09), (0.36, 0.42, 0.08), (-0.36, 0.42, 0.08), (0.36, -0.12, 0.08), (-0.36, -0.12, 0.08), (0, -0.62, 0.09), (0.18, 0.08, 0.06), (-0.2, -0.32, 0.06)):
+        ico((x, -0.11, z), r, nm, sub=1)
+    ico((0, -0.14, 0.15), 0.2, nm, sub=1, scale=(1, 0.6, 1.15))  # a big nugget for the boss
+    if i == 4:
+        for _ in range(4):
+            sphere((R.uniform(-0.4, 0.4), -0.16, R.uniform(-0.5, 0.6)), 0.04, glow('#fff1a8', 8), outline=False)
     group(rot=(0, 0, -25))
 
 
@@ -457,7 +496,7 @@ for i in range(5):
     ITEMS[f'bar{i}'] = (lambda i: lambda: bar(i))(i)
     ITEMS[f'sword{i}'] = (lambda i: lambda: blade(i))(i)
     ITEMS[f'armor{i}'] = (lambda i: lambda: plate(i))(i)
-    for pre, fn in (('plank', plank), ('bow', bow), ('staff', staff), ('wshield', wshield), ('orb', orb),
+    for pre, fn in (('dagger', dagger), ('longsword', longsword), ('greatsword', greatsword), ('plank', plank), ('bow', bow), ('staff', staff), ('wshield', wshield), ('orb', orb),
                     ('helm', helm), ('gloves', gauntlet), ('boots', boots), ('kite', kite), ('legs', platelegs)):
         ITEMS[f'{pre}{i}'] = (lambda fn, i: lambda: fn(i))(fn, i)
 
@@ -472,7 +511,9 @@ def build(item_id):
     sun((65, 0, 110), 1.0, '#c9d8ff')
     sun((-120, 0, 15), 1.6, '#ffe6c0')
     cam = camera((3.0, -6.0, 4.5), (0, 0, 0), ortho=3)
-    frame_ortho(cam, 1.12)
+    # Melee weapons fill less or more of the frame by size, so a dagger reads small and a 2H sword huge.
+    margin = {'dagger': 1.9, 'sword': 1.5, 'longsword': 1.28, 'greatsword': 1.08}.get(item_id.rstrip('01234'), 1.12)
+    frame_ortho(cam, margin)
     render(os.path.join(OUT, item_id + '.webp'), 128, 128, quality=88)
 
 

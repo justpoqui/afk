@@ -22,7 +22,7 @@ Every sprite and background is modeled and rendered by code in Blender. Nothing 
 |---|---|
 | `art/blender/sprites.py` | `assets/sprites/*.webp`: 24 heroes, 13 monsters, 4 bosses (256×256, transparent, cartoon outline), each in a portrait pose and a `_side` battle pose |
 | `art/blender/backgrounds.py` | `assets/bg/battle_ch1-6.webp`: a side-view arena per chapter (720×1280; stands and crowd, wall and banners, scenery, sky), plus `camp.webp` (1024×512) |
-| `art/blender/items.py` | `assets/items/<item id>.webp`: a 128×128 icon for **every item** (100), modeled to look like its name |
+| `art/blender/items.py` | `assets/items/<item id>.webp`: a 128×128 icon for **every item** (115). Kite shields are styled after their ore, and blades are sized by type, modeled to look like its name |
 | `art/blender/common.py` | Shared helpers: materials, shapes, outlines, lights, auto-framed camera |
 
 To re-render, install Blender's Python module (`pip install bpy==5.3.0`, needs Python 3.13) or use Blender itself:
@@ -85,13 +85,13 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
 - **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers, up to level 99.
 - **Crafting** group:
   - 🔥 **Smithing**: smelt ore and logs into bars.
-  - 🔨 **Metalworking**: bars into gear, with a dropdown for **Weapons** (blades, for melee) and **Armor** (helmets, chestplates, platelegs, gauntlets, boots, kite shields).
+  - 🔨 **Metalworking**: bars into gear, with a dropdown for **Weapons**: **Dagger** (+25% attack speed, light hits), **Short Sword**, **Long Sword** (harder hits, −5% speed) and **2H Sword** (huge hits, −20% speed, two-handed so no shield) and **Armor** (helmets, chestplates, platelegs, gauntlets, boots, kite shields).
   - 🪚 **Carpentry**: logs into planks, then **bows** (archery), **staves** (magic, need an orb) and wooden shields.
   - 🫙 **Glassworking**: sand (dug with Mining) into molten glass, then **vials** (every potion needs one) and magic **orbs**.
 - **Cooking & Brewing** group: Cooking (food), Alchemy (potions, bottled in vials).
 - Skill actions keep running while the game is closed (up to 12h). Skill XP is tuned by `SKILL_XP_MULT` in `js/skilldata.js`.
 - **Inventory (28 slots)**: everything you gather or craft goes here, **one item per slot**. Only the **bank** stacks items, except stackable items like 🍖 **Burnt Food** (every dish that burns while cooking turns into it). Skill actions stop when the inventory is full, so deposit in the bank. Crafting takes materials from the inventory first, then the bank.
-- **Bank**: deposit or withdraw, sell, equip gear, choose battle food, drink potions.
+- **Bank**: a container of **50 slots**. Each item type takes one slot and stacks inside it. Buy **+1 slot** at a time in the Shop (1,000 gold, then 10% more each time). When the bank is full, new item types stay in your inventory. Deposit or withdraw, sell, equip gear, choose battle food, drink potions.
 - **Cooking can burn**: 40% at a recipe's level, 1.2% less per level above it (minimum 2%). Burnt dishes give no XP.
 
 ### Task chain

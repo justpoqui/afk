@@ -22,7 +22,7 @@ const bonusLabel = id => (SKILLS[id].type === 'gather' ? 'Double-item chance' : 
 const actionDur = act => +(act.dur * (1 - TOOL_SPEED * toolTier(act.skill))).toFixed(2);
 // The Bank Courier (shop) empties the inventory into the bank, keeping food, when it fills up.
 function courierCheck(act) {
-  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(true); return true; }
+  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(true); return invRoomFor(act.id, 1) > 0; }
   return false;
 }
 const hasInputs = act => Object.entries(act.inputs).every(([id, n]) => haveCount(id) >= n);

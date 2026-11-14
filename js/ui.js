@@ -320,6 +320,9 @@ const pages = {
         <div class="shop-row"><span class="ico lg">🎒</span><div class="shop-info"><b>Backpack ${bp >= BACKPACK_COST.length ? '(max)' : `+4 slots (${bp + 1}/${BACKPACK_COST.length})`}</b>
           <small>Inventory ${invSize()} slots</small></div>
           ${bp < BACKPACK_COST.length ? `<button class="btn sm ${state.gold < BACKPACK_COST[bp] ? 'off' : 'gold'}" data-act="buypack">🪙 ${fmt(BACKPACK_COST[bp])}</button>` : '<span class="owned">✓</span>'}</div>
+        <div class="shop-row"><span class="ico lg">🏦</span><div class="shop-info"><b>Bank slot +1</b>
+          <small>Bank ${bankUsed()}/${bankSize()} slots · gets 10% pricier each time</small></div>
+          <button class="btn sm ${state.gold < bankSlotCost(state.upgrades.bankSlots || 0) ? 'off' : 'gold'}" data-act="buybank">🪙 ${fmt(bankSlotCost(state.upgrades.bankSlots || 0))}</button></div>
         <div class="shop-row"><span class="ico lg">🦉</span><div class="shop-info"><b>Bank Courier</b>
           <small>When your inventory fills while skilling, everything except food is sent to the bank, even offline.</small></div>
           ${state.upgrades.courier ? '<span class="owned">✓ Hired</span>' : `<button class="btn sm ${state.gold < COURIER_COST ? 'off' : 'gold'}" data-act="buycourier">🪙 ${fmt(COURIER_COST)}</button>`}</div>
@@ -389,19 +392,19 @@ const pages = {
   },
 
   bank() {
-    const ids = Object.keys(state.bank);
+    const ids = Object.keys(state.bank).sort((a, b) => CATEGORY_ORDER.indexOf(ITEMS[a].cat) - CATEGORY_ORDER.indexOf(ITEMS[b].cat) || ITEMS[a].tier - ITEMS[b].tier || a.localeCompare(b));
     const value = ids.reduce((s, id) => s + ITEMS[id].sell * state.bank[id], 0);
     const top = `<section class="panel"><div class="panel-title">🎒 Inventory ${invUsed()}/${invSize()}</div>${invGrid(true)}
       <div class="row-btns"><button class="btn ghost" data-act="depositall">Deposit all</button><button class="btn ghost" data-act="depositkeep">Deposit all but food</button></div></section>`;
-    if (!ids.length) return `${top}<section class="panel center"><div class="big-emoji">🏦</div><p class="muted">Your bank is empty. Train a gathering skill to collect materials.</p></section>`;
     return `${top}
-      <div class="sub">${ids.length} item types · total value 🪙 ${fmt(value)} · tap an item to sell or use it</div>
-      ${CATEGORY_ORDER.map(cat => {
-        const list = ids.filter(id => ITEMS[id].cat === cat).sort((a, b) => ITEMS[a].tier - ITEMS[b].tier);
-        if (!list.length) return '';
-        return `<div class="sub">${cat}</div><div class="bank-grid">${list.map(id =>
-          `<button class="bank-item" data-item="${id}" style="--t:${ITEMS[id].tint}">${itemImg(id)}<span class="qty">${fmt(state.bank[id])}</span></button>`).join('')}</div>`;
-      }).join('')}`;
+      <section class="panel">
+        <div class="panel-title">🏦 Bank <span class="${bankUsed() >= bankSize() ? 'full' : 'muted'}">· ${bankUsed()}/${bankSize()} slots</span>
+          <button class="link" data-page="shop">+ buy space</button></div>
+        <div class="bank-grid">${ids.map(id =>
+          `<button class="bank-item" data-item="${id}" style="--t:${ITEMS[id].tint}" title="${ITEMS[id].name}">${itemImg(id)}<span class="qty">${fmt(state.bank[id])}</span></button>`).join('')}${
+          Array.from({ length: Math.max(0, bankSize() - ids.length) }, () => '<div class="bank-item empty"></div>').join('')}</div>
+        <div class="sub">Total value 🪙 ${fmt(value)} · each item type takes one slot and stacks inside it</div>
+      </section>`;
   },
 
   inventory() {
@@ -461,7 +464,8 @@ function describeItem(id) {
   if (it.slot) {
     const stats = [it.atk && `Damage +${it.atk}`, it.hp && `HP +${it.hp}`, it.def && `Defence +${it.def}`].filter(Boolean).join(', ');
     const kind = it.slot === 'weapon' ? `${COMBAT_TYPES[it.wtype].icon} ${COMBAT_TYPES[it.wtype].name} weapon` : GEAR_SLOT_INFO[it.slot].name;
-    return `${kind} · ${stats}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
+    const extra = [it.spd && `${it.spd > 0 ? '+' : ''}${Math.round(it.spd * 100)}% attack speed`, it.twoHanded && 'two-handed (no shield)'].filter(Boolean).join(', ');
+    return `${kind} · ${stats}${extra ? ' · ' + extra : ''}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
   }
   if (it.heal) return `Food · heals ${it.heal} HP in battle`;
   if (it.effect) return `Potion · ${it.effectText} for ${POTION_BATTLES} battles`;
@@ -771,8 +775,9 @@ document.addEventListener('click', e => {
       case 'exchange': if (exchangeGems(Number(d.n))) { render(); toast(`+${d.n} 📜`); } else toast(`Need ${fmt(GEMS_PER_SCROLL * Number(d.n))} 💎`); break;
       case 'look': showLook(d.id); break;
       case 'wear': wearLook(d.id); closeModal(); render(); toast(`Now wearing ${skin().name}`); break;
-      case 'buy': if (buyItem(d.item, Number(d.n))) { render(); toast(`Bought ${d.n} × ${ITEMS[d.item].name} (sent to bank)`); } else toast('Not enough gold'); break;
+      case 'buy': if (buyItem(d.item, Number(d.n))) { render(); toast(`Bought ${d.n} × ${ITEMS[d.item].name} (sent to bank)`); } else toast(bankHasRoom(d.item) ? 'Not enough gold' : '🏦 Bank is full'); break;
       case 'buygems': if (buyGems()) { render(); toast(`+${GEM_PACK.gems} 💎`); } else toast('Not enough gold'); break;
+      case 'buybank': if (buyBankSlot()) { render(); toast(`🏦 Bank is now ${bankSize()} slots`); } else toast('Not enough gold'); break;
       case 'buypack': if (buyBackpack()) { render(); toast(`🎒 Inventory is now ${invSize()} slots`); } else toast('Not enough gold'); break;
       case 'buycourier': if (buyCourier()) { render(); toast('🦉 The Bank Courier is hired!'); } else toast('Not enough gold'); break;
       case 'buytool': if (buyTool(d.skill)) { render(); toast(`${SKILLS[d.skill].icon} ${TOOLS[d.skill][toolTier(d.skill) - 1]} bought!`); } else toast('Need more gold or a higher skill level'); break;
@@ -788,10 +793,10 @@ document.addEventListener('click', e => {
       case 'setfood': state.provision = d.item || null; save(); closeModal(); render(); toast(d.item ? `${ITEMS[d.item].name} set as battle food` : 'Food cleared'); break;
       case 'drink': if (drinkPotion(d.item)) { closeModal(); render(); toast(`🧪 ${ITEMS[d.item].effectText} for ${POTION_BATTLES} battles`); } break;
       case 'sell': { const g = sellItem(d.item, Number(d.n), d.from === 'inv'); toast(`Sold for 🪙 ${fmt(g)}`); render(); showItem(d.item, d.from); break; }
-      case 'deposit': deposit(d.item, Number(d.n)); render(); showItem(d.item, 'inv'); break;
+      case 'deposit': if (!deposit(d.item, Number(d.n))) toast('🏦 Bank is full. Buy more space in the Shop.'); render(); showItem(d.item, 'inv'); break;
       case 'withdraw': { const k = withdraw(d.item, Number(d.n)); if (!k) toast('🎒 Inventory full'); render(); showItem(d.item, 'bank'); break; }
-      case 'depositall': depositAll(false); render(); toast('Deposited everything in the bank'); break;
-      case 'depositkeep': depositAll(true); render(); toast('Deposited everything except food'); break;
+      case 'depositall': { const k = depositAll(false); render(); toast(k ? `🏦 Bank full: ${k} item type${k === 1 ? "" : "s"} stayed in your inventory` : 'Deposited everything in the bank'); break; }
+      case 'depositkeep': { const k = depositAll(true); render(); toast(k ? `🏦 Bank full: ${k} item type${k === 1 ? "" : "s"} stayed in your inventory` : 'Deposited everything except food'); break; }
       case 'fillfood': { const k = withdraw(state.provision, invFree()); render(); toast(`Packed ${k} × ${ITEMS[state.provision].name}`); break; }
       case 'claimtask': { const task = TASK_TIERS.flatMap(x => x.tasks).find(x => x.key === d.key); if (claimTask(task)) toast('Reward: ' + rewardText(task.r)); render(); break; }
       case 'claimtier': { const ti = Number(d.tier); if (claimTier(ti)) toast(`Tier complete! ${rewardText(TASK_TIERS[ti].reward)}`); render(); break; }

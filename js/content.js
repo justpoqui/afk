@@ -48,6 +48,8 @@ const TOOL_REQ = [10, 30, 55];      // skill level needed to buy each tier
 const TOOL_SPEED = 0.1;             // each tool tier makes that skill's actions 10% faster
 const BACKPACK_COST = [2000, 7500, 20000, 50000, 120000]; // +4 inventory slots each
 const COURIER_COST = 30000;         // auto-deposits to the bank when the inventory is full
+const BASE_BANK = 50;               // bank slots (each item type takes one slot and stacks inside it)
+const bankSlotCost = bought => Math.round(1000 * Math.pow(1.1, bought)); // +1 slot at a time
 const SHOP_STOCK = [
   // [item id, gold price]: bought items go to the bank
   ['bread', 40], ['food0', 30], ['food1', 90], ['pot0', 350], ['pot1', 900],

@@ -14,7 +14,7 @@ function newState() {
     stage: 1, lastClaim: Date.now(),
     player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: emptyGear() },
     looks: { tobin: 0 }, // owned looks -> duplicate stars
-    upgrades: { tools: {}, backpack: 0, courier: false }, bonusSlots: 0, quests: {},
+    upgrades: { tools: {}, backpack: 0, courier: false, bankSlots: 0 }, bonusSlots: 0, quests: {},
     bank: {}, inv: [], skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
     active: null, provision: null, potion: null, tasksClaimed: [], tiersClaimed: [],
     stats: { actions: {}, summons: 0, claims: 0, equips: 0, potions: 0, eaten: 0, kills: 0, burnt: 0, mkills: {} },
@@ -121,6 +121,8 @@ const enemyHitChance = (defenceLvl, enemyLvl) => Math.min(0.95, Math.max(0.45, 0
 const gearItem = slot => (state.player.gear[slot] ? ITEMS[state.player.gear[slot]] : null);
 // A weapon made for another fighting style (blade / bow / staff) only gives half its damage.
 const weaponMatches = it => !it.wtype || it.wtype === state.player.ctype;
+// Daggers swing faster, long and 2H swords slower (only when the weapon fits your fighting style).
+const weaponSpeed = () => { const w = gearItem('weapon'); return w && w.spd && weaponMatches(w) ? w.spd : 0; };
 function gearTotals() {
   const t = { hp: 0, atk: 0, def: 0 };
   for (const slot of GEAR_SLOTS) {
@@ -139,7 +141,7 @@ function playerStats(withPotion = false) {
     hp: (baseHp(h) + g.hp) * (1 + (sk.hp || 0)) * (1 + (pe.hp || 0)),
     atk: (baseAtk(s) + g.atk) * (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)),
     def: (baseDef(d) + g.def) * (1 + (sk.def || 0)) * (1 + (pe.def || 0)),
-    spd: 100 * (1 + atkSpeedBonus(a)) * (1 + (sk.spd || 0)) * (1 + (pe.spd || 0)),
+    spd: 100 * (1 + atkSpeedBonus(a)) * (1 + (sk.spd || 0)) * (1 + (pe.spd || 0)) * (1 + weaponSpeed()),
     accLvl: a, defLvl: d, regen: sk.regen || 0, ult: sk.ult || 0, energyMult: 1,
   };
   const ct = state.player.ctype;
@@ -208,11 +210,20 @@ function invRemove(id, qty = 1) {
 // Materials can come from the inventory or the bank (inventory first).
 const haveCount = id => invCount(id) + itemCount(id);
 function take(id, n) { const got = invRemove(id, n); if (got < n) removeItem(id, n - got); }
-function deposit(id, n = Infinity) { const k = invRemove(id, Math.min(n, invCount(id))); addItem(id, k); save(); return k; }
+function deposit(id, n = Infinity) {
+  if (!bankHasRoom(id)) return 0;
+  const k = invRemove(id, Math.min(n, invCount(id))); addItem(id, k); save(); return k;
+}
+// Deposits everything that fits; items whose type has no free bank slot stay in the inventory.
 function depositAll(keepFood = false) {
   const keep = [];
-  for (const x of state.inv) { if (keepFood && ITEMS[x.id].heal) keep.push(x); else addItem(x.id, x.n); }
+  for (const x of state.inv) {
+    if ((keepFood && ITEMS[x.id].heal) || !bankHasRoom(x.id)) keep.push(x);
+    else addItem(x.id, x.n);
+  }
+  const skipped = keep.filter(x => !(keepFood && ITEMS[x.id].heal)).length;
   state.inv = keep; save();
+  return skipped;
 }
 function withdraw(id, n) {
   const k = invAdd(id, Math.min(n, itemCount(id)));
@@ -226,6 +237,16 @@ function nextFood() {
   return foods.sort((a, b) => ITEMS[b].heal - ITEMS[a].heal)[0] || null;
 }
 const foodCarried = () => state.inv.filter(x => ITEMS[x.id].heal).length;
+
+// ---- Bank: BASE_BANK slots (+ bought), one per item type; items stack inside a slot ----
+const bankSize = () => BASE_BANK + (state.upgrades.bankSlots || 0);
+const bankUsed = () => Object.keys(state.bank).length;
+const bankHasRoom = id => id in state.bank || bankUsed() < bankSize();
+function buyBankSlot() {
+  const cost = bankSlotCost(state.upgrades.bankSlots || 0);
+  if (state.gold < cost) return false;
+  state.gold -= cost; state.upgrades.bankSlots = (state.upgrades.bankSlots || 0) + 1; save(); return true;
+}
 
 // ---- Bank & gear ----
 const itemCount = id => state.bank[id] || 0;
@@ -245,7 +266,11 @@ function equipGear(itemId) {
   if (!slot || !haveCount(itemId)) return;
   const old = state.player.gear[slot];
   take(itemId, 1); state.player.gear[slot] = itemId; state.stats.equips++;
-  if (old && !invAdd(old)) addItem(old); // the old piece goes to the inventory, or the bank if it's full
+  const stash = id => { if (id && !invAdd(id)) addItem(id); }; // to the inventory, or the bank if it's full
+  stash(old);
+  // A two-handed weapon needs both hands: it takes the shield off, and a shield takes a 2H weapon off.
+  if (ITEMS[itemId].twoHanded && state.player.gear.shield) { stash(state.player.gear.shield); state.player.gear.shield = null; }
+  if (slot === 'shield' && gearItem('weapon') && gearItem('weapon').twoHanded) { stash(state.player.gear.weapon); state.player.gear.weapon = null; }
   save();
 }
 function unequipGear(slot) {
@@ -309,7 +334,7 @@ function rollLoot(areaIdx, lvl) {
   const t = Math.min(4, areaIdx), loot = { gold: Math.round(lvl * (3 + Math.random() * 3)), items: {}, gems: 0 };
   if (Math.random() < 0.35) { const id = ['log', 'ore', 'fish', 'herb'][Math.floor(Math.random() * 4)] + t; loot.items[id] = 1 + Math.floor(Math.random() * 2); }
   if (Math.random() < 0.02) { // a rare piece of gear of the area's tier
-    const kinds = ['sword', 'bow', 'staff', 'helm', 'armor', 'legs', 'gloves', 'boots', 'kite', 'wshield'];
+    const kinds = ['dagger', 'sword', 'longsword', 'greatsword', 'bow', 'staff', 'helm', 'armor', 'legs', 'gloves', 'boots', 'kite', 'wshield'];
     loot.items[kinds[Math.floor(Math.random() * kinds.length)] + t] = 1;
   }
   if (Math.random() < 0.08) loot.gems = 1 + Math.floor(areaIdx / 2);
@@ -342,7 +367,7 @@ function buyCourier() {
 }
 function buyItem(id, qty) {
   const price = SHOP_STOCK.find(x => x[0] === id)[1] * qty;
-  if (state.gold < price) return false;
+  if (state.gold < price || !bankHasRoom(id)) return false;
   state.gold -= price; addItem(id, qty); save(); return true;
 }
 function buyGems() {
@@ -365,7 +390,7 @@ function completeQuest(q) {
   for (const st of q.steps) if (st.t === 'deliver') take(st.id, st.n);
   state.gold += q.r.gold || 0; state.gems += q.r.gems || 0;
   if (q.r.slots) state.bonusSlots = (state.bonusSlots || 0) + q.r.slots;
-  for (const [id, n] of Object.entries(q.r.items || {})) addItem(id, n);
+  for (const [id, n] of Object.entries(q.r.items || {})) if (!(bankHasRoom(id) && (addItem(id, n), true))) { const k = invAdd(id, n); if (k < n) addItem(id, n - k); }
   state.quests[q.id] = 'done'; save();
   return true;
 }

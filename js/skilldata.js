@@ -87,6 +87,14 @@ const METAL_PIECES = [
   ['armor',  'Chestplate', 'chest',  5, 8, 1,   1,   0],
 ];
 
+// Melee weapons: [id prefix, name, bars, level offset, damage vs a short sword, attack speed bonus, two-handed]
+const MELEE_WEAPONS = [
+  ['dagger',     'Dagger',      1, 0, 0.6,  0.25,  false],
+  ['sword',      'Short Sword', 3, 2, 1,    0,     false],
+  ['longsword',  'Long Sword',  4, 5, 1.3,  -0.05, false],
+  ['greatsword', '2H Sword',    6, 9, 1.85, -0.2,  true],   // two-handed: no shield
+];
+
 // Smelting is Smithing; bars become gear in Metalworking.
 const smelt = i => addAction_('smithing', 'bar' + i, { level: T_LEVEL[i], dur: 3, xp: Math.round(T_XP[i] * 1.5), inputs: { ['ore' + i]: 2, ['log' + i]: 1 }, group: 'Bars' });
 
@@ -103,9 +111,12 @@ for (let i = 0; i < 5; i++) {
   addItem_('bar' + i, { name: METALS[i] + ' Bar', icon: '🧱', tint: t, cat: 'Bars', tier: i, sell: barSell });
   smelt(i);
 
-  // Metalworking: weapons (melee blades)
-  addItem_('sword' + i, { name: METALS[i] + ' Blade', icon: '🗡️', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'melee', atk: SWORD_ATK[i], sell: barSell * 4 });
-  addAction_('metalworking', 'sword' + i, { level: T_LEVEL[i] + 2, dur: 5, xp: cx * 3, inputs: { ['bar' + i]: 3 }, group: 'Weapons' });
+  // Metalworking: four melee weapons per metal
+  for (const [pre, name, bars, lo, atkS, spd, twoHanded] of MELEE_WEAPONS) {
+    addItem_(pre + i, { name: `${METALS[i]} ${name}`, icon: '🗡️', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'melee',
+      atk: Math.round(SWORD_ATK[i] * atkS), spd, twoHanded, sell: barSell * (bars + 1) });
+    addAction_('metalworking', pre + i, { level: T_LEVEL[i] + lo, dur: 3 + bars * 0.6, xp: cx * bars, inputs: { ['bar' + i]: bars }, group: 'Weapons' });
+  }
   // Metalworking: armor pieces
   for (const [pre, name, slot, bars, lo, hpS, defS, atkS] of METAL_PIECES) {
     const it = { name: `${METALS[i]} ${name}`, icon: GEAR_SLOT_INFO[slot].icon, tint: t, cat: slot === 'shield' ? 'Shields' : 'Armor', tier: i, slot, sell: barSell * (bars + 1) };

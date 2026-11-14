@@ -238,7 +238,7 @@ def camera(loc, target, ortho=None, lens=50):
     return cam
 
 
-def frame_ortho(cam, margin=1.1):
+def frame_ortho(cam, margin=1.1, fixed=None):
     """Fit an orthographic camera tightly around every mesh (keeps sprites the same visual size)."""
     bpy.context.view_layer.update()
     inv = cam.matrix_world.inverted()
@@ -254,7 +254,8 @@ def frame_ortho(cam, margin=1.1):
             ys.append(p.y)
     cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
     cam.location = cam.matrix_world @ Vector((cx, cy, 0))
-    cam.data.ortho_scale = max(max(xs) - min(xs), max(ys) - min(ys)) * margin
+    # fixed: keep one zoom level for a family of items so their sizes compare (dagger vs 2H sword)
+    cam.data.ortho_scale = fixed or max(max(xs) - min(xs), max(ys) - min(ys)) * margin
 
 
 def render(path, w, h, fmt='WEBP', quality=90):
