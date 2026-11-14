@@ -110,4 +110,12 @@ const BOSSES = [
   { name: 'Kraken', sprite: 'boss_kraken',       emoji: '🐙' },
 ];
 
-const CHAPTER_NAMES = ['Mistvale Meadows', 'Thornwood', 'Ashen Steppe', 'Frostpeak', 'Sunken Ruins', 'The Hollow Dark'];
+// The campaign is a chain of dungeons, 10 floors each (floor 10 is the boss).
+const CHAPTER_NAMES = ['Goblin Warren', 'Thornroot Catacombs', 'Ashen Crypt', 'Frozen Halls', 'Drowned Temple', 'Abyssal Citadel'];
+// Fighting styles. Looks are grouped the same way in the Library.
+const COMBAT_TYPES = {
+  melee:   { name: 'Melee',   icon: '⚔️', perk: '+10% damage, fights up close' },
+  archery: { name: 'Archery', icon: '🏹', perk: '+15% attack speed, shoots arrows from the back' },
+  magic:   { name: 'Magic',   icon: '🔮', perk: 'Specials charge 30% faster, casts spells from the back' },
+};
+const CLASS_TYPE = { warrior: 'melee', tank: 'melee', ranger: 'archery', mage: 'magic', support: 'magic' };

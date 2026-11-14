@@ -51,13 +51,14 @@ const SHOP_STOCK = [
   ['log0', 10], ['ore0', 10], ['fish0', 10], ['herb0', 10],
   ['log1', 30], ['ore1', 30], ['fish1', 30], ['herb1', 30],
 ];
-const GEM_PACK = { gems: 10, gold: 2500 };
+const GEM_PACK = { gems: 100, gold: 5000 };
+const GEMS_PER_SCROLL = 1000; // gems are only used to buy scrolls; scrolls are only used for look chests
 
-// ---- Look chests: spend gems to unlock looks. Costs double each tier. ----
+// ---- Look chests: paid with scrolls. Costs double each tier; 6 spins cost 5x one spin. ----
 const CHESTS = [
-  { id: 'bronze', name: 'Bronze Chest', icon: '🥉', cost1: 20, cost6: 100, odds: { R: 0.85, E: 0.13, L: 0.02 } },
-  { id: 'silver', name: 'Silver Chest', icon: '🥈', cost1: 40, cost6: 200, odds: { R: 0.40, E: 0.50, L: 0.10 } },
-  { id: 'gold',   name: 'Gold Chest',   icon: '🥇', cost1: 80, cost6: 400, odds: { R: 0.00, E: 0.70, L: 0.30 } },
+  { id: 'bronze', name: 'Bronze Chest', icon: '🥉', cost1: 1, cost6: 5,  odds: { R: 0.85, E: 0.13, L: 0.02 } },
+  { id: 'silver', name: 'Silver Chest', icon: '🥈', cost1: 2, cost6: 10, odds: { R: 0.40, E: 0.50, L: 0.10 } },
+  { id: 'gold',   name: 'Gold Chest',   icon: '🥇', cost1: 4, cost6: 20, odds: { R: 0.00, E: 0.70, L: 0.30 } },
 ];
 const MAX_LOOK_STARS = 5;
 const LOOK_STAR_BONUS = 0.15; // each duplicate star: +15% of the look's bonus

@@ -1,7 +1,7 @@
 // Pages, navigation, modals and battle flow.
 let page = 'home';
 let fightTab = 'campaign';
-let lookCat = 'all';
+let lookCat = 'all'; // all | melee | archery | magic
 let shopTab = 'upgrades';
 let hunt = null; // active hunting session
 let battle = null;
@@ -140,9 +140,9 @@ const pages = {
         <div class="doing">${busy ? `Now: ${SKILLS[busy.skill].icon} <b>${busy.name}</b> · 🎒 ${invUsed()}/${invSize()}` : 'Idle: pick a skill or go fight.'}</div>
       </section>
       <div class="tiles">
-        ${tile('fight', '⚔️', 'Fight', `Campaign ${stageLabel(state.stage)} · Hunting`)}
+        ${tile('fight', '⚔️', 'Fight', `Dungeon ${stageLabel(state.stage)} · Hunting`)}
         ${tile('skills', '🧠', 'Skills', `Total level ${totalSkillLevel()}`)}
-        ${tile('summon', '🎁', 'Summon Looks', `💎 ${fmt(state.gems)} · 📜 ${state.scrolls}`)}
+        ${tile('summon', '🎁', 'Summon Looks', `📜 ${state.scrolls} scrolls`)}
         ${tile('library', '📚', 'Look Library', `${Object.keys(state.looks).length} / ${HEROES.length} looks`)}
         ${tile('tasks', '📋', 'Tasks', claim ? `${claim} to claim!` : nextTask ? taskText(nextTask) : 'All done', claim ? 'alert' : '')}
         ${tile('quests', '📜', 'Quests', readyQ ? `${readyQ} ready to complete!` : `${QUESTS.filter(questDone).length} / ${QUESTS.length} done`, readyQ ? 'alert' : '')}
@@ -158,7 +158,7 @@ const pages = {
   fight() {
     const busy = state.active ? SKILLS[ACTIONS[state.active.action].skill] : null;
     const warn = busy ? `<p class="warn">⚠️ Fighting stops ${busy.icon} ${busy.name}. You can do one thing at a time.</p>` : '';
-    const head = `${tabs(fightTab, 'fighttab', [['campaign', '🏟️ Campaign'], ['hunting', '🗺️ Hunting Grounds']])}
+    const head = `${tabs(fightTab, 'fighttab', [['campaign', '🏰 Dungeons'], ['hunting', '🗺️ Hunting Grounds']])}
       <div class="prep-line">Combat level <b>${combatLevel()}</b> · training <b>${SKILLS[state.player.style].icon} ${SKILLS[state.player.style].name}</b> + ❤️ · ${prepLine().replace(/<\/?div[^>]*>/g, '')}</div>${warn}`;
     if (fightTab === 'hunting') {
       return `${head}
@@ -179,8 +179,9 @@ const pages = {
     const rw = stageReward(state.stage);
     return `${head}
       <section class="panel stage-box">
-        <div class="chapter">Chapter ${chapterOf(state.stage)} · ${chapterName(state.stage)}</div>
-        <div class="stage-title">${isBoss(state.stage) ? '👑 Boss ' : ''}Stage ${stageLabel(state.stage)}</div>
+        <div class="chapter">🏰 Dungeon ${chapterOf(state.stage)} · ${chapterName(state.stage)}</div>
+        <div class="stage-title">${isBoss(state.stage) ? '👑 Boss floor' : `Floor ${floorOf(state.stage)}`} / 10</div>
+        <div class="floors">${Array.from({ length: 10 }, (_, i) => `<i class="${i + 1 < floorOf(state.stage) ? 'done' : i + 1 === floorOf(state.stage) ? 'cur' : ''} ${i === 9 ? 'boss' : ''}"></i>`).join('')}</div>
         <div class="vs-preview">
           <div class="enemy-preview">${stageEnemies(state.stage).filter(Boolean).map(e => `<span class="${e.boss ? 'big' : ''}">${art(e, 'flip', true)}</span>`).join('')}</div>
           <span class="vs">VS</span>
@@ -205,6 +206,12 @@ const pages = {
           <div>❤️ Max HP<b>${fmt(st.hp)}</b></div><div>⚔️ Damage<b>${fmt(st.atk)}</b></div>
           <div>🛡️ Defence<b>${fmt(st.def)}</b></div><div>💨 Attacks/s<b>${(st.spd / 120).toFixed(2)}</b></div>
         </div>
+      </section>
+      <section class="panel">
+        <div class="panel-title">Fighting style</div>
+        <label class="select"><select data-change="ctype">${Object.entries(COMBAT_TYPES).map(([k, c]) =>
+          `<option value="${k}" ${state.player.ctype === k ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select></label>
+        <p class="hint">${COMBAT_TYPES[state.player.ctype].perk}. Your look still brings its own special attack.</p>
       </section>
       <section class="panel">
         <div class="panel-title">Attack style <span class="muted">· decides which skill your damage trains</span></div>
@@ -241,29 +248,35 @@ const pages = {
 
   summon() {
     return `
-      <p class="hint">Spend 💎 gems on chests to unlock looks for your Library. Duplicates add a ★ (+${LOOK_STAR_BONUS * 100}% look bonus each, up to ★${MAX_LOOK_STARS}). A 📜 scroll pays for one Bronze spin.</p>
+      <section class="panel exchange">
+        <div><b>📜 ${state.scrolls} scrolls</b><small>💎 ${fmt(state.gems)} gems · ${fmt(GEMS_PER_SCROLL)} 💎 = 1 📜</small></div>
+        <div class="shop-buy">${[1, 5].map(n => `<button class="btn sm ${state.gems < GEMS_PER_SCROLL * n ? 'off' : 'gold'}" data-act="exchange" data-n="${n}">Buy ${n} 📜</button>`).join('')}</div>
+      </section>
+      <p class="hint">Scrolls open chests that unlock looks for your Library. Duplicates add a ★ (+${LOOK_STAR_BONUS * 100}% look bonus each, up to ★${MAX_LOOK_STARS}).</p>
       ${CHESTS.map(c => `<section class="panel chest chest-${c.id}">
         <div class="chest-head"><span class="chest-ic">${c.icon}</span><div><b>${c.name}</b>
           <small>${['L', 'E', 'R'].filter(r => c.odds[r]).map(r => `<span class="r-${r} odd">${RARITY[r].name} ${Math.round(c.odds[r] * 100)}%</span>`).join(' ')}</small></div></div>
         <div class="row-btns">
-          <button class="btn" data-act="spin" data-c="${c.id}" data-n="1">Spin ×1<small>${c.id === 'bronze' && state.scrolls ? '📜 1' : '💎 ' + c.cost1}</small></button>
-          <button class="btn gold" data-act="spin" data-c="${c.id}" data-n="6">Spin ×6<small>💎 ${c.cost6}</small></button>
+          <button class="btn ${state.scrolls < c.cost1 ? 'off' : ''}" data-act="spin" data-c="${c.id}" data-n="1">Spin ×1<small>📜 ${c.cost1}</small></button>
+          <button class="btn gold ${state.scrolls < c.cost6 ? 'off' : ''}" data-act="spin" data-c="${c.id}" data-n="6">Spin ×6<small>📜 ${c.cost6}</small></button>
         </div></section>`).join('')}`;
   },
 
   library() {
-    const cats = [['all', 'All'], ...Object.entries(CLASSES).map(([k, c]) => [k, c.name + 's'])];
-    const list = HEROES.filter(d => lookCat === 'all' || d.cls === lookCat)
+    const list = HEROES.filter(d => lookCat === 'all' || CLASS_TYPE[d.cls] === lookCat)
       .sort((a, b) => ownsLook(b.id) - ownsLook(a.id) || 'LER'.indexOf(a.rarity) - 'LER'.indexOf(b.rarity));
     return `
       <section class="panel"><div class="panel-title">Wearing</div>${lookCard(state.player.skin, 'big')}</section>
-      ${tabs(lookCat, 'lookcat', cats)}
-      <div class="sub">Owned ${Object.keys(state.looks).length} / ${HEROES.length} · tap an owned look to wear it</div>
+      <label class="select"><select data-change="lookcat">
+        <option value="all" ${lookCat === 'all' ? 'selected' : ''}>📚 All looks</option>
+        ${Object.entries(COMBAT_TYPES).map(([k, c]) => `<option value="${k}" ${lookCat === k ? 'selected' : ''}>${c.icon} ${c.name} looks</option>`).join('')}
+      </select></label>
+      <div class="sub">Owned ${Object.keys(state.looks).length} / ${HEROES.length}${lookCat !== 'all' ? ` · ${list.filter(d => ownsLook(d.id)).length}/${list.length} ${COMBAT_TYPES[lookCat].name}` : ''} · tap an owned look to wear it</div>
       <div class="lib-grid">${list.map(d => {
         const own = ownsLook(d.id), cur = d.id === state.player.skin;
         return `<button class="lib-card r-${d.rarity} ${own ? '' : 'locked'} ${cur ? 'current' : ''}" ${own ? `data-act="look" data-id="${d.id}"` : ''} style="--c:${FACTIONS[d.faction].color}">
           <div class="lib-art">${art(d)}</div><b>${d.name.split(' ')[0]}</b>
-          <small>${own ? (lookStars(d.id) ? '★'.repeat(lookStars(d.id)) : RARITY[d.rarity].name) : '🔒 ' + RARITY[d.rarity].name}</small>
+          <small>${COMBAT_TYPES[CLASS_TYPE[d.cls]].icon} ${own ? (lookStars(d.id) ? '★'.repeat(lookStars(d.id)) : RARITY[d.rarity].name) : '🔒 ' + RARITY[d.rarity].name}</small>
           ${cur ? '<span class="wearing">Wearing</span>' : ''}</button>`;
       }).join('')}</div>`;
   },
@@ -284,7 +297,7 @@ const pages = {
         <div class="shop-list">${SHOP_STOCK.map(([id, price]) => `<div class="shop-row">${icon(id, 'lg')}
           <div class="shop-info"><b>${ITEMS[id].name}</b><small>${describeItem(id) || ITEMS[id].cat} · 🪙 ${price} each</small></div>
           <div class="shop-buy">${[1, 10, 100].map(q => `<button class="btn sm ${state.gold < price * q ? 'off' : ''}" data-act="buy" data-item="${id}" data-n="${q}">×${q}</button>`).join('')}</div></div>`).join('')}
-          <div class="shop-row"><span class="ico lg">💎</span><div class="shop-info"><b>${GEM_PACK.gems} Gems</b><small>For summoning looks</small></div>
+          <div class="shop-row"><span class="ico lg">💎</span><div class="shop-info"><b>${GEM_PACK.gems} Gems</b><small>${fmt(GEMS_PER_SCROLL)} gems buy a 📜 scroll for look chests</small></div>
           <div class="shop-buy"><button class="btn sm gold ${state.gold < GEM_PACK.gold ? 'off' : ''}" data-act="buygems">🪙 ${fmt(GEM_PACK.gold)}</button></div></div></div>`;
     }
     const bp = state.upgrades.backpack;
@@ -595,7 +608,7 @@ function startBattle() {
   if (hunt) return;
   stopSkillForFight();
   const stage = state.stage;
-  openBattleScreen(`${isBoss(stage) ? '👑 ' : ''}Stage ${stageLabel(stage)}`, battleBg(stage));
+  openBattleScreen(`${isBoss(stage) ? '👑 ' : '🏰 '}${chapterName(stage)} ${floorOf(stage)}/10`, battleBg(stage));
   $('#battle-info').innerHTML = prepLine();
   const b = new Battle(playerBattleUnit(), stageEnemies(stage), win => { if (battle === b) endBattle(b, win, stage); });
   runBattle(b);
@@ -607,7 +620,7 @@ function startHunt(ai, mi) {
   const [, lvl] = AREAS[ai].monsters[mi];
   hunt = { ai, mi, kills: 0, gold: 0, gems: 0, items: {}, lost: 0, xp: 0, hpXp: 0, ups: {}, hp: null, energy: 0, style: state.player.style };
   const m = monsterUnit(ai, mi);
-  openBattleScreen(`${AREAS[ai].icon} ${m.name} · Lv ${lvl}`, `assets/bg/battle_ch${AREAS[ai].ch}.webp`);
+  openBattleScreen(`${AREAS[ai].icon} ${m.name} · Lv ${lvl}`, `assets/bg/hunt_${AREAS[ai].id}.webp`);
   nextHuntFight(true);
 }
 function nextHuntFight(first = false) {
@@ -735,7 +748,8 @@ document.addEventListener('click', e => {
       case 'fighttab': fightTab = d.k; render(); break;
       case 'lookcat': lookCat = d.k; render(); break;
       case 'shoptab': shopTab = d.k; render(); break;
-      case 'spin': { const r = spinChest(d.c, Number(d.n)); if (r) { render(); showSpin(r); } else toast('Not enough 💎 gems'); break; }
+      case 'spin': { const r = spinChest(d.c, Number(d.n)); if (r) { render(); showSpin(r); } else toast('Not enough 📜 scrolls. Buy them with 💎 gems above.'); break; }
+      case 'exchange': if (exchangeGems(Number(d.n))) { render(); toast(`+${d.n} 📜`); } else toast(`Need ${fmt(GEMS_PER_SCROLL * Number(d.n))} 💎`); break;
       case 'look': showLook(d.id); break;
       case 'wear': wearLook(d.id); closeModal(); render(); toast(`Now wearing ${skin().name}`); break;
       case 'buy': if (buyItem(d.item, Number(d.n))) { render(); toast(`Bought ${d.n} × ${ITEMS[d.item].name} (sent to bank)`); } else toast('Not enough gold'); break;
@@ -767,6 +781,12 @@ document.addEventListener('click', e => {
     return;
   }
   if (t.id === 'modal') closeModal();
+});
+
+document.addEventListener('change', e => {
+  const k = e.target.dataset.change;
+  if (k === 'ctype') { state.player.ctype = e.target.value; save(); render(); toast(`Fighting style: ${COMBAT_TYPES[e.target.value].icon} ${COMBAT_TYPES[e.target.value].name}`); }
+  if (k === 'lookcat') { lookCat = e.target.value; render(); }
 });
 
 $('#btn-speed').addEventListener('click', () => {

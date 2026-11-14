@@ -45,16 +45,20 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
   - ❤️ **Hitpoints**: max HP (starts at level 10)
 - Damage you deal in battle becomes combat XP. Your **attack style** (Accurate, Aggressive or Defensive) picks which skill gets it, and Hitpoints always gets a third.
 - **One activity at a time**: fighting stops any running skill action, just like starting another skill would.
-- **Looks**: open **chests** with 💎 to unlock looks into your **Look Library** (24 looks, filtered by class: Tanks, Warriors, Rangers, Mages, Supports). Wear any look you own. Each gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear, plus its own special attack. Duplicates add ★ (+15% bonus each, up to ★5).
+- **Fighting style** dropdown on the Character Sheet: ⚔️ **Melee** (+10% damage, fights up close), 🏹 **Archery** (+15% attack speed, arrows from the back) or 🔮 **Magic** (specials charge 30% faster, spells from the back).
+- **Looks**: open **chests** with 📜 scrolls to unlock looks into your **Look Library** (24 looks, with a dropdown to filter Melee, Archery or Magic looks). Wear any look you own. Each gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear, plus its own special attack. Duplicates add ★ (+15% bonus each, up to ★5).
 
   | Chest | ×1 | ×6 | Odds |
   |---|---|---|---|
-  | 🥉 Bronze | 💎 20 (or a 📜 scroll) | 💎 100 | Rare 85%, Epic 13%, Legendary 2% |
-  | 🥈 Silver | 💎 40 | 💎 200 | Rare 40%, Epic 50%, Legendary 10% |
-  | 🥇 Gold | 💎 80 | 💎 400 | Epic 70%, Legendary 30% |
+  | 🥉 Bronze | 📜 1 | 📜 5 | Rare 85%, Epic 13%, Legendary 2% |
+  | 🥈 Silver | 📜 2 | 📜 10 | Rare 40%, Epic 50%, Legendary 10% |
+  | 🥇 Gold | 📜 4 | 📜 20 | Epic 70%, Legendary 30% |
+
+  Scrolls are used only for chests. 💎 Gems are used only to buy scrolls (**1,000 💎 = 1 📜**). Scrolls also drop from dungeon floors, bosses and tasks.
 - **Equipment** slots (weapon, armor; built to take more slots later), **food** carried in your inventory, eaten automatically below 45% HP (one tap fills your free slots from the bank), and **potions** for 5 battles.
 
 ### Hunting grounds (Fight → Hunting Grounds)
+- Each area has its own scene: a flower meadow, a thorn forest, a moonlit graveyard, an ice cave, underwater ruins, and a volcanic lair.
 - Melvor-style **1v1 monster hunting** on repeat across 6 areas, from Mistvale Meadows (Lv 2–9) to the Boss Lairs (Lv 70–99). Levels are colored against your combat level.
 - HP carries over between kills, and you eat food from your inventory. Each kill gives gold, a chance at area-tier materials, rare gear and gems, plus combat XP.
 - Kills count toward quests. Retreating or falling shows a session summary.
@@ -83,7 +87,7 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
 ### Combat
 - Side-on arena battles, like Swords & Sandals: fighters stand on the arena floor (crowd and banners behind), you on the right, enemies on the left (melee nearest, casters behind). Ranged attacks arc overhead. Damage numbers linger, and status badges stay up while effects last.
 - **Auto ⟳** keeps fighting the next stage after each win. **✕** retreats (XP still counts). Speed 1x/2x/3x, and Skip.
-- Campaign chapters with a boss every 10 stages. A character whose combat skills are at about level L, with matching gear, can clear about stage L.
+- **Dungeons** (the campaign): 6 dungeons (Goblin Warren → Abyssal Citadel), 10 floors each with a boss on floor 10. Dungeon monsters are 35% stronger than the hunting grounds, with bigger rewards. Battles use the arena backgrounds. A character whose combat skills are at about level L, with matching gear, can clear about stage L.
 
 ## Code layout
 | File | Purpose |

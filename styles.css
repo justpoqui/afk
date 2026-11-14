@@ -532,3 +532,18 @@ body.nav-open #scrim { display: block; }
 .equip-doll .gear { grid-template-columns: 1fr; margin: 0; }
 .doll-stats { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 13px; }
 .hidden { display: none !important; }
+
+/* ---------- Dropdowns, dungeon floors, scroll exchange ---------- */
+.select { display: block; position: relative; margin-bottom: 8px; }
+.select select { width: 100%; appearance: none; -webkit-appearance: none; background: var(--panel2); color: var(--text); font: inherit; font-weight: 700;
+  border: 1px solid var(--line); border-radius: 12px; padding: 11px 40px 11px 14px; }
+.select::after { content: '▾'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--gold); pointer-events: none; }
+.floors { display: flex; justify-content: center; gap: 5px; margin: 8px 0; }
+.floors i { width: 18px; height: 8px; border-radius: 4px; background: #2a2340; }
+.floors i.done { background: var(--good); }
+.floors i.cur { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.floors i.boss { width: 26px; border: 1px solid var(--bad); }
+.exchange { display: flex; align-items: center; gap: 10px; }
+.exchange > div:first-child { flex: 1; }
+.exchange small { display: block; color: var(--muted); font-size: 12px; }
+.exchange .btn.sm { margin: 0; }

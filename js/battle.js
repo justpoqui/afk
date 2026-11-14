@@ -123,7 +123,7 @@ class Battle {
     const t = this.pickTarget(u);
     if (!t) return;
     this.strike(u, t, 1);
-    u.energy = Math.min(100, u.energy + 22);
+    u.energy = Math.min(100, u.energy + 22 * (u.energyMult || 1));
   }
 
   ultimate(u) {

@@ -456,13 +456,150 @@ def arena(key):
     render(os.path.join(OUT, f'battle_{key}.webp'), 720, 1280, quality=82)
 
 
+# ---------------- hunting-ground scenes (no arena: each matches its area's name) ----------------
+def tombstone(x, y, k, c):
+    box((x, y, 0.55 * k), (0.7 * k, 0.22 * k, 1.1 * k), mat(c, rough=0.9), rot=(R.uniform(-8, 8), 0, R.uniform(-10, 10)), bevel=0.05)
+    cyl((x, y, 1.1 * k), 0.35 * k, 0.22 * k, mat(c, rough=0.9), rot=(90, 0, 0), verts=16)
+
+
+def cross(x, y, k, c):
+    box((x, y, 0.8 * k), (0.16 * k, 0.16 * k, 1.6 * k), mat(c))
+    box((x, y, 1.15 * k), (0.8 * k, 0.16 * k, 0.16 * k), mat(c))
+
+
+def stalactite(x, y, z, k, c):
+    cyl((x, y, z - 0.9 * k), 0.4 * k, 1.8 * k, mat(c, rough=0.4), r2=0.0, verts=6, rot=(180, 0, 0))
+
+
+def seaweed(x, y, k):
+    tube([(x, y, 0), (x + 0.2 * k, y, 0.8 * k), (x - 0.15 * k, y, 1.6 * k), (x + 0.1 * k, y, 2.3 * k)],
+         [0.12 * k, 0.1 * k, 0.07 * k, 0.02 * k], mat('#3f9a5a'))
+
+
+def lava_pool(x, y, r):
+    disc(x, y, r, '#ff6a1a', emit=6, sx=1.6)
+    point((x, y, 0.8), 400, '#ff7a2a', 1.0)
+
+
+def hunt_scene(key):
+    R.seed(hash(key) % 997 if False else sum(map(ord, key)))
+    reset(transparent=False, samples=64)
+    cam = ((0, -13, 2.4), (0, 10, 1.9))
+    if key == 'meadow':
+        world_color('#e6f6ff', 0.6); sky('#5fb4ff', '#e6f6ff'); clouds()
+        ground('#8fd16a', '#74bd58', size=(400, 400), loc=(0, 150, 0), scale_noise=0.08)
+        ground('#9fd77a', '#86c766', size=(90, 20), loc=(0, -3, 0.02), scale_noise=0.5)
+        far_layer('hills', '#79ad66')
+        for i in range(-10, 11):  # a low farm fence far behind
+            cyl((i * 2.2, 22, 0.6), 0.1, 1.2, mat('#8a5a35'), verts=8)
+        box((0, 22, 0.8), (46, 0.1, 0.12), mat('#8a5a35'))
+        for _ in range(16):
+            place_big(R.choice(['tree_round', 'bush']), R.choice(['#4fa64a', '#6cbf4a']), R.uniform(-26, 26), R.uniform(8, 30), R.uniform(1.4, 2.4))
+        for _ in range(140):
+            x, y = R.uniform(-9, 9), R.uniform(-5, 6)
+            if abs(y + 1) > 1.6 or abs(x) > 5:
+                flower(x, y, R.choice(('#ff7aa8', '#ffffff', '#ffd84a', '#9a7aff')))
+        sunc = ('#fff1d6', 3.0)
+    elif key == 'thorn':
+        world_color('#9fb4a0', 0.35); sky('#2f4a40', '#8fb0a0')
+        ground('#3a5f36', '#2f5230', size=(400, 400), loc=(0, 150, 0), scale_noise=0.1)
+        ground('#5a4a36', '#4c3e2c', size=(90, 20), loc=(0, -3, 0.02), scale_noise=0.5)
+        far_layer('pines', '#1f3a2c')
+        for _ in range(40):
+            place_big('tree_pine', R.choice(['#1f4a2c', '#2a5a35']), R.uniform(-24, 24), R.uniform(6, 30), R.uniform(1.6, 2.8))
+        for _ in range(14):  # thorny brambles
+            x, y = R.uniform(-10, 10), R.uniform(3, 7)
+            for k in range(6):
+                a = R.uniform(0, 6.28)
+                tube([(x, y, 0.1), (x + math.cos(a) * 0.8, y + math.sin(a) * 0.4, 0.7), (x + math.cos(a) * 1.4, y + math.sin(a) * 0.6, 0.4)],
+                     [0.06, 0.04, 0.01], mat('#3a2a1f'))
+        for _ in range(10):
+            mushroom(R.choice((-1, 1)) * R.uniform(3, 7), R.uniform(-4, 2), R.uniform(0.8, 1.4), '#d94a3d')
+        for x in (-7.5, 7.5):  # big trunks framing the shot
+            cyl((x, -2, 6), 0.9, 12, mat('#4a3424'), verts=12)
+        sunc = ('#d8f0c8', 1.6)
+    elif key == 'grave':
+        world_color('#6a5a8a', 0.4); sky('#2a1f45', '#d9846a')
+        sphere((-8, 120, 38), 7, mat('#fff4d6', emit=4), outline=False)  # the moon
+        ground('#4a4a3f', '#3f4036', size=(400, 400), loc=(0, 150, 0), scale_noise=0.1)
+        ground('#5a5246', '#4c463c', size=(90, 20), loc=(0, -3, 0.02), scale_noise=0.5)
+        far_layer('hills', '#2f2a3a')
+        for i in range(-12, 13):  # iron fence
+            cyl((i * 1.0, 9, 0.9), 0.05, 1.8, mat('#22202a'), r2=0.02, verts=6)
+        box((0, 9, 1.4), (26, 0.06, 0.08), mat('#22202a'))
+        for _ in range(36):
+            x, y = R.uniform(-16, 16), R.uniform(4, 22)
+            (tombstone if R.random() < 0.7 else cross)(x, y, R.uniform(0.9, 1.4), R.choice(('#8a8a92', '#9a958a', '#6f6f78')))
+        for _ in range(6):
+            tree_dead(R.uniform(-20, 20), R.uniform(10, 26), R.uniform(1.6, 2.6), '#2a2230')
+        for _ in range(10):  # low mist
+            sphere((R.uniform(-14, 14), R.uniform(2, 16), 0.3), R.uniform(2, 4), mat('#c8c0e0', emit=0.25, alpha=0.25),
+                   scale=(2.5, 1, 0.25), outline=False)
+        sunc = ('#ffb88a', 1.4)
+    elif key == 'peaks':  # an ice cave
+        world_color('#4a6a9a', 0.35)
+        ground('#c8dcef', '#b0c8e0', size=(400, 400), loc=(0, 150, 0), scale_noise=0.1)
+        ground('#dce8f4', '#cbdbea', size=(90, 20), loc=(0, -3, 0.02), scale_noise=0.5)
+        box((0, 30, 12), (90, 2, 30), mat('#3a4f78', rough=0.6), outline=False)         # back wall
+        box((0, 10, 13.5), (90, 50, 1), mat('#2f4068', rough=0.6), outline=False)        # ceiling
+        for _ in range(26):
+            stalactite(R.uniform(-18, 18), R.uniform(2, 26), 13, R.uniform(1, 2.4), R.choice(('#bfe6ff', '#9fcfee')))
+        for _ in range(30):
+            rock(R.uniform(-20, 20), R.uniform(6, 28), R.uniform(1.5, 3.5), R.choice(('#4a5f88', '#5a72a0')), snow=R.random() < 0.4)
+        for _ in range(12):
+            crystal(R.uniform(-14, 14), R.uniform(4, 20), R.uniform(1, 1.8), '#8fe3ff')
+        sunc = ('#c8e0ff', 0.6)
+        cam = ((0, -13, 2.4), (0, 10, 2.6))
+    elif key == 'depths':  # underwater sunken ruins
+        world_color('#2a8a9a', 0.5); sky('#06324a', '#2aa6b0')
+        ground('#c9b98a', '#b8a878', size=(400, 400), loc=(0, 150, 0), scale_noise=0.1)
+        ground('#d8c89a', '#cbb98a', size=(90, 20), loc=(0, -3, 0.02), scale_noise=0.5)
+        far_layer('dunes', '#3f8a8a')
+        for _ in range(14):
+            pillar(R.uniform(-20, 20), R.uniform(6, 26), R.uniform(1.2, 2.2), '#a8b8a8')
+        for _ in range(16):
+            coral(R.uniform(-14, 14), R.uniform(3, 18), R.uniform(1.2, 2.2), R.choice(('#ff7a9a', '#ffb04a', '#b48cff')))
+        for _ in range(22):
+            seaweed(R.choice((-1, 1)) * R.uniform(3, 14), R.uniform(-3, 16), R.uniform(1, 2))
+        for _ in range(60):  # bubbles
+            sphere((R.uniform(-12, 12), R.uniform(-2, 20), R.uniform(1, 14)), R.uniform(0.06, 0.2), mat('#e8ffff', emit=1.2), outline=False, seg=8, rings=6)
+        for _ in range(5):  # light shafts from the surface
+            cyl((R.uniform(-12, 12), R.uniform(8, 24), 9), 1.2, 22, mat('#bff8ff', emit=0.4, alpha=0.12), r2=2.5, verts=12, rot=(0, R.uniform(-15, 15), 0), outline=False)
+        sunc = ('#bff8ff', 1.6)
+    elif key == 'lairs':  # volcanic boss lair
+        world_color('#5a1f14', 0.35); sky('#12060a', '#7a2a14')
+        ground('#3a2a2a', '#2f2222', size=(400, 400), loc=(0, 150, 0), scale_noise=0.1)
+        ground('#4a3a34', '#3f302b', size=(90, 20), loc=(0, -3, 0.02), scale_noise=0.5)
+        far_layer('volcano', '#2a1a1a')
+        for _ in range(8):
+            lava_pool(R.uniform(-14, 14), R.uniform(5, 18), R.uniform(1, 2.2))
+        for _ in range(26):
+            cyl((R.uniform(-20, 20), R.uniform(6, 28), 1.5), R.uniform(0.5, 1.1), R.uniform(3, 7), mat('#2a1f1f', rough=0.9), r2=0.0, verts=6)
+        for _ in range(14):  # bones and skulls
+            x, y = R.choice((-1, 1)) * R.uniform(3, 9), R.uniform(-4, 4)
+            sphere((x, y, 0.2), 0.22, mat('#e8e0cc'), scale=(1, 1, 0.9))
+            cyl((x + 0.5, y, 0.08), 0.05, 0.8, mat('#e8e0cc'), rot=(0, 90, R.uniform(0, 180)))
+        for _ in range(40):
+            ember(R.uniform(-10, 10), R.uniform(-2, 10))
+        sunc = ('#ff8a4a', 1.2)
+    add_outlines(0.05)
+    sun((55, 0, -35), sunc[1], sunc[0], angle=5)
+    camera(*cam, lens=28)
+    render(os.path.join(OUT, f'hunt_{key}.webp'), 720, 1280, quality=82)
+
+
+HUNTS = ['meadow', 'thorn', 'grave', 'peaks', 'depths', 'lairs']
+
+
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     # battle_chN.webp are the side-view arenas; pass topdown-chN for the old top-down boards.
-    jobs = [a for a in sys.argv[1:] if not a.startswith('-')] or ['camp', *ARENAS]
+    jobs = [a for a in sys.argv[1:] if not a.startswith('-')] or ['camp', *ARENAS, *HUNTS]
     for j in jobs:
         if j == 'camp':
             camp()
+        elif j in HUNTS:
+            hunt_scene(j)
         elif j.startswith('topdown-'):
             battle(j[8:])
         else:

@@ -10,7 +10,7 @@ function newState() {
   return {
     gold: 300, gems: 120, scrolls: 3,
     stage: 1, lastClaim: Date.now(),
-    player: { skin: 'tobin', style: 'strength', gear: { weapon: null, armor: null } },
+    player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: { weapon: null, armor: null } },
     looks: { tobin: 0 }, // owned looks -> duplicate stars
     upgrades: { tools: {}, backpack: 0, courier: false }, bonusSlots: 0, quests: {},
     bank: {}, inv: [], skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
@@ -38,6 +38,7 @@ function load() {
         for (const id of [...(saved.seenSkins || []), state.player.skin]) if (HERO_BY_ID[id]) state.looks[id] = 0;
       }
       delete state.seenSkins; delete state.pendingSkin; delete state.pity;
+      if (!state.player.ctype) state.player.ctype = CLASS_TYPE[HERO_BY_ID[state.player.skin].cls];
       state.player.gear = Object.assign({ weapon: null, armor: null }, state.player.gear);
       return;
     }
@@ -77,13 +78,16 @@ const skinBonusText = id => Object.entries(skinBonus(id))
   .map(([k, v]) => `+${(v * 100).toFixed(k === 'regen' ? 1 : 0)}% ${BONUS_LABEL[k]}`).join(', ');
 function wearLook(id) { if (ownsLook(id)) { state.player.skin = id; save(); } }
 
-// Open `count` spins of a chest. A Bronze single spin can also be paid with a 📜 scroll.
+function exchangeGems(n) {
+  if (state.gems < GEMS_PER_SCROLL * n) return false;
+  state.gems -= GEMS_PER_SCROLL * n; state.scrolls += n; save(); return true;
+}
+// Open `count` spins of a chest, paid with 📜 scrolls.
 function spinChest(chestId, count) {
   const c = CHESTS.find(x => x.id === chestId);
   const cost = count === 6 ? c.cost6 : c.cost1 * count;
-  if (chestId === 'bronze' && count === 1 && state.scrolls >= 1) state.scrolls -= 1;
-  else if (state.gems >= cost) state.gems -= cost;
-  else return null;
+  if (state.scrolls < cost) return null;
+  state.scrolls -= cost;
   const results = [];
   for (let i = 0; i < count; i++) {
     const r = Math.random();
@@ -93,7 +97,7 @@ function spinChest(chestId, count) {
     let note;
     if (!ownsLook(id)) { state.looks[id] = 0; note = 'NEW'; }
     else if (state.looks[id] < MAX_LOOK_STARS) { state.looks[id]++; note = '★' + state.looks[id]; }
-    else { const g = Math.round(c.cost1 / 2); state.gems += g; note = `+${g}💎`; }
+    else { const g = 300 * c.cost1; state.gems += g; note = `+${g}💎`; }
     results.push({ id, note });
   }
   state.stats.summons += count;
@@ -119,8 +123,12 @@ function playerStats(withPotion = false) {
     atk: (baseAtk(s) + (w ? w.atk : 0)) * (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)),
     def: (baseDef(d) + (ar ? ar.def : 0)) * (1 + (sk.def || 0)) * (1 + (pe.def || 0)),
     spd: 100 * (1 + atkSpeedBonus(a)) * (1 + (sk.spd || 0)) * (1 + (pe.spd || 0)),
-    accLvl: a, defLvl: d, regen: sk.regen || 0, ult: sk.ult || 0,
+    accLvl: a, defLvl: d, regen: sk.regen || 0, ult: sk.ult || 0, energyMult: 1,
   };
+  const ct = state.player.ctype;
+  if (ct === 'melee') st.atk *= 1.1;
+  if (ct === 'archery') st.spd *= 1.15;
+  if (ct === 'magic') st.energyMult = 1.3;
   for (const k of ['hp', 'atk', 'def']) st[k] = Math.round(st[k]);
   return st;
 }
@@ -130,9 +138,10 @@ const playerPower = () => power(playerStats());
 
 function playerBattleUnit() {
   const d = HERO_BY_ID[state.player.skin], st = playerStats(true);
-  return { ...st, name: 'You', emoji: d.emoji, sprite: d.sprite, range: CLASSES[d.cls].range, cls: d.cls,
+  const ct = state.player.ctype;
+  return { ...st, name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' ? 'melee' : 'ranged', cls: d.cls,
     skill: { ...d.skill, power: d.skill.power * (1 + st.ult) }, color: FACTIONS[d.faction].color,
-    proj: projOf(d), bolt: boltColor(d) };
+    proj: ct === 'archery' ? 'arrow' : ct === 'magic' ? 'bolt' : null, bolt: d.bolt || (ct === 'magic' ? '#9f7aff' : boltColor(d)) };
 }
 
 // ---- Combat XP: damage dealt trains the chosen style; Hitpoints always gets a third ----
@@ -239,13 +248,15 @@ const chapterOf = stage => Math.ceil(stage / 10);
 const chapterName = stage => CHAPTER_NAMES[(chapterOf(stage) - 1) % CHAPTER_NAMES.length];
 const stageLabel = stage => `${chapterOf(stage)}-${((stage - 1) % 10) + 1}`;
 
+const DUNGEON_POWER = 1.35; // dungeon monsters are tougher than the hunting grounds
+const floorOf = stage => ((stage - 1) % 10) + 1;
 function stageEnemies(stage) {
   const n = stage - 1;
   const mult = 1 + 0.15 * n + 0.0012 * n * n;
   const mk = (tpl, boss) => ({
     key: tpl.sprite.replace(/^(mon|boss)_/, ''), name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss, lvl: stage,
     proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (boss ? 'bolt' : null), bolt: tpl.bolt || (boss ? '#ff5d5d' : null),
-    hp: Math.round(520 * mult * (boss ? 3.2 : 1)), atk: Math.round(40 * mult * (boss ? 1.4 : 1)),
+    hp: Math.round(520 * mult * DUNGEON_POWER * (boss ? 3.2 : 1)), atk: Math.round(40 * mult * DUNGEON_POWER * (boss ? 1.4 : 1)),
     def: Math.round(18 * mult), spd: boss ? 80 : 90,
     skill: boss ? { name: 'Cataclysm', type: 'aoe', power: 1.8 } : { name: 'Frenzy', type: 'nuke', power: 2.0 },
   });
@@ -287,8 +298,8 @@ function rollLoot(areaIdx, lvl) {
 const stagePower = stage => stageEnemies(stage).reduce((s, e) => s + (e ? power(e) : 0), 0);
 function stageReward(stage) {
   return {
-    gold: 80 * stage,
-    gems: isBoss(stage) ? 150 : 25,
+    gold: 120 * stage,
+    gems: isBoss(stage) ? 300 : 50,
     scrolls: isBoss(stage) ? 2 : (stage % 5 === 0 ? 1 : 0),
   };
 }
@@ -344,7 +355,7 @@ const questRewardText = r => [r.gold && `🪙 ${r.gold}`, r.gems && `💎 ${r.ge
 // ---- Idle rewards ----
 function idleRates() {
   const s = state.stage;
-  return { gold: 30 + s * 10, gemsPerHour: 6 + Math.floor(s / 3) }; // gold per minute
+  return { gold: 30 + s * 10, gemsPerHour: 12 + s }; // gold per minute
 }
 function pendingIdle() {
   const ms = Math.min(IDLE_CAP_MS, Math.max(0, Date.now() - state.lastClaim));
