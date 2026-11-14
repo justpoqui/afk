@@ -5,7 +5,7 @@ let lookCat = 'all'; // all | melee | archery | magic
 let shopTab = 'upgrades';
 let hunt = null; // active hunting session
 const skillGroup = {}; // which recipe group each crafting skill page shows
-const GROUP_ICON = { Weapons: '⚔️', Armor: '🛡️', Shields: '🛡️', Planks: '🪵', Glass: '🫧', Vials: '🧪', Orbs: '🔮', Bars: '🧱' };
+const GROUP_ICON = { 'Smelt Bars': '🔥', Weapons: '⚔️', Armor: '🛡️', Shields: '🛡️', Planks: '🪵', Glass: '🫧', Vials: '🧪', Orbs: '🔮', Bars: '🧱' };
 let battle = null;
 let autoTimer = null;
 
@@ -458,7 +458,7 @@ function actCard(a) {
       `<span class="${invCount(id) < n ? 'lack' : ''}">${icon(id, 'sm')} ${n}<small>(🎒${fmt(invCount(id))}${itemCount(id) ? ` 🏦${fmt(itemCount(id))}` : ''})</small></span>`).join('')}</div>` : ''}
     ${inputs.length && !locked && craftsToFill(a) > Math.min(...inputs.map(([id, n]) => Math.floor(invCount(id) / n))) ? `<span class="wd-btn" data-act="withdrawfor" data-id="${a.id}">📥 Withdraw for ${craftsToFill(a)}</span>` : ''}
     ${describeItem(a.id) ? `<div class="ac-desc">${describeItem(a.id)}</div>` : ''}
-    <div class="ac-foot"><span>🎒 ${fmt(invCount(a.id))} · 🏦 ${fmt(itemCount(a.id))}</span><span class="ac-btn">${active ? 'Stop' : locked ? `🔒 Level ${a.level}` : SKILLS[a.skill].verb}</span></div>
+    <div class="ac-foot"><span>🎒 ${fmt(invCount(a.id))} · 🏦 ${fmt(itemCount(a.id))}</span><span class="ac-btn">${active ? 'Stop' : locked ? `🔒 Level ${a.level}` : (a.verb || SKILLS[a.skill].verb)}</span></div>
     <div class="prog"><i></i></div>
   </button>`;
 }

@@ -126,7 +126,7 @@ function taskProgress(t) {
 }
 function taskText(t) {
   switch (t.t) {
-    case 'act': return `${SKILLS[ACTIONS[t.id].skill].verb} ${t.n} × ${ITEMS[t.id].name}`;
+    case 'act': return `${ACTIONS[t.id].verb || SKILLS[ACTIONS[t.id].skill].verb} ${t.n} × ${ITEMS[t.id].name}`;
     case 'lvl': return `Reach ${SKILLS[t.skill].name} level ${t.n}`;
     case 'total': return `Reach a total skill level of ${t.n}`;
     case 'stage': return `Clear campaign stage ${stageLabel(t.n)}`;

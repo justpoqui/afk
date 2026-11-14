@@ -36,7 +36,6 @@ const TOOLS = {
   mining:      ['Iron Pickaxe', 'Steel Pickaxe', 'Mythril Pickaxe'],
   fishing:     ['Sturdy Rod', 'Fiberglass Rod', 'Mythril Rod'],
   herbalism:   ['Iron Sickle', 'Steel Sickle', 'Mythril Sickle'],
-  smithing:    ['Clay Furnace', 'Brick Furnace', 'Mythril Furnace'],
   metalworking:['Iron Hammer', 'Steel Hammer', 'Mythril Hammer'],
   carpentry:   ['Iron Saw', 'Steel Saw', 'Mythril Saw'],
   glassworking:['Blowpipe', 'Steel Blowpipe', 'Mythril Blowpipe'],

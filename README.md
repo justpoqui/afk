@@ -94,8 +94,7 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
 ### Skills (sidebar)
 - **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers, up to level 99.
 - **Crafting** group:
-  - 🔥 **Smithing**: smelt ore and logs into bars.
-  - 🔨 **Metalworking**: bars into gear, with a dropdown for **Weapons**: **Dagger** (+25% attack speed, light hits), **Short Sword**, **Long Sword** (harder hits, −5% speed) and **2H Sword** (huge hits, −20% speed, two-handed so no shield) and **Armor** (helmets, chestplates, platelegs, gauntlets, boots, kite shields).
+  - 🔨 **Metalworking**: a dropdown with **🔥 Smelt Bars** (ore and logs into bars), **Weapons**: **Dagger** (+25% attack speed, light hits), **Short Sword**, **Long Sword** (harder hits, −5% speed) and **2H Sword** (huge hits, −20% speed, two-handed so no shield) and **Armor** (helmets, chestplates, platelegs, gauntlets, boots, kite shields).
   - 🪚 **Carpentry**: logs into planks, then **bows** (archery), **staves** (magic, need an orb) and wooden shields.
   - 🫙 **Glassworking**: sand (dug with Mining) into molten glass, then **vials** (every potion needs one) and magic **orbs**.
 - **Cooking & Brewing** group: Cooking (food), Alchemy (potions, bottled in vials).

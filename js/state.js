@@ -31,10 +31,14 @@ function load() {
       const saved = JSON.parse(raw);
       state = Object.assign(newState(), saved);
       state.skills = Object.assign(newState().skills, saved.skills || {});
+      // Smithing was merged into Metalworking: carry its XP and tool over.
+      if (state.skills.smithing) { state.skills.metalworking.xp += state.skills.smithing.xp; delete state.skills.smithing; }
       state.stats = Object.assign(newState().stats, saved.stats || {});
       if (!saved.player) migrateTeamSave(saved);
       if (!Array.isArray(state.inv)) state.inv = [];
       state.upgrades = Object.assign(newState().upgrades, saved.upgrades || {});
+      const tl = state.upgrades.tools;
+      if (tl.smithing) { tl.metalworking = Math.max(tl.metalworking || 0, tl.smithing); delete tl.smithing; }
       if (!saved.looks) { // older saves: every look seen through rerolls is now owned
         state.looks = {};
         for (const id of [...(saved.seenSkins || []), state.player.skin]) if (HERO_BY_ID[id]) state.looks[id] = 0;

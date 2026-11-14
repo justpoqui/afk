@@ -23,7 +23,6 @@ const SKILLS = {
   fishing:     { name: 'Fishing',     icon: '🎣', type: 'gather', verb: 'Catch' },
   herbalism:   { name: 'Herbalism',   icon: '🌿', type: 'gather', verb: 'Gather' },
   // Crafting: turn raw materials into gear
-  smithing:    { name: 'Smithing',     icon: '🔥', type: 'craft', group: 'crafting', verb: 'Smelt' },
   metalworking:{ name: 'Metalworking', icon: '🔨', type: 'craft', group: 'crafting', verb: 'Forge' },
   carpentry:   { name: 'Carpentry',    icon: '🪚', type: 'craft', group: 'crafting', verb: 'Craft' },
   glassworking:{ name: 'Glassworking', icon: '🫙', type: 'craft', group: 'crafting', verb: 'Blow' },
@@ -107,8 +106,8 @@ const MELEE_WEAPONS = [
   ['greatsword', '2H Sword',    6, 9, 1.85, -0.2,  true],   // two-handed: no shield
 ];
 
-// Smelting is Smithing; bars become gear in Metalworking.
-const smelt = i => addAction_('smithing', 'bar' + i, { level: T_LEVEL[i], dur: 3, xp: Math.round(T_XP[i] * 1.5), inputs: { ['ore' + i]: 2, ['log' + i]: 1 }, group: 'Bars' });
+// Metalworking smelts ore into bars (the 'Smelt Bars' dropdown), then forges bars into gear.
+const smelt = i => addAction_('metalworking', 'bar' + i, { level: T_LEVEL[i], dur: 3, xp: Math.round(T_XP[i] * 1.5), inputs: { ['ore' + i]: 2, ['log' + i]: 1 }, group: 'Smelt Bars', verb: 'Smelt' });
 
 // Glassworking basics (sand is dug up with Mining)
 addItem_('sand', { name: 'Sand', icon: '⏳', tint: '#e2cf9a', cat: 'Glass', tier: 0, sell: 1 });
@@ -196,7 +195,7 @@ const TASK_TIERS = [
   ] },
   { name: 'Seasoned Hero', reward: { gems: 500, scrolls: 8 }, tasks: [
     { t: 'act', id: 'armor1', n: 1, r: { gems: 100 } },
-    { t: 'lvl', skill: 'smithing', n: 30, r: { scrolls: 2 } },
+    { t: 'lvl', skill: 'metalworking', n: 30, r: { scrolls: 2 } },
     { t: 'stage', n: 30, r: { gems: 200 } },
     { t: 'act', id: 'food2', n: 50, r: { gold: 4000 } },
     { t: 'lvl', skill: 'herbalism', n: 30, r: { scrolls: 2 } },
