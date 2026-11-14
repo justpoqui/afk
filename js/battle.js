@@ -335,7 +335,8 @@ class Battle {
       el.style.animationDelay = (u.slot * 70) + 'ms';
       el.innerHTML = `<div class="u-status"></div><div class="u-name">${u.name.split(' ')[0]}</div>
         <div class="bar hp"><i></i><b></b></div><div class="bar en"><i></i></div>
-        <div class="u-emoji">${art(u, '', true)}</div>`;
+        <div class="u-emoji"><div class="body">${art(u, '', true)}${(u.held || []).map(it =>
+          `<img class="held ${it.slot}${it.wtype ? ' w-' + it.wtype : ''}" src="${it.img}" alt="" draggable="false">`).join('')}</div></div>`;
       u.el = el;
       field.appendChild(el);
     }

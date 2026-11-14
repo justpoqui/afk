@@ -20,7 +20,7 @@ Every sprite and background is modeled and rendered by code in Blender. Nothing 
 
 | Script | Output |
 |---|---|
-| `art/blender/sprites.py` | `assets/sprites/*.webp`: 24 heroes, 13 monsters, 4 bosses (256×256, transparent, cartoon outline), each in a portrait pose and a `_side` battle pose |
+| `art/blender/sprites.py` | `assets/sprites/*.webp`: 24 heroes (playable looks, rendered bare: no weapons or armor), 13 monsters, 4 bosses (256×256, transparent, cartoon outline), each in a portrait pose and a `_side` battle pose |
 | `art/blender/backgrounds.py` | `assets/bg/battle_ch1-6.webp`: a side-view arena per chapter (720×1280; stands and crowd, wall and banners, scenery, sky), plus `camp.webp` (1024×512) |
 | `art/blender/items.py` | `assets/items/<item id>.webp`: a 128×128 icon for **every item** (115). Kite shields are styled after their ore, and blades are sized by type, modeled to look like its name |
 | `art/blender/common.py` | Shared helpers: materials, shapes, outlines, lights, auto-framed camera |
@@ -53,9 +53,10 @@ The game opens on **Home**: idle rewards, what you're doing right now, and tiles
   - ❤️ **Hitpoints**: max HP (starts at level 10)
 - Damage you deal in battle becomes combat XP. Your **attack style** (Accurate, Aggressive or Defensive) picks which skill gets it, and Hitpoints always gets a third.
 - **One activity at a time**: fighting stops any running skill action, just like starting another skill would.
+- **Attacks come from what you use, not your look**: in battle your character holds your equipped weapon and shield, and your special attack comes from your fighting style: ⚔️ Power Strike (Melee), 🏹 Arrow Volley (Archery), 🔮 Arcane Burst (Magic), 👊 Flurry of Blows (unarmed).
 - **Unarmed**: with no weapon equipped you fight with your 👊 fists and 🦶 feet, up close, whatever your fighting style.
 - **Fighting style** dropdown on the Character Sheet: ⚔️ **Melee** (+10% damage, fights up close), 🏹 **Archery** (+15% attack speed, arrows from the back) or 🔮 **Magic** (specials charge 30% faster, spells from the back).
-- **Looks**: open **chests** with 📜 scrolls to unlock looks into your **Look Library** (24 looks, with a dropdown to filter Melee, Archery or Magic looks). Wear any look you own. Each gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear, plus its own special attack. Duplicates add ★ (+15% bonus each, up to ★5).
+- **Looks**: open **chests** with 📜 scrolls to unlock looks into your **Look Library** (24 looks, with a dropdown to filter Melee, Archery or Magic looks). Wear any look you own. Looks are **just the characters, with no weapons or armor**. Each gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear. Duplicates add ★ (+15% bonus each, up to ★5).
 
   | Chest | ×1 | ×6 | Odds |
   |---|---|---|---|

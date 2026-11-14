@@ -289,12 +289,22 @@ def acc(kind, skin, c1, c2, hair_c):
         sphere((-0.5, 0.25, 2.25), 0.2, glow('#d9c7ff', 3), outline=False)
 
 
+# Playable looks are just the characters: no weapons, shields or armor. In battle the game draws the
+# player's equipped weapon in their hand, so attacks come from gear and fighting style, not the look.
+BARE = {'on': False}
+ARMOR_ACCS = {'helmet', 'horned', 'plume'}
+
+
 def humanoid(skin, c1, c2, hair_c='#4a3020', hair_style='short', headkind='human', accs=(), props=(),
              eye='#1b1426', robe=False, belly=False, pc1=None, pc2=None):
     body(skin, c1, c2, robe=robe, belly=belly)
     head(headkind, skin, hair_style, hair_c, eye)
     for a in accs:
+        if BARE['on'] and a in ARMOR_ACCS:
+            continue
         acc(a, skin, c1, c2, hair_c)
+    if BARE['on']:
+        return
     for p in props:
         prop(p, pc1 or c1, pc2 or c2)
 
@@ -490,6 +500,7 @@ TURN = {'mon_wolf': -35, 'boss_wyrm': -30, 'mon_spider': -20}
 def build(name, side=False):
     reset(transparent=True, samples=40)
     world_color('#9a94b8', 0.7)
+    BARE['on'] = name.startswith('hero_')  # looks are bare characters; monsters keep their gear
     SPRITES[name]()
     add_outlines(0.032)
     if name in TURN and not side:

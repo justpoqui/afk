@@ -162,8 +162,10 @@ function playerBattleUnit() {
   const ct = state.player.ctype;
   // No weapon equipped: you fight up close with your fists and feet, whatever your style.
   const unarmed = !gearItem('weapon');
+  const special = STYLE_SPECIALS[unarmed ? 'unarmed' : ct];
   return { ...st, lvl: combatLevel(), name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' || unarmed ? 'melee' : 'ranged', cls: d.cls,
-    skill: { ...d.skill, power: d.skill.power * (1 + st.ult) }, color: FACTIONS[d.faction].color, unarmed,
+    skill: { ...special, power: special.power * (1 + st.ult) }, color: FACTIONS[d.faction].color, unarmed,
+    held: GEAR_SLOTS.filter(s => s === 'weapon' || s === 'shield').map(s => gearItem(s)).filter(Boolean),
     proj: unarmed ? null : ct === 'archery' ? 'arrow' : ct === 'magic' ? 'bolt' : null, bolt: d.bolt || (ct === 'magic' ? '#9f7aff' : boltColor(d)) };
 }
 

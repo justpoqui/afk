@@ -594,3 +594,15 @@ body.nav-open #scrim { display: block; }
 #field .unit.cast.face-right .u-emoji { animation: recoil-left .3s; }
 #field .unit.hit .u-emoji { animation: shake .35s; }
 #field .unit.ult .u-emoji { animation: ult .6s; }
+
+/* ---------- Held gear: the player's equipped weapon and shield, drawn in hand ---------- */
+#field .unit .u-emoji .body { position: relative; width: 100%; height: 100%; transition: transform .12s; }
+#field .unit .u-emoji .spr, #field .unit.face-right .u-emoji .spr { transform: none; }
+#field .unit.face-right .u-emoji .body { transform: scaleX(-1); }
+#field .unit .held { position: absolute; pointer-events: none; filter: drop-shadow(0 2px 2px #0008); }
+#field .unit .held.weapon { width: 52%; left: 2%; top: 30%; transform: scaleX(-1) rotate(-10deg); z-index: 2; }
+#field .unit .held.weapon.w-archery { width: 50%; left: 0%; top: 26%; transform: scaleX(-1) rotate(30deg); }
+#field .unit .held.weapon.w-magic { width: 56%; left: 4%; top: 18%; transform: scaleX(-1) rotate(-25deg); }
+#field .unit .held.shield { width: 40%; left: 26%; top: 44%; z-index: 1; }
+#field .unit.lunge .held.weapon { animation: swing .3s ease-out; }
+@keyframes swing { 40% { transform: scaleX(-1) rotate(-70deg) translateY(-6px); } }

@@ -117,7 +117,7 @@ function lookCard(id, extra = '') {
     <div class="look-info"><b>${d.name}</b>
       <div class="tags"><span class="tag rar">${RARITY[d.rarity].name}</span><span class="tag">${CLASSES[d.cls].name}</span></div>
       <div class="look-bonus">✨ ${skinBonusText(id)}</div>
-      <div class="look-skill"><b>${d.skill.name}</b>: ${d.skill.desc}</div></div>
+      <div class="look-skill">A look for your character. Your attacks come from your gear and fighting style.</div></div>
   </div>`;
 }
 
@@ -216,7 +216,9 @@ const pages = {
         <div class="panel-title">Fighting style</div>
         <label class="select"><select data-change="ctype">${Object.entries(COMBAT_TYPES).map(([k, c]) =>
           `<option value="${k}" ${state.player.ctype === k ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select></label>
-        <p class="hint">${COMBAT_TYPES[state.player.ctype].perk}. Your look still brings its own special attack.${gearItem('weapon') ? '' : ' <b>No weapon equipped: you fight with your fists and feet, up close.</b>'}</p>
+        <p class="hint">${COMBAT_TYPES[state.player.ctype].perk}.${gearItem('weapon') ? '' : ' <b>No weapon equipped: you fight with your fists and feet, up close.</b>'}</p>
+        <div class="skill"><b>${STYLE_SPECIALS[gearItem('weapon') ? state.player.ctype : 'unarmed'].name}</b> <small>Special attack</small>
+          <p>${STYLE_SPECIALS[gearItem('weapon') ? state.player.ctype : 'unarmed'].desc}</p></div>
       </section>
       <section class="panel">
         <div class="panel-title">Attack style <span class="muted">· decides which skill your damage trains</span></div>

@@ -119,3 +119,10 @@ const COMBAT_TYPES = {
   magic:   { name: 'Magic',   icon: '🔮', perk: 'Specials charge 30% faster, casts spells from the back' },
 };
 const CLASS_TYPE = { warrior: 'melee', tank: 'melee', ranger: 'archery', mage: 'magic', support: 'magic' };
+// Your special attack comes from how you fight, not from your look.
+const STYLE_SPECIALS = {
+  melee:   { name: 'Power Strike',    type: 'nuke', power: 2.6, desc: 'A heavy blow for 260% damage.' },
+  archery: { name: 'Arrow Volley',    type: 'aoe',  power: 1.5, desc: 'Rains arrows on every enemy for 150% damage.' },
+  magic:   { name: 'Arcane Burst',    type: 'aoe',  power: 1.8, desc: 'Blasts every enemy with magic for 180% damage.' },
+  unarmed: { name: 'Flurry of Blows', type: 'nuke', power: 2.2, desc: 'A rapid string of punches and kicks for 220% damage.' },
+};
