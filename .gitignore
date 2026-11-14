@@ -1,2 +1,5 @@
 IdleRealms.apk
 __pycache__/
+
+# Generated Blender scenes (backup/smooth): ~220 MB, rebuild with python art/blender/sprites.py --smooth
+art/blender/blend/
