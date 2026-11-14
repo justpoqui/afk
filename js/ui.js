@@ -458,7 +458,7 @@ function prepPanel() {
 
 function render() {
   if (page.startsWith('skill:')) $('#screen').innerHTML = pages.skill(page.slice(6));
-  else $('#screen').innerHTML = (pages[page] || pages.camp)();
+  else $('#screen').innerHTML = (pages[page] || pages.home)();
   renderNav();
   renderTop();
   tickBars();
