@@ -97,7 +97,7 @@ function stageEnemies(stage) {
   const n = stage - 1;
   const mult = 1 + 0.14 * n + 0.002 * n * n;
   const mk = (tpl, boss) => ({
-    name: tpl.name, emoji: tpl.emoji, range: tpl.range || 'melee', boss,
+    name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss,
     hp: Math.round(600 * mult * (boss ? 4 : 1)), atk: Math.round(45 * mult * (boss ? 1.6 : 1)),
     def: Math.round(20 * mult), spd: boss ? 80 : 90,
     skill: boss ? { name: 'Cataclysm', type: 'aoe', power: 1.5 } : { name: 'Frenzy', type: 'nuke', power: 2.0 },

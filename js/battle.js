@@ -13,7 +13,7 @@ class Battle {
       if (!h) return;
       const def = HERO_BY_ID[h.id], st = heroStats(h);
       for (const k of ['hp', 'atk', 'def', 'spd']) st[k] = Math.round(st[k] * (1 + (pe[k] || 0)));
-      this.units.push(this.makeUnit('ally', i, { ...st, name: def.name, emoji: def.emoji,
+      this.units.push(this.makeUnit('ally', i, { ...st, name: def.name, emoji: def.emoji, sprite: def.sprite,
         range: CLASSES[def.cls].range, cls: def.cls, skill: def.skill, color: FACTIONS[def.faction].color }));
     });
     enemySlots.forEach((e, i) => { if (e) this.units.push(this.makeUnit('enemy', i, { ...e, color: e.boss ? '#ff5d5d' : '#888' })); });
@@ -140,7 +140,7 @@ class Battle {
       const el = document.createElement('div');
       el.className = 'unit' + (u.boss ? ' boss' : '');
       el.style.setProperty('--c', u.color);
-      el.innerHTML = `<div class="u-emoji">${u.emoji}</div>
+      el.innerHTML = `<div class="u-emoji">${art(u)}</div>
         <div class="bar hp"><i></i><b></b></div><div class="bar en"><i></i></div>
         <div class="u-name">${u.name.split(' ')[0]}</div>`;
       u.el = el;

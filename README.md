@@ -15,6 +15,24 @@ The `android/` folder is a small native app that runs the game full-screen in a 
 - Every build is signed with the same test key (`android/app/idlerealms-test.keystore`), so new builds install over old ones and **your save is kept**. Use a private key before publishing to a store.
 - The Android back button closes popups and menus, then returns to Camp, then exits.
 
+## Art (Blender)
+Every sprite and background is modeled and rendered by code in Blender. Nothing is hand-drawn, so it's easy to tweak and re-render.
+
+| Script | Output |
+|---|---|
+| `art/blender/sprites.py` | `assets/sprites/*.webp`: 16 heroes, 8 monsters, 4 bosses (256×256, transparent, cartoon outline) |
+| `art/blender/backgrounds.py` | `assets/bg/battle_ch1-6.webp`: one arena per chapter (720×1280), plus `camp.webp` (1024×512) |
+| `art/blender/common.py` | Shared helpers: materials, shapes, outlines, lights, auto-framed camera |
+
+To re-render, install Blender's Python module (`pip install bpy==5.3.0`, needs Python 3.13) or use Blender itself:
+```
+python art/blender/sprites.py               # all sprites
+python art/blender/sprites.py nyx wolf      # just these
+python art/blender/backgrounds.py camp ch3  # specific backgrounds
+blender -b -P art/blender/sprites.py        # same thing with a Blender install
+```
+Rendering uses Cycles on the CPU, so no GPU is needed. Sprites take about 1s each, backgrounds 30–60s each.
+
 ## Features
 ### Skills (sidebar)
 - **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers unlocked by level, up to level 99. Higher levels raise the chance of getting double items.

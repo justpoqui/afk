@@ -58,23 +58,29 @@ const HEROES = [
   { id: 'vesper', name: 'Vesper Moth', emoji: '🦋', faction: 'dusk', cls: 'support', rarity: 'R',
     skill: { name: 'Dusk Hymn', type: 'buff', power: 0.3, desc: 'Raises allies\' ATK by 30% for 6s.' } },
 ];
+HEROES.forEach(h => { h.sprite = 'hero_' + h.id; });
 const HERO_BY_ID = Object.fromEntries(HEROES.map(h => [h.id, h]));
 
+// Rendered Blender art (see art/blender). Emoji stay as alt text / fallback.
+const spriteUrl = key => `assets/sprites/${key}.webp`;
+const art = (d, cls = '') => `<img class="spr ${cls}" src="${spriteUrl(d.sprite)}" alt="${d.emoji}" draggable="false">`;
+const battleBg = stage => `assets/bg/battle_ch${((Math.ceil(stage / 10) - 1) % 6) + 1}.webp`;
+
 const MONSTERS = [
-  { name: 'Goblin',   emoji: '👺', range: 'melee'  },
-  { name: 'Wolf',     emoji: '🐺', range: 'melee'  },
-  { name: 'Skeleton', emoji: '☠️', range: 'melee'  },
-  { name: 'Spider',   emoji: '🕷️', range: 'melee'  },
-  { name: 'Bat',      emoji: '🦇', range: 'ranged' },
-  { name: 'Wraith',   emoji: '👻', range: 'ranged' },
-  { name: 'Imp',      emoji: '😈', range: 'ranged' },
-  { name: 'Golem',    emoji: '🗿', range: 'melee'  },
+  { name: 'Goblin', sprite: 'mon_goblin',   emoji: '👺', range: 'melee'  },
+  { name: 'Wolf', sprite: 'mon_wolf',     emoji: '🐺', range: 'melee'  },
+  { name: 'Skeleton', sprite: 'mon_skeleton', emoji: '☠️', range: 'melee'  },
+  { name: 'Spider', sprite: 'mon_spider',   emoji: '🕷️', range: 'melee'  },
+  { name: 'Bat', sprite: 'mon_bat',      emoji: '🦇', range: 'ranged' },
+  { name: 'Wraith', sprite: 'mon_wraith',   emoji: '👻', range: 'ranged' },
+  { name: 'Imp', sprite: 'mon_imp',      emoji: '😈', range: 'ranged' },
+  { name: 'Golem', sprite: 'mon_golem',    emoji: '🗿', range: 'melee'  },
 ];
 const BOSSES = [
-  { name: 'Ogre Chief',   emoji: '👹' },
-  { name: 'Ancient Wyrm', emoji: '🐉' },
-  { name: 'Lich King',    emoji: '🧟' },
-  { name: 'Kraken',       emoji: '🐙' },
+  { name: 'Ogre Chief', sprite: 'boss_ogre',   emoji: '👹' },
+  { name: 'Ancient Wyrm', sprite: 'boss_wyrm', emoji: '🐉' },
+  { name: 'Lich King', sprite: 'boss_lich',    emoji: '🧟' },
+  { name: 'Kraken', sprite: 'boss_kraken',       emoji: '🐙' },
 ];
 
 const CHAPTER_NAMES = ['Mistvale Meadows', 'Thornwood', 'Ashen Steppe', 'Frostpeak', 'Sunken Ruins', 'The Hollow Dark'];

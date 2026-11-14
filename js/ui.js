@@ -74,7 +74,7 @@ function tickBars() {
 function heroCard(h, extra = '') {
   const d = HERO_BY_ID[h.id];
   return `<div class="hero-card r-${d.rarity} ${extra}" data-uid="${h.uid}" style="--c:${FACTIONS[d.faction].color}">
-    <div class="hc-emoji">${d.emoji}</div>
+    <div class="hc-art">${art(d)}</div>
     <div class="hc-lv">Lv ${h.level}</div>
     <div class="hc-stars">${stars(h.stars)}</div>
     <div class="hc-gear">${h.weapon ? ITEMS[h.weapon].icon : ''}${h.armor ? ITEMS[h.armor].icon : ''}</div>
@@ -98,7 +98,7 @@ const pages = {
         <span class="muted">${taskProgress(nextTask).map(fmt).join(' / ')}</span></button>` : ''}
       <section class="panel">
         <div class="chapter">Chapter ${chapterOf(state.stage)} · ${chapterName(state.stage)}</div>
-        <div class="camp-scene"><span>🏕️</span><span class="bob">🔥</span><span>⛺</span></div>
+        <img class="camp-banner" src="assets/bg/camp.webp" alt="Your camp" draggable="false">
         <div class="idle-box">
           <div class="idle-title">Idle Rewards <small>${fmtTime(p.ms)} / 12h</small></div>
           <div class="bar-track"><i style="width:${100 * p.ms / IDLE_CAP_MS}%"></i></div>
@@ -109,7 +109,7 @@ const pages = {
       </section>
       <section class="panel stage-box">
         <div class="stage-title">${isBoss(state.stage) ? '👑 Boss ' : ''}Stage ${stageLabel(state.stage)}</div>
-        <div class="enemy-preview">${stageEnemies(state.stage).filter(Boolean).map(e => `<span class="${e.boss ? 'big' : ''}">${e.emoji}</span>`).join('')}</div>
+        <div class="enemy-preview">${stageEnemies(state.stage).filter(Boolean).map(e => `<span class="${e.boss ? 'big' : ''}">${art(e)}</span>`).join('')}</div>
         <div class="power-cmp">
           <div>Your power<b>${fmt(tp)}</b></div>
           <div class="diff ${diff[1]}">${diff[0]}</div>
@@ -181,7 +181,7 @@ const pages = {
       <div class="sub">Hero Codex</div>
       <div class="codex">${HEROES.map(d => {
         const owned = state.heroes.some(h => h.id === d.id);
-        return `<div class="codex-item r-${d.rarity} ${owned ? '' : 'locked'}" style="--c:${FACTIONS[d.faction].color}">${d.emoji}</div>`;
+        return `<div class="codex-item r-${d.rarity} ${owned ? '' : 'locked'}" style="--c:${FACTIONS[d.faction].color}">${art(d)}</div>`;
       }).join('')}</div>`;
   },
 
@@ -316,7 +316,7 @@ function showHero(uid) {
   openModal(`
     <button class="close" data-act="close">✕</button>
     <div class="hd-top r-${d.rarity}" style="--c:${FACTIONS[d.faction].color}">
-      <div class="hd-emoji">${d.emoji}</div>
+      <div class="hd-emoji">${art(d)}</div>
       <div>
         <h2>${d.name}</h2>
         <div class="tags"><span class="tag rar">${RARITY[d.rarity].name}</span><span class="tag fac">${FACTIONS[d.faction].name}</span><span class="tag">${c.name}</span></div>
@@ -387,7 +387,7 @@ function equipFromBank(id) {
   const heroes = [...state.heroes].sort((a, b) => heroPower(b) - heroPower(a));
   openModal(`<button class="close" data-act="close">✕</button><h2>Equip ${ITEMS[id].name}</h2>
     <div class="pick-list">${heroes.map(h => `<button class="pick" data-act="equip" data-uid="${h.uid}" data-item="${id}">
-      <span class="ico lg">${HERO_BY_ID[h.id].emoji}</span><div><b>${HERO_BY_ID[h.id].name}</b>
+      <span class="ico lg hero-ico">${art(HERO_BY_ID[h.id])}</span><div><b>${HERO_BY_ID[h.id].name}</b>
       <small>Lv ${h.level} · current: ${h[slot] ? ITEMS[h[slot]].name : 'none'}</small></div></button>`).join('')}</div>`);
 }
 
@@ -440,7 +440,7 @@ function doSummon(n) {
     <h2 class="center">Summon Results</h2>
     <div class="summon-results">${res.map((r, i) => `
       <div class="sr r-${r.def.rarity}" style="animation-delay:${i * 90}ms;--c:${FACTIONS[r.def.faction].color}">
-        <div class="hc-emoji">${r.def.emoji}</div><div class="hc-name">${r.def.name.split(' ')[0]}</div><div class="sr-note">${r.note}</div>
+        <div class="hc-art">${art(r.def)}</div><div class="hc-name">${r.def.name.split(' ')[0]}</div><div class="sr-note">${r.note}</div>
       </div>`).join('')}</div>
     <button class="btn" data-act="close">OK</button>`);
 }
@@ -468,6 +468,7 @@ function startBattle() {
   const stage = state.stage;
   $('#battle-title').textContent = `${isBoss(stage) ? '👑 ' : ''}Stage ${stageLabel(stage)}`;
   $('#battle-info').innerHTML = prepLine();
+  $('#battle').style.setProperty('--bg', `url(${battleBg(stage)})`);
   $('#battle').classList.remove('hidden');
   battle = new Battle(teamHeroes(), stageEnemies(stage), win => endBattle(win, stage));
   battle.speed = Number(localGet('speed') || 1);
