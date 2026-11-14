@@ -498,6 +498,7 @@ function prepPanel() {
 }
 
 function render() {
+  if (page.startsWith('skill:') && !SKILLS[page.slice(6)]) page = 'home'; // e.g. a skill that was merged away
   if (page.startsWith('skill:')) $('#screen').innerHTML = pages.skill(page.slice(6));
   else $('#screen').innerHTML = (pages[page] || pages.home)();
   renderNav();
