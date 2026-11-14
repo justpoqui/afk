@@ -12,9 +12,9 @@ function newState() {
     stage: 1, lastClaim: Date.now(), pity: 0,
     player: { skin: 'tobin', style: 'strength', gear: { weapon: null, armor: null } },
     seenSkins: ['tobin'], pendingSkin: null,
-    bank: {}, skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
+    bank: {}, inv: [], skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
     active: null, provision: null, potion: null, tasksClaimed: [], tiersClaimed: [],
-    stats: { actions: {}, summons: 0, claims: 0, equips: 0, potions: 0, eaten: 0, kills: 0 },
+    stats: { actions: {}, summons: 0, claims: 0, equips: 0, potions: 0, eaten: 0, kills: 0, burnt: 0 },
   };
 }
 
@@ -30,6 +30,7 @@ function load() {
       state.skills = Object.assign(newState().skills, saved.skills || {});
       state.stats = Object.assign(newState().stats, saved.stats || {});
       if (!saved.player) migrateTeamSave(saved);
+      if (!Array.isArray(state.inv)) state.inv = [];
       state.player.gear = Object.assign({ weapon: null, armor: null }, state.player.gear);
       return;
     }
@@ -140,6 +141,59 @@ function grantCombatXp(dmg) {
   return { style, xp, hpXp: Math.round(xp / 3), ups };
 }
 
+// ---- Inventory: INV_SIZE slots, one item per slot unless the item stacks ----
+const INV_SIZE = 28;
+const invCount = id => state.inv.reduce((s, x) => (x.id === id ? s + x.n : s), 0);
+const invUsed = () => state.inv.length;
+const invFree = () => INV_SIZE - state.inv.length;
+const invFull = () => invFree() <= 0;
+function invRoomFor(id, qty = 1) {
+  if (ITEMS[id].stack) return state.inv.some(x => x.id === id) || invFree() > 0 ? qty : 0;
+  return Math.max(0, Math.min(qty, invFree()));
+}
+function invAdd(id, qty = 1) {
+  const room = invRoomFor(id, qty);
+  if (!room) return 0;
+  if (ITEMS[id].stack) {
+    let slot = state.inv.find(x => x.id === id);
+    if (!slot) { slot = { id, n: 0 }; state.inv.push(slot); }
+    slot.n += room;
+  } else for (let i = 0; i < room; i++) state.inv.push({ id, n: 1 });
+  return room;
+}
+function invRemove(id, qty = 1) {
+  let left = qty;
+  for (let i = state.inv.length - 1; i >= 0 && left > 0; i--) {
+    const x = state.inv[i];
+    if (x.id !== id) continue;
+    const k = Math.min(left, x.n);
+    x.n -= k; left -= k;
+    if (!x.n) state.inv.splice(i, 1);
+  }
+  return qty - left;
+}
+// Materials can come from the inventory or the bank (inventory first).
+const haveCount = id => invCount(id) + itemCount(id);
+function take(id, n) { const got = invRemove(id, n); if (got < n) removeItem(id, n - got); }
+function deposit(id, n = Infinity) { const k = invRemove(id, Math.min(n, invCount(id))); addItem(id, k); save(); return k; }
+function depositAll(keepFood = false) {
+  const keep = [];
+  for (const x of state.inv) { if (keepFood && ITEMS[x.id].heal) keep.push(x); else addItem(x.id, x.n); }
+  state.inv = keep; save();
+}
+function withdraw(id, n) {
+  const k = invAdd(id, Math.min(n, itemCount(id)));
+  removeItem(id, k); save();
+  return k;
+}
+// Battle food is eaten from the inventory: the chosen food first, otherwise the best food carried.
+function nextFood() {
+  if (state.provision && invCount(state.provision)) return state.provision;
+  const foods = state.inv.filter(x => ITEMS[x.id].heal).map(x => x.id);
+  return foods.sort((a, b) => ITEMS[b].heal - ITEMS[a].heal)[0] || null;
+}
+const foodCarried = () => state.inv.filter(x => ITEMS[x.id].heal).length;
+
 // ---- Bank & gear ----
 const itemCount = id => state.bank[id] || 0;
 function addItem(id, n = 1) { state.bank[id] = (state.bank[id] || 0) + n; }
@@ -147,23 +201,27 @@ function removeItem(id, n = 1) {
   state.bank[id] = Math.max(0, (state.bank[id] || 0) - n);
   if (!state.bank[id]) delete state.bank[id];
 }
-function sellItem(id, n) {
-  n = Math.min(n, itemCount(id));
-  removeItem(id, n); state.gold += ITEMS[id].sell * n; save();
+function sellItem(id, n, fromInv = false) {
+  n = Math.min(n, fromInv ? invCount(id) : itemCount(id));
+  if (fromInv) invRemove(id, n); else removeItem(id, n);
+  state.gold += ITEMS[id].sell * n; save();
   return ITEMS[id].sell * n;
 }
 function equipGear(itemId) {
   const slot = ITEMS[itemId].slot;
-  if (!slot || !itemCount(itemId)) return;
-  if (state.player.gear[slot]) addItem(state.player.gear[slot]);
-  removeItem(itemId); state.player.gear[slot] = itemId; state.stats.equips++; save();
+  if (!slot || !haveCount(itemId)) return;
+  const old = state.player.gear[slot];
+  take(itemId, 1); state.player.gear[slot] = itemId; state.stats.equips++;
+  if (old && !invAdd(old)) addItem(old); // the old piece goes to the inventory, or the bank if it's full
+  save();
 }
 function unequipGear(slot) {
-  if (state.player.gear[slot]) { addItem(state.player.gear[slot]); state.player.gear[slot] = null; save(); }
+  const old = state.player.gear[slot];
+  if (old) { if (!invAdd(old)) addItem(old); state.player.gear[slot] = null; save(); }
 }
 function drinkPotion(id) {
-  if (!itemCount(id)) return false;
-  removeItem(id); state.potion = { id, battles: POTION_BATTLES }; state.stats.potions++; save();
+  if (!haveCount(id)) return false;
+  take(id, 1); state.potion = { id, battles: POTION_BATTLES }; state.stats.potions++; save();
   return true;
 }
 const potionEffect = () => (state.potion ? ITEMS[state.potion.id].effect : {});

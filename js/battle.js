@@ -4,6 +4,11 @@
 const BATTLE_TIME = 90;
 const PROJ_MS = 480;     // flight time of arrows and spells at 1x speed
 const FLOAT_MS = 1600;   // how long damage numbers stay on screen
+// Where each formation slot stands: [left %, feet height % from the bottom, size]. Matches the arena art's floor.
+const SPOTS = {
+  enemy: { 0: [38, 22, 1], 1: [25, 26, 0.88], 2: [12, 24, 0.94], 3: [25, 26, 0.88], 4: [12, 24, 0.94], boss: [31, 22, 1] },
+  ally:  { 0: [73, 22, 1], 1: [81, 26, 0.88], 2: [84, 23, 1], 3: [81, 26, 0.88], 4: [84, 23, 1] },
+};
 
 class Battle {
   // One player character (from playerBattleUnit) against a group of enemies.
@@ -79,9 +84,9 @@ class Battle {
 
   // Heroes eat the selected provisions from the bank when they get low.
   eat(u) {
-    const id = state.provision;
-    if (!id || !itemCount(id)) return;
-    removeItem(id); state.stats.eaten++;
+    const id = nextFood(); // food is eaten from the inventory
+    if (!id) return;
+    invRemove(id); state.stats.eaten++;
     u.eatCd = 4;
     this.float(u, ITEMS[id].icon, 'heal');
     this.heal(u, ITEMS[id].heal);
@@ -230,22 +235,27 @@ class Battle {
   }
 
   mount() {
-    for (const side of ['ally', 'enemy']) {
-      for (const row of ['front', 'back']) document.querySelector(`#field .${side} .${row}`).innerHTML = '';
-    }
+    const field = document.getElementById('field');
+    field.querySelectorAll('.unit').forEach(el => el.remove());
     this.fxLayer = document.getElementById('fx');
     this.fxLayer.innerHTML = '';
     // Fill each column top-to-bottom in slot order so formations look the same every time.
     for (const u of [...this.units].sort((a, b) => a.slot - b.slot)) {
       const el = document.createElement('div');
-      el.className = 'unit enter' + (u.boss ? ' boss' : '') + (u.hero ? ' hero' : '') + (u.range === 'melee' ? ' melee' : ' ranged');
+      el.className = `unit enter ${u.side} ${u.row}` + (u.boss ? ' boss' : '') + (u.hero ? ' hero' : '') + (u.range === 'melee' ? ' melee' : ' ranged');
+      // Side-on arena: everyone stands on the floor in a line; units further back sit slightly higher.
+      const p = SPOTS[u.side][u.boss ? 'boss' : u.slot];
+      el.style.left = p[0] + '%';
+      el.style.bottom = p[1] + '%';
+      el.style.zIndex = 10 - Math.round(p[1]);
+      if (p[2] !== 1) el.style.setProperty('--depth', p[2]);
       el.style.setProperty('--c', u.color);
       el.style.animationDelay = (u.slot * 70) + 'ms';
-      el.innerHTML = `<div class="u-status"></div><div class="u-emoji">${art(u, '', true)}</div>
+      el.innerHTML = `<div class="u-status"></div><div class="u-name">${u.name.split(' ')[0]}</div>
         <div class="bar hp"><i></i><b></b></div><div class="bar en"><i></i></div>
-        <div class="u-name">${u.name.split(' ')[0]}</div>`;
+        <div class="u-emoji">${art(u, '', true)}</div>`;
       u.el = el;
-      document.querySelector(`#field .${u.side} .${u.row}`).appendChild(el);
+      field.appendChild(el);
     }
     this.fieldRect = document.getElementById('field').getBoundingClientRect();
     this.render();

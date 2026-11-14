@@ -16,8 +16,8 @@ OUT = os.path.join(ROOT, 'assets', 'bg')
 R = random.Random()
 
 
-def ground(c1, c2, size=(40, 50), shine=0.8):
-    bpy.ops.mesh.primitive_plane_add(size=1)
+def ground(c1, c2, size=(40, 50), shine=0.8, loc=(0, 0, 0), scale_noise=0.35):
+    bpy.ops.mesh.primitive_plane_add(size=1, location=loc)
     g = bpy.context.object
     g.scale = (size[0], size[1], 1)
     g['outline'] = False
@@ -31,7 +31,7 @@ def ground(c1, c2, size=(40, 50), shine=0.8):
     b.inputs['Roughness'].default_value = shine
     tc = nt.nodes.new('ShaderNodeTexCoord')
     n1 = nt.nodes.new('ShaderNodeTexNoise')
-    n1.inputs['Scale'].default_value = 0.35
+    n1.inputs['Scale'].default_value = scale_noise
     n1.inputs['Detail'].default_value = 4
     ramp = nt.nodes.new('ShaderNodeValToRGB')
     ramp.color_ramp.interpolation = 'CONSTANT'
@@ -296,9 +296,175 @@ def camp():
     render(os.path.join(OUT, 'camp.webp'), 1024, 512, quality=85)
 
 
+# ---------------- side-view arenas (Swords & Sandals style) ----------------
+ARENAS = {
+    'ch1': dict(crowd='#b8ad98', g=('#86c766', '#6bb156'), strip=('#d6bf8e', '#c4a978'), wall='fence', wallc='#8a5a35',
+                mid=[('tree_round', '#4fa64a', 0.6), ('bush', '#4f9a45', 0.25), ('rock', '#a3a7ad', 0.15)],
+                far='hills', farc='#79ad66', sky=('#5fb4ff', '#e6f6ff'), sun=('#fff1d6', 3.0), banner='#d94a3d'),
+    'ch2': dict(g=('#3f6b3a', '#335c32'), strip=('#7a6448', '#6b583e'), wall='fence', wallc='#5a3d26',
+                mid=[('tree_pine', '#2a5a35', 0.7), ('mushroom', '#d94a3d', 0.15), ('bush', '#2f5a30', 0.15)],
+                far='pines', farc='#30503d', sky=('#3f5f73', '#b8d0c0'), sun=('#e6f0d6', 2.2), banner='#4fa64a'),
+    'ch3': dict(crowd='#5f5652', g=('#8a7a68', '#776858'), strip=('#b8a088', '#a89078'), wall='stone', wallc='#6b625a',
+                mid=[('tree_dead', '#3a2e28', 0.5), ('rock', '#5f5652', 0.5)],
+                far='volcano', farc='#5a4a44', sky=('#4a2a30', '#ffae6a'), sun=('#ffb27a', 3.0), banner='#ff8a2a'),
+    'ch4': dict(crowd='#c8d8e8', g=('#eef4fa', '#d6e2ee'), strip=('#dce8f4', '#cbdbea'), wall='ice', wallc='#a8d8f0',
+                mid=[('tree_pine_snow', '#2f5a4a', 0.6), ('rock_snow', '#8a96a8', 0.25), ('crystal', '#8fe3ff', 0.15)],
+                far='mountains', farc='#8a9ab0', sky=('#5a8ad0', '#eaf4ff'), sun=('#e8f0ff', 2.8), banner='#3a6fd1'),
+    'ch5': dict(crowd='#d8ccb0', g=('#d8c48f', '#c7b17c'), strip=('#e8d8a8', '#dccb98'), wall='stone', wallc='#c9bfa8',
+                mid=[('pillar', '#c9bfa8', 0.6), ('coral', '#ff7a9a', 0.2), ('rock', '#8fa39a', 0.2)],
+                far='dunes', farc='#d4bd86', sky=('#3aa0d0', '#fff0c8'), sun=('#fff1d6', 3.0), banner='#2aa6a0'),
+    'ch6': dict(g=('#3a2f4f', '#2f2642'), strip=('#4c4066', '#433858'), wall='crystal', wallc='#b48cff',
+                mid=[('crystal', '#b48cff', 0.4), ('tree_dead', '#241c33', 0.35), ('mushroom_glow', '#4dffd2', 0.25)],
+                far='spires', farc='#2a2238', sky=('#0c0816', '#3a2a5c'), sun=('#b8a0ff', 1.0), banner='#b48cff'),
+}
+
+
+def sky(top, horizon):
+    """A huge vertical backdrop with a vertical colour gradient (emissive, so lighting doesn't touch it)."""
+    bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 140, 60))
+    o = bpy.context.object
+    o.scale = (900, 260, 1)
+    o.rotation_euler[0] = math.radians(90)
+    o['outline'] = False
+    m = bpy.data.materials.new('sky')
+    try:
+        m.use_nodes = True
+    except Exception:
+        pass
+    nt = m.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    em = nt.nodes.new('ShaderNodeEmission')
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    ramp.color_ramp.elements[0].position = 0.42
+    ramp.color_ramp.elements[0].color = (*hx(horizon), 1)
+    ramp.color_ramp.elements[1].position = 0.75
+    ramp.color_ramp.elements[1].color = (*hx(top), 1)
+    nt.links.new(tc.outputs['Generated'], sep.inputs[0])
+    nt.links.new(sep.outputs['Y'], ramp.inputs['Fac'])
+    nt.links.new(ramp.outputs['Color'], em.inputs['Color'])
+    nt.links.new(em.outputs[0], out.inputs['Surface'])
+    o.data.materials.append(m)
+
+
+def barrier(kind, c, banner):
+    """The low arena wall behind the fighters, with two banners."""
+    y = 7.0
+    if kind == 'fence':
+        for i in range(-12, 13):
+            cyl((i * 1.5, y, 0.7), 0.12, 1.4, mat(c), verts=8)
+        for z in (0.55, 1.15):
+            box((0, y - 0.1, z), (37, 0.12, 0.16), mat(c))
+    elif kind == 'stone':
+        for i in range(-10, 11):
+            box((i * 1.85, y, 0.75), (1.75, 0.8, 1.5), mat(c), bevel=0.08)
+            box((i * 1.85, y, 1.62), (1.0, 0.8, 0.3), mat(c), bevel=0.05)
+    elif kind == 'ice':
+        for i in range(-10, 11):
+            box((i * 1.85, y, 0.7), (1.7, 0.9, 1.4 + (i % 3) * 0.25), mat(c, rough=0.15), bevel=0.12)
+    elif kind == 'crystal':
+        for i in range(-14, 15):
+            cyl((i * 1.3, y + (i % 2) * 0.5, 0.9), 0.35, 1.8 + (i % 3) * 0.6, mat(c, emit=1.2, rough=0.2), r2=0.0, verts=5)
+        point((0, y - 1, 2), 300, c, 2)
+    for x in (-5.5, 5.5):
+        cyl((x, y - 0.6, 2.0), 0.07, 4.0, mat('#6b442a'), verts=8)
+        box((x + (0.55 if x < 0 else -0.55), y - 0.6, 3.3), (1.0, 0.05, 1.3), mat(banner))
+        cyl((x, y - 0.6, 4.08), 0.12, 0.2, gold_mat(), r2=0.0, verts=8)
+
+
+def gold_mat():
+    return mat('#f2c14e', rough=0.3, metal=0.9)
+
+
+def stands(c):
+    """Tiered stone stands behind the wall, packed with a cheering crowd."""
+    shirts = ['#d94a3d', '#3f6fd1', '#f2c14e', '#4fa64a', '#a57fd9', '#f2903a', '#e8e2cf', '#2aa6a0']
+    skins = ['#ffd9bd', '#e8b48a', '#c08a5a', '#8a5a35', '#f0c7a0']
+    for tier in range(4):
+        y, z = 8.6 + tier * 1.3, 0.5 + tier * 0.75
+        box((0, y, z / 2), (44, 1.3, z + 0.5), mat(c, rough=0.9), bevel=0.04)
+        for i in range(-21, 22):
+            if R.random() < 0.18:
+                continue
+            x = i + R.uniform(-0.25, 0.25)
+            cyl((x, y - 0.2, z + 0.75), 0.24, 0.6, mat(R.choice(shirts)), verts=8)
+            sphere((x, y - 0.2, z + 1.22), 0.2, mat(R.choice(skins)), seg=10, rings=6)
+            if R.random() < 0.3:  # cheering arm
+                tube([(x + 0.2, y - 0.2, z + 0.95), (x + 0.32, y - 0.25, z + 1.35)], [0.06, 0.05], mat(R.choice(skins)))
+
+
+def clouds(dark=False):
+    for _ in range(9 if not dark else 0):
+        x, z = R.uniform(-70, 70), R.uniform(28, 70)
+        for k in range(4):
+            sphere((x + k * 4 + R.uniform(-1, 1), 110, z + R.uniform(-1.5, 1.5)), R.uniform(3, 5.5), mat('#ffffff', emit=0.9),
+                   scale=(1.3, 0.5, 0.7), outline=False, seg=14, rings=8)
+    if dark:
+        for _ in range(120):
+            sphere((R.uniform(-90, 90), 120, R.uniform(15, 95)), R.uniform(0.15, 0.35), mat('#ffffff', emit=8), outline=False, seg=6, rings=4)
+
+
+def far_layer(kind, c):
+    R.seed(99)
+    for i in range(14):
+        x = -90 + i * 14 + R.uniform(-4, 4)
+        y = R.uniform(55, 80)
+        if kind == 'hills':
+            sphere((x, y, -4), R.uniform(10, 16), mat(c, rough=1), scale=(1.6, 1, 0.6), outline=False)
+        elif kind == 'dunes':
+            sphere((x, y, -5), R.uniform(12, 18), mat(c, rough=1), scale=(2.0, 1, 0.45), outline=False)
+        elif kind == 'pines':
+            for k in range(3):
+                cyl((x + k * 4, y - k * 6, 6), 3.0, 14, mat(c), r2=0.0, verts=8, outline=False)
+        elif kind in ('mountains', 'volcano', 'spires'):
+            h = R.uniform(18, 30) if kind != 'spires' else R.uniform(14, 34)
+            r = h * (0.9 if kind != 'spires' else 0.3)
+            cyl((x, y, h / 2 - 2), r, h, mat(c, rough=1), r2=0.0 if kind != 'volcano' else r * 0.18, verts=7, outline=False)
+            if kind == 'mountains':
+                cyl((x, y, h - 2 - h * 0.15), r * 0.32, h * 0.3, mat('#f4f8ff'), r2=0.0, verts=7, outline=False)
+            if kind == 'volcano' and i % 3 == 0:
+                sphere((x, y, h - 2), r * 0.2, mat('#ff6a1a', emit=6), scale=(1, 1, 0.3), outline=False)
+
+
+def arena(key):
+    ch = ARENAS[key]
+    R.seed(int(key[2:]) * 31)
+    reset(transparent=False, samples=64)
+    world_color(ch['sky'][1], 0.55)
+    sky(*ch['sky'])
+    ground(*ch['g'], size=(400, 400), loc=(0, 150, 0), scale_noise=0.08)
+    ground(*ch['strip'], size=(90, 20), loc=(0, -3, 0.02), scale_noise=0.5)  # the arena floor fighters stand on
+    barrier(ch['wall'], ch['wallc'], ch['banner'])
+    if ch.get('crowd'):
+        stands(ch['crowd'])
+    clouds(dark=key == 'ch6')
+    far_layer(ch['far'], ch['farc'])
+    # scenery behind the wall
+    for _ in range(26):
+        kind, c, _w = pick(ch['mid'])
+        place_big(kind, c, R.uniform(-24, 24), R.uniform(15 if ch.get('crowd') else 10, 30), R.uniform(1.5, 2.6))
+    # a few foreground details at the edges of the frame
+    for _ in range(18):
+        x = R.choice((-1, 1)) * R.uniform(2.6, 6)
+        y = R.uniform(-5, -3)
+        (tuft if R.random() < 0.7 else (lambda a, b, c: rock(a, b, 0.5, '#7a7470')))(x, y, ch['g'][1])
+    add_outlines(0.05)
+    sun((55, 0, -35), ch['sun'][1], ch['sun'][0], angle=5)
+    camera((0, -13, 2.4), (0, 10, 1.9), lens=28)
+    render(os.path.join(OUT, f'battle_{key}.webp'), 720, 1280, quality=82)
+
+
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
-    jobs = [a for a in sys.argv[1:] if not a.startswith('-')] or ['camp', *CHAPTERS]
+    # battle_chN.webp are the side-view arenas; pass topdown-chN for the old top-down boards.
+    jobs = [a for a in sys.argv[1:] if not a.startswith('-')] or ['camp', *ARENAS]
     for j in jobs:
-        camp() if j == 'camp' else battle(j)
+        if j == 'camp':
+            camp()
+        elif j.startswith('topdown-'):
+            battle(j[8:])
+        else:
+            arena(j)
         print('rendered', j, flush=True)

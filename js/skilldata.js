@@ -24,7 +24,7 @@ const SKILLS = {
 
 const ITEMS = {};
 const ACTIONS = {}; // keyed by output item id (each item has exactly one recipe)
-const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Weapons', 'Armor', 'Food', 'Potions'];
+const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Weapons', 'Armor', 'Food', 'Potions', 'Misc'];
 
 function addItem_(id, d) { ITEMS[id] = { id, ...d }; }
 const SKILL_XP_MULT = 0.7; // global skill XP tuning (-30%)
@@ -78,6 +78,10 @@ for (let i = 0; i < 5; i++) {
   addItem_('pot' + i, { name: POTIONS[i][0], icon: '🧪', tint: t, cat: 'Potions', tier: i, effect: POTIONS[i][1], effectText: POTIONS[i][2], sell: T_SELL[i] * 6 });
   addAction_('alchemy', 'pot' + i, { level: T_LEVEL[i], dur: 4, xp: T_XP[i] * 2, inputs: { ['herb' + i]: 3, ...POTION_SECOND[i] } });
 }
+
+// Stackable items share one inventory slot (everything else takes one slot per item).
+// Every dish that burns while cooking turns into this.
+addItem_('burnt', { name: 'Burnt Food', icon: '🍖', tint: '#3a2a22', cat: 'Misc', tier: 0, sell: 1, stack: true, burnt: true });
 
 // ---- Task chain: complete every task in a tier to unlock the next ----
 const TASK_TIERS = [

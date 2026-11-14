@@ -21,7 +21,7 @@ Every sprite and background is modeled and rendered by code in Blender. Nothing 
 | Script | Output |
 |---|---|
 | `art/blender/sprites.py` | `assets/sprites/*.webp`: 24 heroes, 13 monsters, 4 bosses (256×256, transparent, cartoon outline), each in a portrait pose and a `_side` battle pose |
-| `art/blender/backgrounds.py` | `assets/bg/battle_ch1-6.webp`: one arena per chapter (720×1280), plus `camp.webp` (1024×512) |
+| `art/blender/backgrounds.py` | `assets/bg/battle_ch1-6.webp`: a side-view arena per chapter (720×1280; stands and crowd, wall and banners, scenery, sky), plus `camp.webp` (1024×512) |
 | `art/blender/common.py` | Shared helpers: materials, shapes, outlines, lights, auto-framed camera |
 
 To re-render, install Blender's Python module (`pip install bpy==5.3.0`, needs Python 3.13) or use Blender itself:
@@ -43,19 +43,21 @@ Rendering uses Cycles on the CPU, so no GPU is needed. Sprites take about 1s eac
 - Damage you deal in battle becomes combat XP. Your **attack style** (Accurate, Aggressive or Defensive) picks which skill gets it, and Hitpoints always gets a third.
 - **One activity at a time**: fighting stops any running skill action, just like starting another skill would.
 - **Wardrobe**: spend a 📜 scroll (or 💎 150) to **reroll your look**, chosen from 24 designs. Each look gives a bonus by class and rarity (damage, max HP and defence, attack speed, special power, or HP regen) on top of gear, and brings its own special attack. You choose whether to keep the new look, and a Legendary is guaranteed within 30 rerolls.
-- **Equipment** slots (weapon, armor; built to take more slots later), **food** that you eat automatically below 45% HP, and **potions** for 5 battles.
+- **Equipment** slots (weapon, armor; built to take more slots later), **food** carried in your inventory, eaten automatically below 45% HP (one tap fills your free slots from the bank), and **potions** for 5 battles.
 
 ### Skills (sidebar)
 - **Gathering**: Woodcutting, Mining, Fishing, Herbalism. Each has 5 material tiers, up to level 99.
 - **Crafting**: Smithing (bars → blades and plate armor), Cooking (food), Alchemy (potions).
 - Skill actions keep running while the game is closed (up to 12h). Skill XP is tuned by `SKILL_XP_MULT` in `js/skilldata.js`.
-- **Bank**: sell items, equip gear, choose battle food, drink potions.
+- **Inventory (28 slots)**: everything you gather or craft goes here, **one item per slot**. Only the **bank** stacks items, except stackable items like 🍖 **Burnt Food** (every dish that burns while cooking turns into it). Skill actions stop when the inventory is full, so deposit in the bank. Crafting takes materials from the inventory first, then the bank.
+- **Bank**: deposit or withdraw, sell, equip gear, choose battle food, drink potions.
+- **Cooking can burn**: 40% at a recipe's level, 1.2% less per level above it (minimum 2%). Burnt dishes give no XP.
 
 ### Task chain
 - 6 tiers of tasks across every system, with a bonus reward for finishing each tier.
 
 ### Combat
-- Sideways auto-battles: you stand on the right, enemies on the left (melee in front, archers and casters behind). Ranged attacks arc overhead. Damage numbers linger, and status badges stay up while effects last.
+- Side-on arena battles, like Swords & Sandals: fighters stand on the arena floor (crowd and banners behind), you on the right, enemies on the left (melee nearest, casters behind). Ranged attacks arc overhead. Damage numbers linger, and status badges stay up while effects last.
 - **Auto ⟳** keeps fighting the next stage after each win. **✕** retreats (XP still counts). Speed 1x/2x/3x, and Skip.
 - Campaign chapters with a boss every 10 stages. A character whose combat skills are at about level L, with matching gear, can clear about stage L.
 

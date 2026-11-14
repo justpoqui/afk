@@ -8,14 +8,19 @@ const totalSkillLevel = () => Object.keys(SKILLS).reduce((s, k) => s + skillLeve
 const bonusChance = id => Math.min(SKILLS[id].type === 'gather' ? 0.25 : 0.2, skillLevel(id) * (SKILLS[id].type === 'gather' ? 0.0025 : 0.002));
 const bonusLabel = id => (SKILLS[id].type === 'gather' ? 'Double-item chance' : 'Keep-materials chance');
 
-const hasInputs = act => Object.entries(act.inputs).every(([id, n]) => itemCount(id) >= n);
-const canDo = act => skillLevel(act.skill) >= act.level && hasInputs(act);
+const hasInputs = act => Object.entries(act.inputs).every(([id, n]) => haveCount(id) >= n);
+// Every finished item needs a free inventory slot (cooking can also produce stackable Burnt Food).
+const hasRoom = act => invRoomFor(act.id, 1) > 0;
+const canDo = act => skillLevel(act.skill) >= act.level && hasInputs(act) && hasRoom(act);
+// Cooking burns sometimes: 40% at the recipe's level, 1.2% less per level above it, never below 2%.
+const burnChance = act => (act.skill === 'cooking' ? Math.max(0.02, 0.4 - (skillLevel('cooking') - act.level) * 0.012) : 0);
 
 function toggleAction(id) {
   if (state.active && state.active.action === id) { state.active = null; save(); return 'stopped'; }
   const act = ACTIONS[id];
   if (skillLevel(act.skill) < act.level) return 'level';
   if (!hasInputs(act)) return 'inputs';
+  if (!hasRoom(act)) return 'full';
   state.active = { action: id, start: Date.now() };
   save();
   return 'started';
@@ -25,14 +30,20 @@ function doAction(act, sum) {
   const before = skillLevel(act.skill);
   const lucky = Math.random() < bonusChance(act.skill);
   if (!(lucky && SKILLS[act.skill].type === 'craft')) {
-    for (const [id, n] of Object.entries(act.inputs)) removeItem(id, n);
+    for (const [id, n] of Object.entries(act.inputs)) take(id, n);
   }
-  const qty = act.qty * (lucky && SKILLS[act.skill].type === 'gather' ? 2 : 1);
-  addItem(act.id, qty);
+  sum.count++;
+  if (Math.random() < burnChance(act)) { // burnt: no XP, the dish becomes Burnt Food
+    invAdd('burnt');
+    state.stats.burnt++;
+    sum.items.burnt = (sum.items.burnt || 0) + 1;
+    return;
+  }
+  const qty = invAdd(act.id, act.qty * (lucky && SKILLS[act.skill].type === 'gather' ? 2 : 1));
   state.skills[act.skill].xp += act.xp;
-  state.stats.actions[act.id] = (state.stats.actions[act.id] || 0) + 1;
+  state.stats.actions[act.id] = (state.stats.actions[act.id] || 0) + 1; // burnt dishes don't count
   sum.items[act.id] = (sum.items[act.id] || 0) + qty;
-  sum.xp += act.xp; sum.count++;
+  sum.xp += act.xp;
   const after = skillLevel(act.skill);
   if (after > before) sum.levelUp = after;
 }
@@ -47,10 +58,10 @@ function processSkilling(now = Date.now()) {
   const n = Math.floor(elapsed / dur);
   const sum = { skill: act.skill, items: {}, xp: 0, count: 0, levelUp: 0, stopped: false, ms: now - a.start };
   for (let i = 0; i < n; i++) {
-    if (!canDo(act)) { sum.stopped = true; break; }
+    if (!canDo(act)) { sum.stopped = true; sum.full = !hasRoom(act); break; }
     doAction(act, sum);
   }
-  if (sum.stopped || !canDo(act)) { state.active = null; sum.stopped = true; }
+  if (sum.stopped || !canDo(act)) { state.active = null; sum.stopped = true; sum.full = sum.full || !hasRoom(act); }
   else a.start = now - ((now - a.start) % dur);
   save();
   return sum;

@@ -6,7 +6,7 @@ let autoTimer = null;
 const $ = s => document.querySelector(s);
 const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.floor(n));
 const fmtTime = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m ${String(s % 60).padStart(2, '0')}s`; };
-const icon = (id, extra = '') => `<span class="ico ${extra}" style="--t:${ITEMS[id].tint}">${ITEMS[id].icon}</span>`;
+const icon = (id, extra = '') => `<span class="ico ${extra} ${ITEMS[id].burnt ? 'burnt' : ''}" style="--t:${ITEMS[id].tint}">${ITEMS[id].icon}</span>`;
 const skin = () => HERO_BY_ID[state.player.skin];
 
 function toast(msg) {
@@ -25,7 +25,7 @@ const NAV = [
   ['Combat', skillNav('combat')],
   ['Gathering', skillNav('gather')],
   ['Crafting', skillNav('craft')],
-  ['General', [['bank', '🏦', 'Bank'], ['tasks', '📋', 'Tasks']]],
+  ['General', [['inventory', '🎒', 'Inventory'], ['bank', '🏦', 'Bank'], ['tasks', '📋', 'Tasks']]],
 ];
 const pageTitle = () => {
   for (const [, items] of NAV) for (const [id, ic, name] of items) if (id === page) return `${ic} ${name}`;
@@ -45,6 +45,7 @@ function renderNav() {
       if (id === 'character') right = `<span class="lvl">⚡${fmt(playerPower())}</span>`;
       if (id === 'wardrobe' && state.scrolls) right = `<span class="lvl">📜${state.scrolls}</span>`;
       if (id === 'bank') right = `<span class="lvl">${Object.keys(state.bank).length}</span>`;
+      if (id === 'inventory') right = `<span class="lvl ${invFull() ? 'full' : ''}">${invUsed()}/${INV_SIZE}</span>`;
       const running = id === 'skill:' + activeSkill;
       return `<button class="nav-item ${page === id ? 'on' : ''} ${running ? 'running' : ''}" data-page="${id}">
         <span class="ni">${ic}</span><span class="nn">${name}</span>${right}
@@ -63,8 +64,27 @@ function renderTop() {
     const a = ACTIONS[state.active.action];
     strip.classList.remove('hidden');
     strip.dataset.page = 'skill:' + a.skill;
-    strip.innerHTML = `<span>${SKILLS[a.skill].icon} ${a.name}</span><span class="muted">${fmt(itemCount(a.id))} in bank</span><i class="strip-prog"></i>`;
+    strip.innerHTML = `<span>${SKILLS[a.skill].icon} ${a.name}</span><span class="muted">🎒 ${invUsed()}/${INV_SIZE}</span><i class="strip-prog"></i>`;
+  } else if (invFull() && page !== 'inventory' && page !== 'bank') {
+    strip.classList.remove('hidden');
+    strip.dataset.page = 'inventory';
+    strip.innerHTML = `<span class="full">🎒 Inventory full</span><span class="muted">Tap to deposit in the bank</span>`;
   } else strip.classList.add('hidden');
+}
+
+// 28-slot inventory grid. Stackable items show their count.
+function invGrid(small = false) {
+  const cells = [];
+  for (let i = 0; i < INV_SIZE; i++) {
+    const x = state.inv[i];
+    cells.push(x ? `<button class="inv-slot ${ITEMS[x.id].burnt ? 'burnt' : ''}" data-inv="${i}" style="--t:${ITEMS[x.id].tint}">${ITEMS[x.id].icon}${x.n > 1 ? `<span class="qty">${fmt(x.n)}</span>` : ''}</button>`
+                 : '<div class="inv-slot empty"></div>');
+  }
+  return `<div class="inv-grid ${small ? 'small' : ''}">${cells.join('')}</div>`;
+}
+function invBar() {
+  return `<div class="inv-bar ${invFull() ? 'is-full' : ''}"><span>🎒 Inventory <b>${invUsed()}/${INV_SIZE}</b>${invFull() ? ' · full!' : ''}</span>
+    <button class="btn sm ghost" data-act="depositall">Deposit all</button><button class="btn sm ghost" data-page="inventory">Open</button></div>`;
 }
 
 // Called often; updates progress bars without re-rendering.
@@ -233,24 +253,37 @@ const pages = {
     }
     const acts = Object.values(ACTIONS).filter(a => a.skill === id);
     const groups = [...new Set(acts.map(a => a.group))];
-    return `${head}
+    return `${head}${invBar()}
+      ${id === 'cooking' ? `<p class="hint">Food can burn: ${Math.round(burnChance(ACTIONS.food0) * 100)}% for ${ACTIONS.food0.name} at your level. Burnt dishes become stackable 🍖 Burnt Food.</p>` : ''}
       ${groups.map(g => `${g ? `<div class="sub">${g}</div>` : ''}
         <div class="act-grid">${acts.filter(a => a.group === g).map(actCard).join('')}</div>`).join('')}
-      <p class="hint">You can do one thing at a time: one skill action, or fighting. Skills keep going while the game is closed (up to 12h).</p>`;
+      <p class="hint">You can do one thing at a time: one skill action, or fighting. Items go into your inventory one slot each, and the action stops when it's full, so deposit in the bank, where items stack. Skills keep going while the game is closed (up to 12h).</p>`;
   },
 
   bank() {
     const ids = Object.keys(state.bank);
     const value = ids.reduce((s, id) => s + ITEMS[id].sell * state.bank[id], 0);
-    if (!ids.length) return `<section class="panel center"><div class="big-emoji">🏦</div><p class="muted">Your bank is empty. Train a gathering skill to collect materials.</p></section>`;
-    return `
+    const top = `<section class="panel"><div class="panel-title">🎒 Inventory ${invUsed()}/${INV_SIZE}</div>${invGrid(true)}
+      <div class="row-btns"><button class="btn ghost" data-act="depositall">Deposit all</button><button class="btn ghost" data-act="depositkeep">Deposit all but food</button></div></section>`;
+    if (!ids.length) return `${top}<section class="panel center"><div class="big-emoji">🏦</div><p class="muted">Your bank is empty. Train a gathering skill to collect materials.</p></section>`;
+    return `${top}
       <div class="sub">${ids.length} item types · total value 🪙 ${fmt(value)} · tap an item to sell or use it</div>
       ${CATEGORY_ORDER.map(cat => {
         const list = ids.filter(id => ITEMS[id].cat === cat).sort((a, b) => ITEMS[a].tier - ITEMS[b].tier);
         if (!list.length) return '';
         return `<div class="sub">${cat}</div><div class="bank-grid">${list.map(id =>
-          `<button class="bank-item" data-item="${id}" style="--t:${ITEMS[id].tint}">${ITEMS[id].icon}<span class="qty">${fmt(state.bank[id])}</span></button>`).join('')}</div>`;
+          `<button class="bank-item ${ITEMS[id].burnt ? 'burnt' : ''}" data-item="${id}" style="--t:${ITEMS[id].tint}">${ITEMS[id].icon}<span class="qty">${fmt(state.bank[id])}</span></button>`).join('')}</div>`;
       }).join('')}`;
+  },
+
+  inventory() {
+    return `
+      <section class="panel">
+        <div class="panel-title">🎒 Inventory <span class="muted">· ${invUsed()}/${INV_SIZE} slots</span></div>
+        ${invGrid()}
+        <div class="row-btns"><button class="btn ghost" data-act="depositall">Deposit all</button><button class="btn ghost" data-act="depositkeep">Deposit all but food</button></div>
+        <p class="hint">Each item takes one slot. Only the bank stacks items, except stackables like 🍖 Burnt Food. Skill actions stop when your inventory is full. Food you carry here is what you eat in battle.</p>
+      </section>`;
   },
 
   tasks() {
@@ -288,9 +321,9 @@ function actCard(a) {
     <div class="ac-top">${icon(a.id, 'lg')}<div><div class="ac-name">${a.name}</div>
       <div class="ac-meta">⏱ ${a.dur}s · +${a.xp} XP</div></div></div>
     ${inputs.length ? `<div class="ac-inputs">${inputs.map(([id, n]) =>
-      `<span class="${itemCount(id) < n ? 'lack' : ''}">${icon(id, 'sm')} ${n}<small>(${fmt(itemCount(id))})</small></span>`).join('')}</div>` : ''}
+      `<span class="${haveCount(id) < n ? 'lack' : ''}">${icon(id, 'sm')} ${n}<small>(${fmt(haveCount(id))})</small></span>`).join('')}</div>` : ''}
     ${describeItem(a.id) ? `<div class="ac-desc">${describeItem(a.id)}</div>` : ''}
-    <div class="ac-foot"><span>In bank: ${fmt(itemCount(a.id))}</span><span class="ac-btn">${active ? 'Stop' : locked ? `🔒 Level ${a.level}` : SKILLS[a.skill].verb}</span></div>
+    <div class="ac-foot"><span>🎒 ${fmt(invCount(a.id))} · 🏦 ${fmt(itemCount(a.id))}</span><span class="ac-btn">${active ? 'Stop' : locked ? `🔒 Level ${a.level}` : SKILLS[a.skill].verb}</span></div>
     <div class="prog"><i></i></div>
   </button>`;
 }
@@ -301,25 +334,27 @@ function describeItem(id) {
   if (it.slot === 'armor') return `Armor · HP +${it.hp}, Defence +${it.def}`;
   if (it.heal) return `Food · heals ${it.heal} HP in battle`;
   if (it.effect) return `Potion · ${it.effectText} for ${POTION_BATTLES} battles`;
+  if (it.burnt) return 'Ruined while cooking. Stacks in your inventory. Only good for selling.';
   return '';
 }
 
 function prepLine() {
   const bits = [];
-  if (state.provision) bits.push(`${ITEMS[state.provision].icon} ${fmt(itemCount(state.provision))} food`);
+  bits.push(foodCarried() ? `🍽️ ${foodCarried()} food carried` : '⚠️ no food in inventory');
   if (state.potion) bits.push(`🧪 ${ITEMS[state.potion.id].effectText} (${state.potion.battles} left)`);
-  return `<div class="prep-line">${bits.length ? bits.join(' · ') : '<span class="muted">No food or potion prepared · set up on the Character page</span>'}</div>`;
+  return `<div class="prep-line">${bits.join(' · ')}</div>`;
 }
 function prepPanel() {
   const food = state.provision;
   return `<div class="prep">
     <button class="prep-slot" data-act="pickfood">
       ${food ? icon(food, 'lg') : '<span class="ico lg empty">🍽️</span>'}
-      <div><b>Food</b><small>${food ? `${ITEMS[food].name} · ${fmt(itemCount(food))} left · heals ${ITEMS[food].heal}` : 'None. Cook food so you heal when low.'}</small></div></button>
+      <div><b>Food</b><small>${food ? `${ITEMS[food].name} · heals ${ITEMS[food].heal}` : 'Eats the best food you carry.'} · <b>${foodCarried()}</b> in inventory</small></div></button>
     <button class="prep-slot" data-act="pickpotion">
       ${state.potion ? icon(state.potion.id, 'lg') : '<span class="ico lg empty">🧪</span>'}
       <div><b>Potion</b><small>${state.potion ? `${ITEMS[state.potion.id].effectText} · ${state.potion.battles} battles left` : 'None active. Brew potions with Alchemy.'}</small></div></button>
-  </div>`;
+  </div>
+  ${food && itemCount(food) && invFree() ? `<button class="btn ghost" data-act="fillfood">Fill ${invFree()} free slots with ${ITEMS[food].name} (${fmt(itemCount(food))} in bank)</button>` : ''}`;
 }
 
 function render() {
@@ -338,14 +373,14 @@ function go(p) {
 
 // ---------------- Modals ----------------
 function pickGear(slot) {
-  const options = Object.keys(state.bank).filter(id => ITEMS[id].slot === slot).sort((a, b) => ITEMS[b].tier - ITEMS[a].tier);
+  const options = [...new Set([...Object.keys(state.bank), ...state.inv.map(x => x.id)])].filter(id => ITEMS[id].slot === slot).sort((a, b) => ITEMS[b].tier - ITEMS[a].tier);
   const cur = state.player.gear[slot];
   openModal(`
     <button class="close" data-act="close">✕</button>
     <h2>Choose ${slot}</h2>
     <div class="pick-list">
       ${options.map(id => `<button class="pick" data-act="equip" data-item="${id}">${icon(id, 'lg')}
-        <div><b>${ITEMS[id].name}</b><small>${describeItem(id)} · ×${itemCount(id)}</small></div></button>`).join('')
+        <div><b>${ITEMS[id].name}</b><small>${describeItem(id)} · ×${haveCount(id)}</small></div></button>`).join('')
         || `<p class="muted">No ${slot === 'weapon' ? 'weapons' : 'armor'} in your bank. Forge some with Smithing!</p>`}
       ${cur ? `<button class="btn ghost" data-act="unequip" data-slot="${slot}">Unequip ${ITEMS[cur].name}</button>` : ''}
       ${options.length ? '' : `<button class="btn" data-act="gosmith">Go to Smithing</button>`}
@@ -353,34 +388,37 @@ function pickGear(slot) {
 }
 
 function pickFood() {
-  const opts = Object.keys(state.bank).filter(id => ITEMS[id].heal).sort((a, b) => ITEMS[b].tier - ITEMS[a].tier);
+  const opts = [...new Set([...Object.keys(state.bank), ...state.inv.map(x => x.id)])].filter(id => ITEMS[id].heal).sort((a, b) => ITEMS[b].tier - ITEMS[a].tier);
   openModal(`<button class="close" data-act="close">✕</button><h2>Food</h2>
-    <p class="muted">Below 45% HP you eat one in battle (4s cooldown).</p>
+    <p class="muted">Below 45% HP you eat food <b>from your inventory</b> (4s cooldown). This one is eaten first.</p>
     <div class="pick-list">${opts.map(id => `<button class="pick ${state.provision === id ? 'on' : ''}" data-act="setfood" data-item="${id}">${icon(id, 'lg')}
-      <div><b>${ITEMS[id].name}</b><small>Heals ${ITEMS[id].heal} · ×${itemCount(id)}</small></div></button>`).join('') || '<p class="muted">No food yet. Catch fish, then cook them.</p>'}
+      <div><b>${ITEMS[id].name}</b><small>Heals ${ITEMS[id].heal} · 🎒 ${invCount(id)} · 🏦 ${itemCount(id)}</small></div></button>`).join('') || '<p class="muted">No food yet. Catch fish, then cook them.</p>'}
     ${state.provision ? `<button class="btn ghost" data-act="setfood" data-item="">Clear food</button>` : ''}</div>`);
 }
 function pickPotion() {
-  const opts = Object.keys(state.bank).filter(id => ITEMS[id].effect).sort((a, b) => ITEMS[b].tier - ITEMS[a].tier);
+  const opts = [...new Set([...Object.keys(state.bank), ...state.inv.map(x => x.id)])].filter(id => ITEMS[id].effect).sort((a, b) => ITEMS[b].tier - ITEMS[a].tier);
   openModal(`<button class="close" data-act="close">✕</button><h2>Drink a potion</h2>
     <p class="muted">Lasts ${POTION_BATTLES} battles. Drinking a new one replaces the current potion.</p>
     <div class="pick-list">${opts.map(id => `<button class="pick" data-act="drink" data-item="${id}">${icon(id, 'lg')}
-      <div><b>${ITEMS[id].name}</b><small>${ITEMS[id].effectText} · ×${itemCount(id)}</small></div></button>`).join('') || '<p class="muted">No potions yet. Gather herbs, then brew with Alchemy.</p>'}</div>`);
+      <div><b>${ITEMS[id].name}</b><small>${ITEMS[id].effectText} · ×${haveCount(id)}</small></div></button>`).join('') || '<p class="muted">No potions yet. Gather herbs, then brew with Alchemy.</p>'}</div>`);
 }
 
-function showItem(id) {
-  const it = ITEMS[id], n = itemCount(id);
+// from='bank' or 'inv': where the tapped item lives.
+function showItem(id, from = 'bank') {
+  const it = ITEMS[id], inv = from === 'inv', n = inv ? invCount(id) : itemCount(id);
   if (!n) { closeModal(); return; }
   const recipe = ACTIONS[id];
   openModal(`<button class="close" data-act="close">✕</button>
-    <div class="item-head">${icon(id, 'xl')}<div><h2>${it.name}</h2><small class="muted">${it.cat} · Tier ${it.tier + 1}</small></div></div>
+    <div class="item-head">${icon(id, 'xl')}<div><h2>${it.name}</h2><small class="muted">${it.cat}${it.stack ? ' · stackable' : ''}</small></div></div>
     ${describeItem(id) ? `<p>${describeItem(id)}</p>` : ''}
-    <p class="muted">Owned <b>${fmt(n)}</b> · sells for 🪙 ${it.sell} each · made with ${SKILLS[recipe.skill].icon} ${SKILLS[recipe.skill].name}</p>
+    <p class="muted">${inv ? 'In inventory' : 'In bank'} <b>${fmt(n)}</b> · sells for 🪙 ${it.sell} each${recipe ? ` · made with ${SKILLS[recipe.skill].icon} ${SKILLS[recipe.skill].name}` : ''}</p>
+    ${inv ? `<div class="row-btns"><button class="btn" data-act="deposit" data-item="${id}" data-n="1">Deposit 1</button><button class="btn" data-act="deposit" data-item="${id}" data-n="${n}">Deposit all ${n}</button></div>`
+          : `<div class="row-btns"><button class="btn" data-act="withdraw" data-item="${id}" data-n="1">Withdraw 1</button><button class="btn" data-act="withdraw" data-item="${id}" data-n="${n}">Withdraw all${it.stack ? '' : ` (≤${invFree()})`}</button></div>`}
     ${it.heal ? `<button class="btn" data-act="setfood" data-item="${id}">Use as battle food</button>` : ''}
     ${it.effect ? `<button class="btn" data-act="drink" data-item="${id}">Drink now (${POTION_BATTLES} battles)</button>` : ''}
     ${it.slot ? `<button class="btn" data-act="equip" data-item="${id}">Equip${state.player.gear[it.slot] ? ` (replaces ${ITEMS[state.player.gear[it.slot]].name})` : ''}</button>` : ''}
-    <div class="row-btns"><button class="btn ghost" data-act="sell" data-item="${id}" data-n="1">Sell 1</button>
-      <button class="btn ghost" data-act="sell" data-item="${id}" data-n="${n}">Sell all (🪙 ${fmt(it.sell * n)})</button></div>`);
+    <div class="row-btns"><button class="btn ghost" data-act="sell" data-from="${from}" data-item="${id}" data-n="1">Sell 1</button>
+      <button class="btn ghost" data-act="sell" data-from="${from}" data-item="${id}" data-n="${n}">Sell all (🪙 ${fmt(it.sell * n)})</button></div>`);
 }
 
 function showReroll() {
@@ -401,12 +439,12 @@ function onSkillTick(sum, offline) {
     openModal(`<h2>Welcome back!</h2><p class="muted">While you were away (${fmtTime(sum.ms)}), your ${SKILLS[sum.skill].name} kept going:</p>
       <div class="loot">${Object.entries(sum.items).map(([id, n]) => `<span>${icon(id)} +${fmt(n)} ${ITEMS[id].name}</span>`).join('')}
       <span>${SKILLS[sum.skill].icon} +${fmt(sum.xp)} XP${sum.levelUp ? ` · now level ${sum.levelUp}!` : ''}</span></div>
-      ${sum.stopped ? '<p class="muted">It stopped when you ran out of materials.</p>' : ''}
+      ${sum.stopped ? `<p class="muted">It stopped when ${sum.full ? 'your inventory filled up. Deposit items in the bank to keep going' : 'you ran out of materials'}.</p>` : ''}
       <button class="btn" data-act="close">Nice</button>`);
   } else if (sum.levelUp) toast(`${SKILLS[sum.skill].icon} ${SKILLS[sum.skill].name} level ${sum.levelUp}!`);
-  else if (sum.stopped) toast('Out of materials. Action stopped.');
+  else if (sum.stopped) toast(sum.full ? '🎒 Inventory full! Deposit items in the bank.' : 'Out of materials. Action stopped.');
   if (!offline) {
-    const bank = page === 'bank' || page === 'skill:' + sum.skill || page === 'tasks';
+    const bank = page === 'bank' || page === 'inventory' || page === 'skill:' + sum.skill || page === 'tasks';
     if (bank) render(); else { renderNav(); renderTop(); }
   }
 }
@@ -497,10 +535,13 @@ document.addEventListener('click', e => {
     const r = toggleAction(actCardEl.dataset.action);
     if (r === 'level') toast(`Requires level ${ACTIONS[actCardEl.dataset.action].level}`);
     if (r === 'inputs') toast('Not enough materials');
+    if (r === 'full') toast('🎒 Inventory full. Deposit items in the bank first.');
     render(); return;
   }
   const bi = t.closest('[data-item]:not([data-act])');
   if (bi) { showItem(bi.dataset.item); return; }
+  const slotEl = t.closest('[data-inv]');
+  if (slotEl) { const x = state.inv[Number(slotEl.dataset.inv)]; if (x) showItem(x.id, 'inv'); return; }
 
   const act = t.closest('[data-act]');
   if (act) {
@@ -519,7 +560,12 @@ document.addEventListener('click', e => {
       case 'pickpotion': pickPotion(); break;
       case 'setfood': state.provision = d.item || null; save(); closeModal(); render(); toast(d.item ? `${ITEMS[d.item].name} set as battle food` : 'Food cleared'); break;
       case 'drink': if (drinkPotion(d.item)) { closeModal(); render(); toast(`🧪 ${ITEMS[d.item].effectText} for ${POTION_BATTLES} battles`); } break;
-      case 'sell': { const g = sellItem(d.item, Number(d.n)); toast(`Sold for 🪙 ${fmt(g)}`); render(); showItem(d.item); break; }
+      case 'sell': { const g = sellItem(d.item, Number(d.n), d.from === 'inv'); toast(`Sold for 🪙 ${fmt(g)}`); render(); showItem(d.item, d.from); break; }
+      case 'deposit': deposit(d.item, Number(d.n)); render(); showItem(d.item, 'inv'); break;
+      case 'withdraw': { const k = withdraw(d.item, Number(d.n)); if (!k) toast('🎒 Inventory full'); render(); showItem(d.item, 'bank'); break; }
+      case 'depositall': depositAll(false); render(); toast('Deposited everything in the bank'); break;
+      case 'depositkeep': depositAll(true); render(); toast('Deposited everything except food'); break;
+      case 'fillfood': { const k = withdraw(state.provision, invFree()); render(); toast(`Packed ${k} × ${ITEMS[state.provision].name}`); break; }
       case 'reroll': if (rerollSkin()) { render(); showReroll(); } else toast(`Need a 📜 scroll or 💎 ${REROLL_GEMS}`); break;
       case 'keepnew': resolveReroll(true); closeModal(); render(); toast(`New look: ${skin().name}`); break;
       case 'keepold': resolveReroll(false); closeModal(); render(); break;
