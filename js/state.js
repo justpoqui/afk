@@ -98,20 +98,23 @@ function stageEnemies(stage) {
   const mult = 1 + 0.14 * n + 0.002 * n * n;
   const mk = (tpl, boss) => ({
     name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss,
+    proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (boss ? 'bolt' : null), bolt: tpl.bolt || (boss ? '#ff5d5d' : null),
     hp: Math.round(600 * mult * (boss ? 4 : 1)), atk: Math.round(45 * mult * (boss ? 1.6 : 1)),
     def: Math.round(20 * mult), spd: boss ? 80 : 90,
     skill: boss ? { name: 'Cataclysm', type: 'aoe', power: 1.5 } : { name: 'Frenzy', type: 'nuke', power: 2.0 },
   });
   const rng = mulberry(stage * 7919);
-  const pick = () => MONSTERS[Math.floor(rng() * MONSTERS.length)];
+  // Melee monsters hold the front row; archers and casters stay in the back row.
+  const melee = MONSTERS.filter(m => m.range !== 'ranged'), ranged = MONSTERS.filter(m => m.range === 'ranged');
+  const pickFor = slot => { const pool = slot < 2 ? melee : ranged; return pool[Math.floor(rng() * pool.length)]; };
   if (isBoss(stage)) {
     const boss = BOSSES[(chapterOf(stage) - 1) % BOSSES.length];
-    return [mk(pick(), false), mk(boss, true), mk(pick(), false), null, null];
+    return [mk(pickFor(0), false), mk(boss, true), mk(pickFor(2), false), null, null];
   }
   const count = Math.min(5, 3 + Math.floor(n / 4));
   const slots = [null, null, null, null, null];
   const order = [0, 2, 3, 1, 4];
-  for (let i = 0; i < count; i++) slots[order[i]] = mk(pick(), false);
+  for (let i = 0; i < count; i++) slots[order[i]] = mk(pickFor(order[i]), false);
   return slots;
 }
 const stagePower = stage => stageEnemies(stage).reduce((s, e) => s + (e ? power(e) : 0), 0);

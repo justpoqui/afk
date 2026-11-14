@@ -93,6 +93,15 @@ def head(kind, skin, hair_style, hair_c, eye='#1b1426'):
         cyl((0, -0.52, 1.5), 0.22, 0.42, mat('#fff4e6'), r2=0.03, rot=(90, 0, 0))
         sphere((0, -0.74, 1.5), 0.06, mat('#1b1426', rough=0.2))
         eyes(z=1.7, y=-0.43, spread=0.2)
+    elif kind == 'rabbit':
+        sphere((0, 0, z), 0.5, mat(skin))
+        for sx in (-1, 1):
+            sphere((sx * 0.18, 0.05, 2.38), 0.14, mat(skin), scale=(1, 0.6, 3.2), rot=(0, sx * 10, 0))
+            sphere((sx * 0.18, -0.02, 2.38), 0.08, mat('#ffb3c6'), scale=(1, 0.4, 3.0), rot=(0, sx * 10, 0), outline=False)
+        sphere((0, -0.48, 1.5), 0.06, mat('#ff8fab'))
+        for sx in (-1, 1):
+            sphere((sx * 0.1, -0.42, 1.44), 0.11, mat('#ffffff'), scale=(1, 0.7, 0.8), outline=False)
+        eyes(z=1.66, y=-0.44, spread=0.19)
     elif kind == 'skull':
         sphere((0, 0, z + 0.03), 0.48, mat(skin), scale=(1, 1, 1.05))
         box((0, -0.25, 1.28), (0.48, 0.38, 0.22), mat(skin), bevel=0.05)
@@ -174,6 +183,14 @@ def prop(kind, c1='#ffffff', c2='#ffffff'):
             for dx in (-0.12, 0, 0.12):
                 cyl((top[0] + dx, top[1], top[2] + 0.12), 0.035, 0.3, mat('#ffb02e', rough=0.3, metal=0.8), r2=0.0)
             box((top[0], top[1], top[2] - 0.03), (0.3, 0.05, 0.05), mat('#ffb02e', rough=0.3, metal=0.8))
+    elif kind == 'crossbow':
+        box((P, -0.45, 0.86), (0.09, 0.75, 0.1), mat(WOOD))
+        tube([(P - 0.38, -0.72, 0.86), (P, -0.82, 0.9), (P + 0.38, -0.72, 0.86)], [0.03, 0.05, 0.03], mat(c1, rough=0.3, metal=0.7))
+        tube([(P - 0.38, -0.72, 0.86), (P, -0.5, 0.88), (P + 0.38, -0.72, 0.86)], [0.008, 0.008, 0.008], mat('#f5efe0'), outline=False)
+        box((P, -0.68, 0.93), (0.03, 0.4, 0.03), mat('#cfd6e6', metal=0.8, rough=0.3))
+    elif kind == 'tome':
+        box((-0.62, -0.35, 1.05), (0.42, 0.12, 0.5), mat(c1), rot=(0, 0, 20), bevel=0.02)
+        box((-0.6, -0.42, 1.05), (0.36, 0.03, 0.42), glow(c2, 2), rot=(0, 0, 20), outline=False)
     elif kind == 'hammer':
         cyl((P + 0.2, -0.15, 0.85), 0.05, 1.1, mat(WOOD))
         box((P + 0.2, -0.15, 1.42), (0.32, 0.5, 0.3), mat(c1, rough=0.3, metal=0.8), bevel=0.05)
@@ -209,6 +226,11 @@ def acc(kind, skin, c1, c2, hair_c):
     elif kind == 'elf_ears':
         for s in (-1, 1):
             cyl((s * 0.52, 0.02, 1.68), 0.09, 0.38, mat(skin), r2=0.0, rot=(0, s * 70, 0))
+    elif kind == 'wizhat':
+        cyl((0, 0.02, 2.02), 0.68, 0.06, mat(c2), verts=32)
+        tube([(0, 0.02, 2.02), (0, 0.06, 2.5), (0.1, 0.2, 2.9), (0.3, 0.38, 3.0)], [0.44, 0.26, 0.1, 0.01], mat(c2))
+        torus((0, 0.02, 2.1), 0.42, 0.045, gold())
+        sphere((0.3, 0.38, 3.0), 0.07, glow(GOLD, 3), outline=False)
     elif kind in ('helmet', 'horned'):
         sphere((0, 0.02, 1.76), 0.55, mat(c2, rough=0.3, metal=0.8), scale=(1, 1, 0.82))
         box((0, -0.53, 1.6), (0.07, 0.05, 0.3), mat(c2, rough=0.3, metal=0.8))
@@ -381,6 +403,36 @@ def kraken():
               (1.8 * c, 1.8 * sn, 0.95), (1.55 * c, 1.55 * sn, 1.15)], [0.22, 0.17, 0.12, 0.07, 0.02], mat('#6a40bb'))
 
 
+def slime():
+    sphere((0, 0, 0.55), 0.75, mat('#5fd36a', rough=0.15, emit=0.15), scale=(1, 0.95, 0.75))
+    sphere((-0.25, -0.4, 0.95), 0.12, glow('#ffffff', 1.5), scale=(1.4, 0.5, 0.8), outline=False)
+    eyes(z=0.72, y=-0.66, spread=0.2, size=0.09)
+    sphere((0, -0.68, 0.5), 0.06, mat('#1b1426'), scale=(1.6, 0.4, 0.6), outline=False)
+
+
+def treant():
+    bark, leaf = mat('#6b4a2e'), mat('#4f9a45')
+    tube([(0, 0, 0), (0, 0, 1.0), (0, 0, 2.0)], [0.5, 0.42, 0.36], bark)
+    for sx in (-1, 1):
+        tube([(sx * 0.35, 0, 1.4), (sx * 0.8, -0.1, 1.2), (sx * 1.0, -0.25, 0.75)], [0.16, 0.12, 0.06], bark)
+        tube([(sx * 0.3, 0, 0.2), (sx * 0.65, -0.1, 0.05), (sx * 0.85, -0.2, 0.0)], [0.15, 0.1, 0.04], bark)
+    for dx, dy, dz, r in ((0, 0, 2.4, 0.75), (0.5, 0.1, 2.15, 0.5), (-0.5, 0.05, 2.2, 0.55), (0, -0.2, 2.8, 0.45)):
+        sphere((dx, dy, dz), r, leaf, seg=16, rings=10)
+    glow_eyes('#ffd84a', z=1.6, y=-0.42, spread=0.15, size=0.07)
+    box((0, -0.43, 1.3), (0.3, 0.05, 0.08), mat('#2b1d14'), outline=False)
+
+
+def fire_sprite():
+    cyl((0, 0, 0.85), 0.55, 1.6, mat('#ff5a1a', emit=1.6, rough=0.4), r2=0.0, verts=10)
+    for sx, h in ((-1, 0.7), (1, 0.85)):
+        cyl((sx * 0.3, 0.05, 1.05), 0.2, h, mat('#ff8a2a', emit=1.8), r2=0.0, verts=8, rot=(0, sx * 30, 0))
+    cyl((0, 0.05, 1.15), 0.25, 1.0, mat('#ffd84a', emit=2.0), r2=0.0, verts=8, outline=False)
+    for sx in (-1, 1):
+        sphere((sx * 0.13, -0.38, 0.72), 0.085, mat('#2b0d05', rough=0.2), scale=(1, 0.5, 1.3), outline=False)
+        sphere((sx * 0.13 - 0.02, -0.42, 0.76), 0.03, glow('#ffffff', 2), outline=False)
+    sphere((0, 0, 0.18), 0.4, mat('#ff4a1a', emit=1.5), scale=(1, 1, 0.35))
+
+
 # ---------------- roster ----------------
 SPRITES = {
     # Dawnguard
@@ -403,7 +455,21 @@ SPRITES = {
     'hero_lorcan': lambda: humanoid('#efe9dc', '#2d2a3a', '#3a2d3f', '#000', 'none', headkind='skull', accs=('cape', 'crown'), props=('scythe',), eye='#7ffcff'),
     'hero_sable': lambda: humanoid('#efe0ea', '#6b2a3a', '#3a1f2a', '#1f1a2a', 'short', accs=('batears', 'cape'), props=('bow',), pc1='#3a2d3f', pc2='#6b2a3a', eye='#c0304a'),
     'hero_vesper': lambda: humanoid('#ffe6f2', '#b48cff', '#7a5ad1', '#ffffff', 'short', accs=('antennae', 'mothwings'), props=('staff',), pc1='#ff9ad5', robe=True),
+    # Back-line archers and wizards
+    'hero_lumen': lambda: humanoid('#ffd9bd', '#f2903a', '#c0392b', '#d9502f', 'short', accs=('wizhat', 'cape'), props=('staff',), pc1='#ff8a2a', robe=True),
+    'hero_kestrel': lambda: humanoid('#f0c7a0', '#e8c25a', '#7a5a2a', '#f2d06b', 'short', accs=('cape',), props=('crossbow',), pc1='#9aa7b4', pc2='#b84a3a'),
+    'hero_oona': lambda: humanoid('#e6f2d8', '#5c8f4a', '#3f6b3a', '#9a5ad1', 'braids', accs=('wizhat',), props=('staff', 'tome'), pc1='#7dff7a', pc2='#7dff7a', robe=True),
+    'hero_hopper': lambda: humanoid('#f4ede4', '#4f9a45', '#7a5230', '#000', 'none', headkind='rabbit', props=('bow',), pc1='#c9a14a', pc2='#7a5230'),
+    'hero_gunnar': lambda: humanoid('#e8b48a', '#4f6f9a', '#6b7a8a', '#b8742e', 'short', accs=('helmet', 'beard'), props=('crossbow',), pc1='#c9a14a'),
+    'hero_aurelia': lambda: humanoid('#ffe6d6', '#3a6fd1', '#1f3f8a', '#f0f4ff', 'long', accs=('wizhat', 'cape'), props=('staff',), pc1='#7fd6ff', robe=True),
+    'hero_morwen': lambda: humanoid('#efe0f5', '#3a2450', '#5a2a7a', '#1f1a2a', 'long', accs=('wizhat',), props=('staff', 'tome'), pc1='#c77dff', pc2='#c77dff', robe=True, eye='#7a3fd1'),
+    'hero_vael': lambda: humanoid('#d8d0f0', '#2a2440', '#1a1630', '#e8e0ff', 'long', accs=('elf_ears', 'hood', 'cape'), props=('bow',), pc1='#b48cff', pc2='#3a2d5c', eye='#b48cff'),
     # Monsters
+    'mon_slime': slime,
+    'mon_treant': treant,
+    'mon_goblin_archer': lambda: humanoid('#7fbf4d', '#6b4a2a', '#4f3a26', '#000', 'none', headkind='goblin', accs=('hood',), props=('bow',), pc1='#8a5a35', pc2='#5a3d22', eye='#d1ff3a'),
+    'mon_cultist': lambda: humanoid('#d8c8c0', '#5a1f2a', '#3a1420', '#000', 'none', accs=('hood',), props=('staff',), pc1='#c77dff', robe=True, eye='#ff4d6d'),
+    'mon_fire_sprite': fire_sprite,
     'mon_goblin': lambda: humanoid('#7fbf4d', '#7a5230', '#4f3a26', '#000', 'tuft', headkind='goblin', props=('daggers',), pc1='#4f3a26', eye='#d1ff3a'),
     'mon_wolf': wolf,
     'mon_skeleton': lambda: humanoid('#efe9dc', '#efe9dc', '#bfb5a0', '#000', 'none', headkind='skull', accs=('ribs',), props=('sword', 'shield'), pc1='#8a5a35', pc2='#9aa7b4', eye='#ff8a3a'),
@@ -421,12 +487,12 @@ SPRITES = {
 TURN = {'mon_wolf': -35, 'boss_wyrm': -30, 'mon_spider': -20}
 
 
-def build(name):
+def build(name, side=False):
     reset(transparent=True, samples=40)
     world_color('#9a94b8', 0.7)
     SPRITES[name]()
     add_outlines(0.032)
-    if name in TURN:
+    if name in TURN and not side:
         bpy.ops.object.empty_add(location=(0, 0, 0))
         pivot = bpy.context.object
         for o in bpy.context.scene.objects:
@@ -436,9 +502,11 @@ def build(name):
     sun((48, 0, -35), 3.2, '#fff4e0')
     sun((65, 0, 110), 1.0, '#c9d8ff')
     sun((-120, 0, 15), 2.0, '#ffe6c0')
-    cam = camera((3.2, -7.5, 4.2), (0, 0, 1.1), ortho=4)
+    # Portrait: three-quarter front view. Side: three-quarter view facing screen-left (allies in battle;
+    # the game mirrors it for enemies).
+    cam = camera((6.2, -5.0, 3.6) if side else (3.2, -7.5, 4.2), (0, 0, 1.1), ortho=4)
     frame_ortho(cam, 1.08)
-    render(os.path.join(OUT, name + '.webp'), 256, 256)
+    render(os.path.join(OUT, name + ('_side' if side else '') + '.webp'), 256, 256)
 
 
 if __name__ == '__main__':
@@ -447,4 +515,5 @@ if __name__ == '__main__':
     for n in names:
         n = n if n in SPRITES else next(k for k in SPRITES if k.endswith('_' + n))
         build(n)
+        build(n, side=True)
         print('rendered', n, flush=True)

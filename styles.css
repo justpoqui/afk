@@ -296,3 +296,69 @@ body.nav-open #scrim { display: block; }
 #battle-info .prep-line { margin: 0; }
 .hero-card .hc-name { position: absolute; left: 4px; right: 4px; bottom: 4px; margin: 0; text-shadow: 0 1px 2px #000; }
 .hero-card .hc-gear { bottom: 20px; text-align: right; padding-right: 4px; }
+
+/* ---------- Sideways battlefield (enemies left, your team right) ---------- */
+#field { position: relative; flex-direction: row; align-items: center; justify-content: space-between; gap: 0; padding: 8px 4px 24px; }
+#fx { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: visible; }
+.side { flex-direction: row; align-items: center; gap: 2px; }
+.row { flex-direction: column; justify-content: center; align-items: center; gap: 18px; min-height: 0; min-width: 78px; }
+.vs-line { align-self: stretch; width: 1px; height: auto; margin: 12% 0; background: linear-gradient(180deg, transparent, #fff3, transparent); }
+.unit { width: 78px; }
+.u-emoji { height: 70px; }
+.u-emoji .spr { height: 70px; width: 70px; }
+.enemy .u-emoji .spr { transform: scaleX(-1); }
+.unit.boss, .unit.boss .u-emoji, .unit.boss .u-emoji .spr { width: 100px; height: 100px; }
+.unit.boss { height: auto; }
+.u-status { position: absolute; top: -6px; left: 0; right: 0; display: flex; justify-content: center; gap: 2px; z-index: 3; min-height: 18px; }
+.u-status span { background: #000a; border-radius: 9px; padding: 0 4px; font-size: 12px; line-height: 18px; white-space: nowrap; box-shadow: 0 0 0 1px #fff3; }
+.u-status small { font-size: 9px; font-weight: 800; margin-left: 1px; color: #fff; }
+.unit.charged .u-emoji { filter: drop-shadow(0 0 8px #ffd66b) drop-shadow(0 4px 3px #0009); }
+.unit.enter { animation: enter-right .55s backwards ease-out; }
+.enemy .unit.enter { animation-name: enter-left; }
+@keyframes enter-right { from { transform: translateX(140px); opacity: 0; } }
+@keyframes enter-left { from { transform: translateX(-140px); opacity: 0; } }
+/* melee dash toward the enemy; ranged recoil */
+.ally .unit.lunge .u-emoji { animation: dash-left .32s ease-out; }
+.enemy .unit.lunge .u-emoji { animation: dash-right .32s ease-out; }
+@keyframes dash-left { 45% { transform: translateX(-34px) scale(1.08); } }
+@keyframes dash-right { 45% { transform: translateX(34px) scale(1.08); } }
+.ally .unit.cast .u-emoji { animation: recoil-right .3s; }
+.enemy .unit.cast .u-emoji { animation: recoil-left .3s; }
+@keyframes recoil-right { 40% { transform: translateX(6px) translateY(-4px); } }
+@keyframes recoil-left { 40% { transform: translateX(-6px) translateY(-4px); } }
+.unit.hit .u-emoji { animation: shake .35s; }
+.unit.ult .u-emoji { animation: ult .6s; }
+.unit.ko { opacity: .22; filter: grayscale(1); transition: opacity .6s .2s, filter .6s .2s; }
+/* projectiles */
+.proj { position: absolute; left: 0; top: 0; will-change: transform; }
+.proj.arrow { width: 30px; height: 3px; border-radius: 2px; background: linear-gradient(90deg, #c9a66b 0 70%, #e8eef5 70%); box-shadow: 0 0 3px #000a; }
+.proj.arrow::after { content: ''; position: absolute; right: -6px; top: -3px; border-left: 8px solid #e8eef5; border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; }
+.proj.arrow::before { content: ''; position: absolute; left: -2px; top: -3px; width: 8px; height: 9px; background: var(--pc, #d94a3d); clip-path: polygon(0 0, 100% 50%, 0 100%, 30% 50%); opacity: .85; }
+.proj.arrow.big { width: 40px; height: 4px; box-shadow: 0 0 10px var(--pc); }
+.proj.bolt, .proj.meteor, .proj.heal { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle, #fff 0 25%, var(--pc) 60%, transparent 72%);
+  box-shadow: 0 0 12px 4px var(--pc), -14px 0 12px -2px color-mix(in srgb, var(--pc) 55%, transparent); }
+.proj.big { width: 26px; height: 26px; }
+.proj.meteor { width: 24px; height: 24px; }
+.proj.heal { width: 12px; height: 12px; box-shadow: 0 0 10px 3px var(--pc); }
+.burst { position: absolute; left: 0; top: 0; width: 46px; height: 46px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, #fff8 0 20%, var(--pc) 45%, transparent 70%); animation: burst .45s ease-out forwards; }
+.burst.arrow { width: 26px; height: 26px; background: radial-gradient(circle, #fff 0 15%, #ffd66b88 40%, transparent 70%); }
+@keyframes burst { from { opacity: 1; scale: .3; } to { opacity: 0; scale: 1.5; } }
+/* floating numbers: slower and longer-lived */
+.float { animation: rise 1.6s cubic-bezier(.2, .7, .3, 1) forwards; font-size: 16px; }
+.float.crit { font-size: 20px; }
+.float.skill, .float.buff { font-size: 12px; }
+.float.buff { color: #ffd66b; }
+@keyframes rise { 0% { transform: translate(-50%, 6px) scale(.7); opacity: 0; } 12% { transform: translate(-50%, -6px) scale(1.15); opacity: 1; }
+  70% { opacity: 1; } 100% { transform: translate(-50%, -44px) scale(1); opacity: 0; } }
+@media (max-width: 380px) { .unit, .row { width: 70px; min-width: 70px; } .u-emoji, .u-emoji .spr { height: 62px; width: 62px; } }
+.formation.sideways { flex-direction: row; align-items: center; justify-content: center; gap: 14px; }
+.fcol { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.fcol .frow-label { margin: 0; text-align: center; font-weight: 700; color: var(--text); }
+.fcol .frow-label small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; }
+.enemy-dir { color: var(--bad); font-size: 22px; text-align: center; opacity: .8; }
+.enemy-dir small { display: block; font-size: 10px; }
+.formation.sideways .slot { width: 76px; }
+.float.skill, .float.buff { width: 92px; white-space: normal; text-align: center; line-height: 1.1; }
+.ally .row.back .float.skill, .ally .row.back .float.buff { left: 38% !important; }
+.enemy .row.back .float.skill, .enemy .row.back .float.buff { left: 62% !important; }

@@ -147,11 +147,10 @@ const pages = {
     return `
       <section class="panel">
         <div class="sub center">Team power <b>${fmt(teamPower())}</b></div>
-        <div class="formation">
-          <div class="frow-label">Front row: melee heroes hold the line</div>
-          <div class="frow">${slot(0)}${slot(1)}</div>
-          <div class="frow-label">Back row: ranged heroes &amp; support</div>
-          <div class="frow">${slot(2)}${slot(3)}${slot(4)}</div>
+        <div class="formation sideways">
+          <div class="enemy-dir">◀<small>enemies</small></div>
+          <div class="fcol"><div class="frow-label">Front<small>melee</small></div>${slot(0)}${slot(1)}</div>
+          <div class="fcol"><div class="frow-label">Back<small>archers · mages</small></div>${slot(2)}${slot(3)}${slot(4)}</div>
         </div>
         <p class="hint">${selectedSlot == null ? 'Tap a slot, then a hero on the bench. Tap a filled slot twice to clear it.' : 'Now pick a hero from the bench (or tap the slot again to clear it).'}</p>
         <button class="btn" data-act="autoteam">Auto-fill strongest</button>

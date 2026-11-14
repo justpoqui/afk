@@ -20,7 +20,7 @@ Every sprite and background is modeled and rendered by code in Blender. Nothing 
 
 | Script | Output |
 |---|---|
-| `art/blender/sprites.py` | `assets/sprites/*.webp`: 16 heroes, 8 monsters, 4 bosses (256×256, transparent, cartoon outline) |
+| `art/blender/sprites.py` | `assets/sprites/*.webp`: 24 heroes, 13 monsters, 4 bosses (256×256, transparent, cartoon outline), each in a portrait pose and a `_side` battle pose |
 | `art/blender/backgrounds.py` | `assets/bg/battle_ch1-6.webp`: one arena per chapter (720×1280), plus `camp.webp` (1024×512) |
 | `art/blender/common.py` | Shared helpers: materials, shapes, outlines, lights, auto-framed camera |
 

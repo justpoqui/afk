@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowInsets;
+import android.widget.FrameLayout;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -50,7 +51,11 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient()); // enables confirm()/alert() dialogs
 
         // Keep the game clear of the status bar and gesture/navigation bar (edge-to-edge on Android 15+).
-        web.setOnApplyWindowInsetsListener((View v, WindowInsets insets) -> {
+        // A WebView ignores its own padding, so the padding goes on a container around it.
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.parseColor("#14111F"));
+        root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        root.setOnApplyWindowInsetsListener((View v, WindowInsets insets) -> {
             int top, bottom, left, right;
             if (Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets i = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
@@ -63,7 +68,8 @@ public class MainActivity extends Activity {
             return insets;
         });
 
-        setContentView(web);
+        setContentView(root);
+        root.requestApplyInsets();
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl(START_URL);
 

@@ -22,8 +22,10 @@ const ACTIONS = {}; // keyed by output item id (each item has exactly one recipe
 const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Weapons', 'Armor', 'Food', 'Potions'];
 
 function addItem_(id, d) { ITEMS[id] = { id, ...d }; }
+const SKILL_XP_MULT = 0.7; // global skill XP tuning (-30%)
 function addAction_(skill, outId, d) {
   ACTIONS[outId] = { id: outId, skill, inputs: {}, qty: 1, group: '', ...d, name: ITEMS[outId].name, icon: ITEMS[outId].icon, tint: ITEMS[outId].tint };
+  ACTIONS[outId].xp = Math.max(1, Math.round(d.xp * SKILL_XP_MULT));
 }
 
 const gatherDefs = [
