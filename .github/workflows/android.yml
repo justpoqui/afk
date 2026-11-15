@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write
 
+# One build publishes at a time, so two pushes can't race on the same release.
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
