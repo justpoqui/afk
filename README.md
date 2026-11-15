@@ -13,7 +13,7 @@ Progress is saved on the phone. Skills keep running while the app is closed (up 
 
 ## Building the APK
 - `cd android && ./gradlew assembleRelease` (needs JDK 17+ and the Android SDK, with `sdk.dir` in `android/local.properties`). Output: `android/app/build/outputs/apk/release/app-release.apk`.
-- GitHub Actions builds the APK on every push and publishes it to the **android-latest** release. Pushing a version tag (e.g. `v0.1.0`) publishes a numbered test release.
+- GitHub Actions builds the APK on every push and publishes it to the **android-latest** release. Pushes to `main` also publish a numbered test release named after the app version (`v0.1.0`); bump `versionName` in `android/app/build.gradle` for the next one.
 - Every build is signed with the same test key (`android/app/idlerealms-test.keystore`), so updates install over each other. Use a private key before publishing to the Play Store.
 - The app is a native Android shell (`android/`) around the game code (`index.html`, `styles.css`, `js/`, `assets/`), which is packaged into the APK at build time.
 - The back button closes popups and menus, then returns Home, then exits.

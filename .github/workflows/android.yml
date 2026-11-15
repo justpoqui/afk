@@ -28,15 +28,21 @@ jobs:
         with:
           name: IdleRealms-apk
           path: IdleRealms.apk
-      - name: Publish the tagged test release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish the versioned test release (v<versionName>)
+        # Uses the app version from android/app/build.gradle; creates the release (and its tag) the
+        # first time, and refreshes the APK on later builds of the same version.
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete "$GITHUB_REF_NAME" --yes || true
-          gh release create "$GITHUB_REF_NAME" IdleRealms.apk --prerelease \
-            --title "Idle Realms $GITHUB_REF_NAME (test build)" \
-            --notes "Test build $GITHUB_REF_NAME for Android. Download IdleRealms.apk on your phone and open it to install. Updates install over earlier builds and keep your save."
+          VER="v$(grep -oP "versionName '\\K[^']+" android/app/build.gradle)"
+          if gh release view "$VER" >/dev/null 2>&1; then
+            gh release upload "$VER" IdleRealms.apk --clobber
+          else
+            gh release create "$VER" IdleRealms.apk --prerelease --target "$GITHUB_SHA" \
+              --title "Idle Realms $VER (test build)" \
+              --notes "Test build $VER for Android. Download IdleRealms.apk on your phone and open it to install. Updates install over earlier builds and keep your save."
+          fi
       - name: Publish to the "android-latest" release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         env:
