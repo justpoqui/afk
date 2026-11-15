@@ -2,6 +2,8 @@ name: Android APK
 
 on:
   push:
+    branches: ['**']
+    tags: ['v*']   # a version tag publishes a numbered test release
     paths: ['index.html', 'styles.css', 'js/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
   workflow_dispatch:
 
@@ -26,7 +28,17 @@ jobs:
         with:
           name: IdleRealms-apk
           path: IdleRealms.apk
+      - name: Publish the tagged test release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete "$GITHUB_REF_NAME" --yes || true
+          gh release create "$GITHUB_REF_NAME" IdleRealms.apk --prerelease \
+            --title "Idle Realms $GITHUB_REF_NAME (test build)" \
+            --notes "Test build $GITHUB_REF_NAME for Android. Download IdleRealms.apk on your phone and open it to install. Updates install over earlier builds and keep your save."
       - name: Publish to the "android-latest" release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -1,19 +1,22 @@
 # Idle Realms
 
-An original idle fantasy RPG for the browser, built mobile-first. It combines an auto-battler hero campaign with a skilling game: gather, craft and work through a task chain.
+An original idle fantasy RPG for **Android**. It combines skilling (gather, craft, cook, brew), a single character you gear up and train, side-on arena battles and monster hunting, quests and a task chain.
 
-## Play
-Open `index.html` in a browser. No build step and no dependencies. Progress saves to the browser's localStorage.
+**Current test release: v0.1.0**
 
-For phone testing on a local network, serve the folder, e.g. `python3 -m http.server 8000`.
+## Install (Android)
+1. On your phone, open the repository's **Releases** page and download `IdleRealms.apk` from the **v0.1.0** release (or **android-latest** for the newest build).
+2. Open the file. Android asks you to allow installs from that app (Files, Chrome, etc.) once; allow it.
+3. New versions install over the old one, and **your save is kept**.
 
-## Android APK
-The `android/` folder is a small native app that runs the game full-screen in a WebView. The game files are copied in from the repo root at build time, so there's only one copy of the game code.
+Progress is saved on the phone. Skills keep running while the app is closed (up to 12 hours).
 
-- **Download**: every push rebuilds the APK through GitHub Actions and attaches it as `IdleRealms.apk` to the **android-latest** release (Releases page). Open it on your phone and install it. Android will ask you to allow installs from your browser or file manager.
-- **Build locally**: `cd android && ./gradlew assembleRelease` (needs JDK 17+ and the Android SDK, with `sdk.dir` in `android/local.properties`). The output is `android/app/build/outputs/apk/release/app-release.apk`.
-- Every build is signed with the same test key (`android/app/idlerealms-test.keystore`), so new builds install over old ones and **your save is kept**. Use a private key before publishing to a store.
-- The Android back button closes popups and menus, then returns to Camp, then exits.
+## Building the APK
+- `cd android && ./gradlew assembleRelease` (needs JDK 17+ and the Android SDK, with `sdk.dir` in `android/local.properties`). Output: `android/app/build/outputs/apk/release/app-release.apk`.
+- GitHub Actions builds the APK on every push and publishes it to the **android-latest** release. Pushing a version tag (e.g. `v0.1.0`) publishes a numbered test release.
+- Every build is signed with the same test key (`android/app/idlerealms-test.keystore`), so updates install over each other. Use a private key before publishing to the Play Store.
+- The app is a native Android shell (`android/`) around the game code (`index.html`, `styles.css`, `js/`, `assets/`), which is packaged into the APK at build time.
+- The back button closes popups and menus, then returns Home, then exits.
 
 ## Art (Blender)
 Every sprite and background is modeled and rendered by code in Blender. Nothing is hand-drawn, so it's easy to tweak and re-render.
