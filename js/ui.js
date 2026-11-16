@@ -13,7 +13,9 @@ const $ = s => document.querySelector(s);
 const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : String(Math.floor(n));
 const fmtTime = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m ${String(s % 60).padStart(2, '0')}s`; };
 // Item art: the rendered icon, falling back to the emoji if an image is missing.
-const itemImg = id => `<img class="item-img" src="${ITEMS[id].img}" alt="${ITEMS[id].icon}" draggable="false" onerror="this.replaceWith(this.alt)">`;
+const itemImg = id => `<img class="item-img" src="${ITEMS[id].img}" alt="${ITEMS[id].icon}" draggable="false">`;
+// Missing item art falls back to the emoji (a listener, since the security policy forbids inline handlers).
+document.addEventListener('error', e => { const t = e.target; if (t && t.classList && t.classList.contains('item-img')) t.replaceWith(t.alt); }, true);
 const icon = (id, extra = '') => `<span class="ico ${extra}" style="--t:${ITEMS[id].tint}">${itemImg(id)}</span>`;
 const skin = () => HERO_BY_ID[state.player.skin];
 
@@ -157,7 +159,7 @@ const pages = {
         ${tile('equipment', '🛡️', 'Equipment', `${GEAR_SLOTS.filter(gearItem).length}/${GEAR_SLOTS.length} slots · 🍽️ ${foodCarried()}`)}
         ${tile('shop', '🏪', 'Shop', 'Tools, backpacks, supplies')}
       </div>
-      <div class="footer-links"><button class="link" data-act="reset">Reset save</button></div>`;
+      <div class="footer-links"><button class="link" data-act="savebackup">🛡️ Save &amp; backup</button> · <button class="link" data-act="reset">Reset save</button></div>`;
   },
 
   fight() {
@@ -562,6 +564,18 @@ function showItem(id, from = 'bank') {
       <button class="btn ghost" data-act="sell" data-from="${from}" data-item="${id}" data-n="${n}">Sell all (🪙 ${fmt(it.sell * n)})</button></div>`);
 }
 
+function showSaveBackup() {
+  openModal(`<button class="close" data-act="close">✕</button><h2>🛡️ Save &amp; backup</h2>
+    <p class="muted">Your progress is saved on this phone${security.signed ? ', <b>signed with a key locked in the phone\'s secure Keystore</b>' : ''}, with rolling backups that are restored automatically if the save is ever damaged or edited.</p>
+    <div class="sub">Back up your save</div>
+    <p class="muted">Copy this code somewhere safe (notes, email to yourself). Paste it below on any phone to restore your progress.</p>
+    <textarea id="export-code" class="code" readonly>${exportSave(state)}</textarea>
+    <button class="btn" data-act="copyexport">Copy code</button>
+    <div class="sub">Restore from a code</div>
+    <textarea id="import-code" class="code" placeholder="Paste a backup code here"></textarea>
+    <button class="btn ghost" data-act="doimport">Restore this save</button>`);
+}
+
 function showSpin(results) {
   openModal(`<h2 class="center">Chest opened!</h2>
     <div class="summon-results ${results.length === 1 ? 'one' : ''}">${results.map((r, i) => {
@@ -811,6 +825,21 @@ document.addEventListener('click', e => {
       case 'claimtask': { const task = TASK_TIERS.flatMap(x => x.tasks).find(x => x.key === d.key); if (claimTask(task)) toast('Reward: ' + rewardText(task.r)); render(); break; }
       case 'claimtier': { const ti = Number(d.tier); if (claimTier(ti)) toast(`Tier complete! ${rewardText(TASK_TIERS[ti].reward)}`); render(); break; }
       case 'reset': if (confirm('Delete your save and start over?')) { resetSave(); go('home'); } break;
+      case 'savebackup': showSaveBackup(); break;
+      case 'copyexport': {
+        const ta = $('#export-code'); ta.focus(); ta.select();
+        let ok = false; try { ok = document.execCommand('copy'); } catch (e) { /* not allowed */ }
+        if (navigator.clipboard) navigator.clipboard.writeText(ta.value).then(() => toast('📋 Backup code copied'), () => !ok && toast('Select the code and copy it'));
+        else toast(ok ? '📋 Backup code copied' : 'Select the code and copy it');
+        break;
+      }
+      case 'doimport': {
+        const saved = importSave($('#import-code').value);
+        if (!saved) { toast('That code is not a valid Idle Realms backup'); break; }
+        if (!confirm('Replace your current progress with this backup?')) break;
+        try { applySaved(saved); save(); closeModal(); go('home'); toast('✅ Save restored'); } catch (e) { toast('That backup could not be restored'); }
+        break;
+      }
     }
     return;
   }
@@ -856,9 +885,12 @@ $('#btn-retreat').addEventListener('click', () => {
 load();
 const offline = processSkilling();
 render();
+if (security.problem) setTimeout(() => toast('🛡️ ' + security.problem), 400);
+if (security.clockReset) setTimeout(() => toast("🕒 Your phone's clock moved back, so idle progress restarted from now"), 600);
 onSkillTick(offline, true);
 setInterval(() => { onSkillTick(processSkilling(), false); tickBars(); }, 100);
 setInterval(() => {
+  if (clockGuard(state)) { save(); toast("🕒 Your phone's clock moved back, so idle progress restarted from now"); }
   if (page === 'home' && !modalOpen() && !battle) render(); else renderTop();
 }, 1000);
 

@@ -1,5 +1,4 @@
 // Save state, the player character, stages, idle economy and skin rerolls.
-const SAVE_KEY = 'idle-realms-save-v1';
 const IDLE_CAP_MS = 12 * 3600 * 1000;
 // Equipment slots, in paper-doll order. Add a slot here + GEAR_SLOT_INFO (skilldata.js) to extend.
 const GEAR_SLOTS = ['helmet', 'chest', 'legs', 'gloves', 'boots', 'weapon', 'shield'];
@@ -21,38 +20,44 @@ function newState() {
   };
 }
 
-function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
-}
+// Saves are signed, backed up and validated by js/security.js.
+function save() { writeSave(state); }
 function load() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
-      state = Object.assign(newState(), saved);
-      state.skills = Object.assign(newState().skills, saved.skills || {});
-      // Smithing was merged into Metalworking: carry its XP and tool over.
-      if (state.skills.smithing) { state.skills.metalworking.xp += state.skills.smithing.xp; delete state.skills.smithing; }
-      state.stats = Object.assign(newState().stats, saved.stats || {});
-      if (!saved.player) migrateTeamSave(saved);
-      if (!Array.isArray(state.inv)) state.inv = [];
-      state.upgrades = Object.assign(newState().upgrades, saved.upgrades || {});
-      const tl = state.upgrades.tools;
-      if (tl.smithing) { tl.metalworking = Math.max(tl.metalworking || 0, tl.smithing); delete tl.smithing; }
-      if (!saved.looks) { // older saves: every look seen through rerolls is now owned
-        state.looks = {};
-        for (const id of [...(saved.seenSkins || []), state.player.skin]) if (HERO_BY_ID[id]) state.looks[id] = 0;
-      }
-      delete state.seenSkins; delete state.pendingSkin; delete state.pity;
-      if (!state.player.ctype) state.player.ctype = CLASS_TYPE[HERO_BY_ID[state.player.skin].cls];
-      const g = state.player.gear || {};
-      if (g.armor && !g.chest) g.chest = g.armor; // the old 'armor' slot is now 'chest'
-      delete g.armor;
-      state.player.gear = Object.assign(emptyGear(), g);
+  const saved = readSave();
+  if (saved) {
+    try {
+      applySaved(saved);
+      if (security.source === 'legacy') { save(); store.del(LEGACY_SAVE); } // upgrade old unprotected saves once
       return;
-    }
-  } catch (e) { /* ignore corrupt save */ }
+    } catch (e) { security.problem = "Your save couldn't be read, so a new game was started."; }
+  }
   state = newState();
+}
+// Builds the game state from a loaded (already key-cleaned) save: migrations, then strict validation.
+function applySaved(saved) {
+  state = Object.assign(newState(), saved);
+  if (!state.player || typeof state.player !== 'object') state.player = newState().player;
+  state.skills = Object.assign(newState().skills, saved.skills || {});
+  // Smithing was merged into Metalworking: carry its XP and tool over.
+  if (state.skills.smithing && state.skills.metalworking) { state.skills.metalworking.xp += state.skills.smithing.xp; delete state.skills.smithing; }
+  state.stats = Object.assign(newState().stats, saved.stats || {});
+  if (!saved.player) migrateTeamSave(saved);
+  if (!Array.isArray(state.inv)) state.inv = [];
+  state.upgrades = Object.assign(newState().upgrades, saved.upgrades || {});
+  const tl = state.upgrades.tools || (state.upgrades.tools = {});
+  if (tl.smithing) { tl.metalworking = Math.max(tl.metalworking || 0, tl.smithing); delete tl.smithing; }
+  if (!saved.looks) { // older saves: every look seen through rerolls is now owned
+    state.looks = {};
+    for (const id of [...(saved.seenSkins || []), state.player.skin]) if (HERO_BY_ID[id]) state.looks[id] = 0;
+  }
+  delete state.seenSkins; delete state.pendingSkin; delete state.pity;
+  if (!state.player.ctype) state.player.ctype = CLASS_TYPE[(HERO_BY_ID[state.player.skin] || HERO_BY_ID.tobin).cls];
+  const g = state.player.gear || {};
+  if (g.armor && !g.chest) g.chest = g.armor; // the old 'armor' slot is now 'chest'
+  delete g.armor;
+  state.player.gear = Object.assign(emptyGear(), g);
+  validateState(state);
+  security.clockReset = clockGuard(state);
 }
 // Older saves had a team of heroes. Keep the rarest hero as the player's look, unlock every
 // owned hero in the collection and return all equipped gear to the bank.

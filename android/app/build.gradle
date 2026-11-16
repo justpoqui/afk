@@ -24,17 +24,20 @@ android {
         minSdk 26
         targetSdk 36
         versionCode buildMinutes
-        versionName '0.1.0'
+        versionName '0.1.1'
     }
 
     signingConfigs {
         // A fixed key committed to the repo so builds from any machine or CI can update each other
         // on your phone. It is for testing only: use a private key before publishing to a store.
+        // Release signing: a private key from the environment (GitHub secrets in CI) when configured,
+        // otherwise the public test key. Anyone can sign with the test key, so switch before wide release.
         shared {
-            storeFile file('idlerealms-test.keystore')
-            storePassword 'idlerealms'
-            keyAlias 'idlerealms'
-            keyPassword 'idlerealms'
+            def priv = System.getenv('IR_KEYSTORE_FILE')
+            storeFile file(priv ?: 'idlerealms-test.keystore')
+            storePassword priv ? System.getenv('IR_KEYSTORE_PASSWORD') : 'idlerealms'
+            keyAlias priv ? System.getenv('IR_KEY_ALIAS') : 'idlerealms'
+            keyPassword priv ? System.getenv('IR_KEY_PASSWORD') : 'idlerealms'
         }
     }
 
