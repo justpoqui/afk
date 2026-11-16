@@ -1,6 +1,15 @@
 package com.idlerealms.game;
 
 import android.app.Activity;
+import android.content.Intent;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.security.keystore.KeyGenParameterSpec;
@@ -34,6 +43,12 @@ import androidx.webkit.WebViewAssetLoader;
 public class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final String START_URL = "https://" + HOST + "/assets/www/index.html";
+    // Update check: the only network request the app makes, to this repository's GitHub releases.
+    private static final String RELEASES_API = "https://api.github.com/repos/justpoqui/afk/releases?per_page=30";
+    private static final String DOWNLOAD_PREFIX = "https://github.com/justpoqui/afk/releases/download/";
+    private static final Pattern VERSION_TAG = Pattern.compile("^v(\\d+)\\.(\\d+)\\.(\\d+)$");
+    private volatile String updateUrl;
+    private boolean autoChecked;
     private WebView web;
     private OnBackInvokedCallback backCallback;
 
@@ -83,6 +98,7 @@ public class MainActivity extends Activity {
         });
         web.setWebChromeClient(new WebChromeClient()); // enables confirm()/alert() dialogs
         web.addJavascriptInterface(new SaveSigner(), "IRNative"); // safe: only our own packaged page can load
+        web.addJavascriptInterface(new AppBridge(), "IRApp");
 
         // Keep the game clear of the status bar and gesture/navigation bar (edge-to-edge on Android 15+).
         // A WebView ignores its own padding, so the padding goes on a container around it.
@@ -153,6 +169,99 @@ public class MainActivity extends Activity {
             try { mac(); } catch (Exception e) { return false; }
             return fresh;
         }
+    }
+
+    /** Version info and the in-game update notice, exposed to the game page. */
+    final class AppBridge {
+        @JavascriptInterface
+        public String version() { return appVersion(); }
+
+        // manual: from the "Check for updates" button; otherwise once per launch.
+        @JavascriptInterface
+        public void checkUpdates(boolean manual) {
+            if (!manual) { if (autoChecked) return; autoChecked = true; }
+            checkForUpdate(manual);
+        }
+
+        // Opens only the APK link found by the check (always this repository's releases), never a URL from the page.
+        @JavascriptInterface
+        public void openUpdate() {
+            final String url = updateUrl;
+            if (url == null || !url.startsWith(DOWNLOAD_PREFIX)) return;
+            runOnUiThread(() -> {
+                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception ignored) { }
+            });
+        }
+    }
+
+    private String appVersion() {
+        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; } catch (Exception e) { return "0.0.0"; }
+    }
+
+    private static int[] parseVersion(String v) {
+        Matcher m = VERSION_TAG.matcher(v.startsWith("v") ? v : "v" + v);
+        if (!m.matches()) return null;
+        return new int[] { Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), Integer.parseInt(m.group(3)) };
+    }
+
+    private static boolean newer(int[] a, int[] b) {
+        for (int i = 0; i < 3; i++) if (a[i] != b[i]) return a[i] > b[i];
+        return false;
+    }
+
+    /** Asks GitHub for this repository's releases and tells the game if a newer version (vX.Y.Z) has an APK. */
+    private void checkForUpdate(final boolean manual) {
+        new Thread(() -> {
+            JSONObject info = new JSONObject();
+            try {
+                String current = appVersion();
+                info.put("current", current);
+                HttpURLConnection c = (HttpURLConnection) new URL(RELEASES_API).openConnection();
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(8000);
+                c.setRequestProperty("Accept", "application/vnd.github+json");
+                c.setRequestProperty("User-Agent", "IdleRealms-Android");
+                if (c.getResponseCode() != 200) throw new Exception("http " + c.getResponseCode());
+                JSONArray releases = new JSONArray(readLimited(c.getInputStream(), 2_000_000));
+                int[] best = parseVersion(current);
+                String bestTag = null, bestUrl = null, bestNotes = "";
+                for (int i = 0; i < releases.length(); i++) {
+                    JSONObject r = releases.getJSONObject(i);
+                    if (r.optBoolean("draft")) continue;
+                    String tag = r.optString("tag_name");
+                    int[] v = parseVersion(tag);
+                    if (v == null || best == null || !newer(v, best)) continue;
+                    JSONArray assets = r.optJSONArray("assets");
+                    for (int j = 0; assets != null && j < assets.length(); j++) {
+                        JSONObject a = assets.getJSONObject(j);
+                        String url = a.optString("browser_download_url");
+                        if ("IdleRealms.apk".equals(a.optString("name")) && url.startsWith(DOWNLOAD_PREFIX)) {
+                            best = v; bestTag = tag; bestUrl = url;
+                            String notes = r.optString("body");
+                            bestNotes = notes.length() > 600 ? notes.substring(0, 600) : notes;
+                        }
+                    }
+                }
+                updateUrl = bestUrl;
+                info.put("available", bestUrl != null);
+                if (bestUrl != null) { info.put("version", bestTag.substring(1)); info.put("notes", bestNotes); }
+            } catch (Exception e) {
+                try { info.put("error", true); } catch (Exception ignored) { }
+            }
+            final String js = "window.onUpdateCheck && window.onUpdateCheck(" + info.toString() + ", " + manual + ")";
+            runOnUiThread(() -> web.evaluateJavascript(js, null));
+        }).start();
+    }
+
+    private static String readLimited(InputStream in, int max) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) > 0) {
+            out.write(buf, 0, n);
+            if (out.size() > max) throw new Exception("response too large");
+        }
+        return out.toString("UTF-8");
     }
 
     /** Lets the game close modals / menus first; exits only when the game says it has nothing to close. */

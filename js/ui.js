@@ -159,7 +159,9 @@ const pages = {
         ${tile('equipment', '🛡️', 'Equipment', `${GEAR_SLOTS.filter(gearItem).length}/${GEAR_SLOTS.length} slots · 🍽️ ${foodCarried()}`)}
         ${tile('shop', '🏪', 'Shop', 'Tools, backpacks, supplies')}
       </div>
-      <div class="footer-links"><button class="link" data-act="savebackup">🛡️ Save &amp; backup</button> · <button class="link" data-act="reset">Reset save</button></div>`;
+      ${updateInfo && updateInfo.available ? `<button class="panel update-banner" data-act="showupdate">⬆️ <b>Update available: v${esc(updateInfo.version)}</b><small>Tap to download</small></button>` : ''}
+      <div class="footer-links"><button class="link" data-act="savebackup">🛡️ Save &amp; backup</button> · <button class="link" data-act="reset">Reset save</button>
+        ${window.IRApp ? `<br><span class="muted">Version ${esc(appVersion())}</span> · <button class="link" data-act="checkupdate">Check for updates</button>` : ''}</div>`;
   },
 
   fight() {
@@ -564,6 +566,27 @@ function showItem(id, from = 'bank') {
       <button class="btn ghost" data-act="sell" data-from="${from}" data-item="${id}" data-n="${n}">Sell all (🪙 ${fmt(it.sell * n)})</button></div>`);
 }
 
+// ---------------- In-app update notice (Android) ----------------
+let updateInfo = null;
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const appVersion = () => { try { return window.IRApp ? window.IRApp.version() : ''; } catch (e) { return ''; } };
+function showUpdate() {
+  if (!updateInfo || !updateInfo.available) return;
+  openModal(`<h2>⬆️ Update available</h2>
+    <p>Version <b>${esc(updateInfo.version)}</b> is out (you have ${esc(updateInfo.current)}).</p>
+    ${updateInfo.notes ? `<p class="muted update-notes">${esc(updateInfo.notes)}</p>` : ''}
+    <p class="muted">Tap <b>Download</b>, then open the file and tap <b>Update</b>. Your progress is kept.</p>
+    <div class="row-btns"><button class="btn ghost" data-act="updatelater">Later</button><button class="btn gold" data-act="downloadupdate">Download</button></div>`);
+}
+// Called by the Android app after it checks GitHub releases (automatically on launch, or from the button).
+window.onUpdateCheck = (info, manual) => {
+  if (!info || info.error) { if (manual) toast("Couldn't check for updates. Are you online?"); return; }
+  updateInfo = info;
+  if (!info.available) { if (manual) toast(`✅ You have the latest version (${info.current})`); return; }
+  render();
+  if (manual || localGet('update-dismissed') !== info.version) showUpdate();
+};
+
 function showSaveBackup() {
   openModal(`<button class="close" data-act="close">✕</button><h2>🛡️ Save &amp; backup</h2>
     <p class="muted">Your progress is saved on this phone${security.signed ? ', <b>signed with a key locked in the phone\'s secure Keystore</b>' : ''}, with rolling backups that are restored automatically if the save is ever damaged or edited.</p>
@@ -826,6 +849,10 @@ document.addEventListener('click', e => {
       case 'claimtier': { const ti = Number(d.tier); if (claimTier(ti)) toast(`Tier complete! ${rewardText(TASK_TIERS[ti].reward)}`); render(); break; }
       case 'reset': if (confirm('Delete your save and start over?')) { resetSave(); go('home'); } break;
       case 'savebackup': showSaveBackup(); break;
+      case 'checkupdate': try { window.IRApp.checkUpdates(true); toast('Checking for updates…'); } catch (e) { /* not on Android */ } break;
+      case 'showupdate': showUpdate(); break;
+      case 'updatelater': if (updateInfo) localSet('update-dismissed', updateInfo.version); closeModal(); break;
+      case 'downloadupdate': try { window.IRApp.openUpdate(); } catch (e) { /* not on Android */ } closeModal(); break;
       case 'copyexport': {
         const ta = $('#export-code'); ta.focus(); ta.select();
         let ok = false; try { ok = document.execCommand('copy'); } catch (e) { /* not allowed */ }
@@ -886,6 +913,7 @@ load();
 const offline = processSkilling();
 render();
 if (security.problem) setTimeout(() => toast('🛡️ ' + security.problem), 400);
+try { if (window.IRApp) window.IRApp.checkUpdates(false); } catch (e) { /* not on Android */ }
 if (security.clockReset) setTimeout(() => toast("🕒 Your phone's clock moved back, so idle progress restarted from now"), 600);
 onSkillTick(offline, true);
 setInterval(() => { onSkillTick(processSkilling(), false); tickBars(); }, 100);
