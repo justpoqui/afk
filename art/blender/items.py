@@ -184,8 +184,9 @@ def starmoss():
 
 
 # ---------------- smithing ----------------
-METAL = ['#c87533', '#8f959e', '#e2e8ef', '#3fd0c0', '#9b6cff']
-METAL_EMIT = [0, 0, 0, 0.5, 1.2]
+METAL = ['#c87533', '#8f959e', '#e2e8ef', '#3fd0c0', '#9b6cff', '#4a2e3e', '#ffbf4a', '#3a3aa0']
+METAL_EMIT = [0, 0, 0, 0.5, 1.2, 0.4, 0.8, 1.4]
+GEM = ['#ffb04a', '#9fdcff', '#7fd6ff', '#3fd0c0', '#ff9af0', '#ff5a3a', '#fff1a8', '#b48cff']  # inlaid gems by tier
 
 
 def bar(i):
@@ -197,8 +198,8 @@ def bar(i):
     group(rot=(0, 0, 20))
 
 
-GUARD = ['#8a5a35', '#4f5a66', '#f2c14e', '#2a8a80', '#6a3fc0']
-POMMEL = ['#c87533', '#8f959e', '#f2c14e', '#3fd0c0', '#ffd84a']
+GUARD = ['#8a5a35', '#4f5a66', '#f2c14e', '#2a8a80', '#6a3fc0', '#ff5a3a', '#fff1a8', '#9b6cff']
+POMMEL = ['#c87533', '#8f959e', '#f2c14e', '#3fd0c0', '#ffd84a', '#ff5a3a', '#ffd84a', '#c8a8ff']
 
 
 def melee(i, length=1.7, width=0.2, grip=0.5, guard=0.75, curve_guard=False):
@@ -217,7 +218,7 @@ def melee(i, length=1.7, width=0.2, grip=0.5, guard=0.75, curve_guard=False):
         torus((0, 0, base - 0.16 - k * 0.12), 0.075, 0.015, mat('#3a2614'), outline=False)
     sphere((0, 0, base - 0.12 - grip), 0.11, mat(POMMEL[i], rough=0.3, metal=0.8, emit=METAL_EMIT[i]))
     if i >= 3:
-        sphere((0, -0.06, base - 0.05), 0.07, glow(['#3fd0c0', '#ff9af0'][i - 3], 5), outline=False)
+        sphere((0, -0.06, base - 0.05), 0.07, glow(GEM[i], 5), outline=False)
     group(rot=(0, 45, 0))
 
 
@@ -244,7 +245,7 @@ def plate(i):
         sphere((s * 0.62, 0, 0.42), 0.32, m, scale=(1, 0.9, 0.6))
     cyl((0, 0, 0.58), 0.25, 0.05, mat('#1b1426'), scale=(1, 0.7, 1), outline=False)
     torus((0, 0, -0.42), 0.6, 0.06, mat('#5a3d22'), scale=(1, 0.64, 1))
-    sphere((0, -0.4, 0.15), 0.1, glow(['#ffb04a', '#9fdcff', '#7fd6ff', '#4dffd2', '#ff9af0'][i], 3 if i > 1 else 1), outline=False)
+    sphere((0, -0.4, 0.15), 0.1, glow(GEM[i], 3 if i > 1 else 1), outline=False)
     box((0, -0.38, 0.0), (0.06, 0.02, 0.9), mat(METAL[i], rough=0.4, metal=0.6), outline=False)
 
 
@@ -326,8 +327,8 @@ def potion(liquid, emit=0.6, glow_extra=False):
 
 
 # ---------------- crafting gear (metalworking, carpentry, glassworking) ----------------
-WOOD = ['#c8935a', '#efe2c4', '#b8523a', '#c8ccd4', '#5a3a4a']
-ORB = ['#5cdc6a', '#ffb02e', '#cfe6ff', '#ff4a2a', '#b48cff']
+WOOD = ['#c8935a', '#efe2c4', '#b8523a', '#c8ccd4', '#5a3a4a', '#4a4a52', '#9a2a2a', '#d8e8b8']
+ORB = ['#5cdc6a', '#ffb02e', '#cfe6ff', '#ff4a2a', '#b48cff', '#ff6a2a', '#9fe8ff', '#8a4aff']
 
 
 def prism(points, depth, m, loc=(0, 0, 0)):
@@ -418,7 +419,7 @@ def helm(i):
     box((0, -0.7, 0.1), (0.1, 0.1, 0.55), m)
     cyl((0, 0, -0.5), 0.72, 0.18, m, verts=28)
     if i >= 3:
-        tube([(0, 0.1, 0.75), (0, 0.4, 0.95), (0, 0.75, 0.8)], [0.1, 0.12, 0.04], mat(['#3fd0c0', '#ff4a7a'][i - 3]))
+        tube([(0, 0.1, 0.75), (0, 0.4, 0.95), (0, 0.75, 0.8)], [0.1, 0.12, 0.04], mat(GEM[i]))
 
 
 def gauntlet(i):
@@ -441,7 +442,7 @@ def boots(i):
 
 
 # Ore looks (rock colour, nugget colour, nugget glow): shared by the ore icons and kite shields.
-ORE_STYLE = [('#6f6a66', '#d9823a', 0), ('#6f6a66', '#9a6a5a', 0), ('#5f5a58', '#eef2f6', 0), ('#4f5a5a', '#3fd0c0', 1.2), ('#2a2438', '#9b6cff', 1.8)]
+ORE_STYLE = [('#6f6a66', '#d9823a', 0), ('#6f6a66', '#9a6a5a', 0), ('#5f5a58', '#eef2f6', 0), ('#4f5a5a', '#3fd0c0', 1.2), ('#2a2438', '#9b6cff', 1.8), ('#1f1a24', '#ff5a3a', 1.4), ('#5a4a3a', '#ffc84a', 1.2), ('#14141f', '#7a5aff', 2.2)]
 
 
 def kite(i):
@@ -470,6 +471,98 @@ def platelegs(i):
     box((0, -0.26, 0.55), (0.95, 0.03, 0.08), mat('#5a3d22'), outline=False)
 
 
+# ---------------- late-game tiers (70 / 80 / 90) ----------------
+def glowfin_ray():
+    sphere((0, 0, 0), 0.9, mat('#2a5a6a'), scale=(1.25, 1.05, 0.18), rot=(0, 0, 45))
+    sphere((0, 0, -0.05), 0.85, mat('#cfe8e8'), scale=(1.2, 1.0, 0.12), rot=(0, 0, 45), outline=False)
+    tube([(-0.85, 0.85, 0), (-1.1, 1.1, 0.05), (-1.3, 1.3, 0.1)], [0.06, 0.04, 0.01], mat('#2a5a6a'))
+    for _ in range(9):
+        a, r = R.uniform(0, 6.28), R.uniform(0.15, 0.7)
+        sphere((r * math.cos(a), r * math.sin(a), 0.16), 0.06, glow('#7ffcff', 5), scale=(1, 1, 0.4), outline=False)
+    for sx in (-1, 1):
+        sphere((0.3 + sx * 0.12, -0.3 + sx * 0.12, 0.17), 0.06, mat('#1b1426', rough=0.2), outline=False)
+    group(rot=(30, 0, 10))  # tilt the flat ray toward the camera so its back shows
+
+
+def stormmarlin():
+    fish_body('#2a5aa8', '#e2ecf6', '#1f4080', length=2.5, height=0.65)
+    cyl((1.75, 0, 0.02), 0.07, 1.0, mat('#1f4080'), r2=0.0, rot=(0, 90, 0))                       # spear bill
+    cyl((-0.1, 0, 0.7), 0.45, 0.9, mat('#3f7ad8'), r2=0.0, scale=(2.0, 0.08, 1), verts=3, rot=(0, -10, 0))  # sail
+    for k in range(5):
+        box((0.7 - k * 0.3, -0.26, 0.05), (0.04, 0.02, 0.35), glow('#7fd6ff', 1.5), outline=False)
+    group(rot=(0, 0, -20))
+
+
+def abyssal_angler():
+    sphere((0, 0, 0), 0.7, mat('#2a2238'), scale=(1.2, 1, 0.95))
+    sphere((0.55, -0.1, -0.2), 0.45, mat('#120d18'), scale=(0.6, 1.1, 0.5), outline=False)          # gaping mouth
+    for k in range(6):
+        cyl((0.72, -0.45 + k * 0.17, -0.05), 0.04, 0.16, mat('#f5efe0'), r2=0.0, rot=(180, 0, 0))
+    cyl((-0.85, 0, 0), 0.35, 0.5, mat('#3a2f50'), r2=0.0, rot=(0, 90, 0), scale=(1, 0.15, 1), verts=3)
+    tube([(0.2, 0, 0.6), (0.6, 0, 1.15), (1.0, 0, 1.1), (1.15, 0, 0.85)], [0.04, 0.03, 0.025, 0.02], mat('#3a2f50'))
+    sphere((1.15, 0, 0.8), 0.13, glow('#7fffd4', 7), outline=False)
+    sphere((0.45, -0.45, 0.25), 0.08, glow('#d1ff3a', 4), outline=False)
+    group(rot=(0, 0, -25))
+
+
+def embervine():
+    pts = [(0.5 * math.cos(t * 1.4), 0.5 * math.sin(t * 1.4), -0.8 + t * 0.32) for t in range(7)]
+    tube(pts, [0.1] * 6 + [0.03], mat('#5a2a1f'))
+    for x, y, z in pts[1:6]:
+        sphere((x * 1.35, y * 1.35, z), 0.26, mat('#a8322a'), scale=(1.5, 0.35, 0.75), rot=(0, 0, math.degrees(math.atan2(y, x))))
+        for dx in (-0.08, 0.08):
+            sphere((x * 0.8 + dx, y * 0.8 - 0.12, z + 0.1), 0.12, glow('#ff7a2a', 6), outline=False)
+
+
+def frostlotus():
+    cyl((0, 0, -0.55), 0.95, 0.06, mat('#4f8a8a'), verts=32)
+    for layer, (r, z, k, c) in enumerate(((0.45, -0.3, 8, '#e8f4ff'), (0.28, -0.15, 6, '#bfe6ff'))):
+        for n in range(k):
+            a = n * 360 / k + layer * 20
+            sphere((r * math.cos(math.radians(a)), r * math.sin(math.radians(a)), z), 0.24, mat(c, emit=0.3), scale=(1.3, 0.5, 0.45), rot=(0, -35, a))
+    sphere((0, 0, -0.08), 0.14, glow('#9fe8ff', 6), outline=False)
+
+
+def voidbloom():
+    tube([(0, 0, -0.95), (0.1, 0, -0.3), (0, 0, 0.2)], [0.045, 0.04, 0.03], mat('#1f1a2a'))
+    for n in range(6):
+        a = n * 60
+        sphere((0.3 * math.cos(math.radians(a)), 0.3 * math.sin(math.radians(a)), 0.4), 0.28, mat('#3a1f5a'), scale=(1.2, 0.35, 0.8), rot=(0, -40, a))
+    sphere((0, 0, 0.42), 0.13, glow('#b48cff', 7), outline=False)
+    for _ in range(6):
+        sphere((R.uniform(-0.6, 0.6), R.uniform(-0.6, 0), R.uniform(0.4, 1.0)), 0.035, glow('#d8c8ff', 8), outline=False)
+
+
+def seared_glowfin():
+    plate_dish()
+    sphere((0, 0, -0.2), 0.6, mat('#a8603a', rough=0.45), scale=(1.4, 1.0, 0.2), rot=(0, 0, 45))
+    for k in range(4):
+        box((-0.4 + k * 0.27, 0, -0.08), (0.05, 0.9, 0.02), mat('#3a1a10'), rot=(0, 0, 45), outline=False)
+    for _ in range(5):
+        sphere((R.uniform(-0.4, 0.4), R.uniform(-0.4, 0.4), -0.06), 0.04, glow('#7ffcff', 2), outline=False)
+    sphere((0.6, -0.4, -0.22), 0.14, mat('#4fa64a'), scale=(1.4, 0.6, 0.4))
+
+
+def marlin_steak():
+    plate_dish()
+    box((0, 0, -0.12), (1.0, 0.75, 0.38), mat('#d8846a', rough=0.5), bevel=0.15)
+    box((0, 0, 0.07), (0.9, 0.65, 0.02), mat('#f2a88a'), outline=False)
+    for k in range(4):
+        box((-0.33 + k * 0.22, 0, 0.09), (0.05, 0.75, 0.02), mat('#5a2410'), rot=(0, 0, 30), outline=False)
+    cyl((0.62, -0.42, -0.24), 0.18, 0.05, mat('#ffe66b'), verts=16)
+    sphere((-0.6, -0.4, -0.25), 0.16, mat('#4dc8ff', rough=0.2), scale=(1.2, 1, 0.35), outline=False)
+
+
+def angler_banquet():
+    cyl((0, 0, -0.35), 1.05, 0.08, mat('#d9b46b', rough=0.3, metal=0.6), verts=40, scale=(1.35, 0.9, 1))
+    sphere((0, 0, -0.05), 0.45, mat('#8a4a2a', rough=0.35), scale=(1.2, 1, 0.7))
+    tube([(0.1, 0, 0.25), (0.35, 0, 0.55), (0.55, 0, 0.45)], [0.025, 0.02, 0.015], mat('#5a3020'))
+    sphere((0.55, 0, 0.4), 0.08, glow('#7fffd4', 5), outline=False)
+    sphere((-0.85, 0.15, -0.15), 0.25, mat('#d9a35a'), scale=(1.5, 0.9, 0.7))
+    for _ in range(7):
+        sphere((R.uniform(-1.1, 1.1), R.uniform(-0.6, 0.6), -0.22), 0.09, mat(R.choice(('#4fa64a', '#e8434a', '#ffe66b', '#ff8a3a'))), outline=False)
+
+
 ITEMS = {
     'sand': sand, 'glass': molten_glass, 'vial': vial,
     'log0': lambda: log('#8a5a35', '#e8c99a', '#b8925a'),
@@ -491,8 +584,20 @@ ITEMS = {
     'pot3': lambda: potion('#4fc3ff', emit=1.0),
     'pot4': lambda: potion('#ffd84a', emit=2.0, glow_extra=True),
     'bread': bread, 'burnt': burnt,
+    'log5': lambda: log('#4a4a52', '#b8b0a8', '#6a625a'),
+    'log6': lambda: log('#7a1f1f', '#ff9a5a', '#c8402a', glow_c='#ff6a2a'),
+    'log7': lambda: log('#e8e0c0', '#f4f8e8', '#a8c890', glow_c='#ffe86a', marks='#7ab060'),
+    'ore5': lambda: ore('#1f1a24', '#ff5a3a', emit=1.4),
+    'ore6': lambda: ore('#5a4a3a', '#ffc84a', emit=1.2),
+    'ore7': lambda: ore('#14141f', '#7a5aff', emit=2.2, sparkle='#c8b8ff'),
+    'fish5': glowfin_ray, 'fish6': stormmarlin, 'fish7': abyssal_angler,
+    'herb5': embervine, 'herb6': frostlotus, 'herb7': voidbloom,
+    'food5': seared_glowfin, 'food6': marlin_steak, 'food7': angler_banquet,
+    'pot5': lambda: potion('#ff7a2a', emit=1.2),
+    'pot6': lambda: potion('#8fb4ff', emit=0.8),
+    'pot7': lambda: potion('#ff4a1a', emit=2.2, glow_extra=True),
 }
-for i in range(5):
+for i in range(len(METAL)):
     ITEMS[f'bar{i}'] = (lambda i: lambda: bar(i))(i)
     ITEMS[f'sword{i}'] = (lambda i: lambda: blade(i))(i)
     ITEMS[f'armor{i}'] = (lambda i: lambda: plate(i))(i)

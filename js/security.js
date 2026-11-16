@@ -137,7 +137,7 @@ function validateState(s) {
 
   const up = plainObj(s.upgrades);
   s.upgrades = {
-    tools: Object.fromEntries(Object.keys(TOOLS).map(k => [k, int(plainObj(up.tools)[k], 0, 3, 0)]).filter(([, v]) => v)),
+    tools: Object.fromEntries(Object.keys(TOOLS).map(k => [k, int(plainObj(up.tools)[k], 0, TOOLS[k].length, 0)]).filter(([, v]) => v)),
     backpack: int(up.backpack, 0, BACKPACK_COST.length, 0), courier: up.courier === true, bankSlots: int(up.bankSlots, 0, 100000, 0),
   };
 

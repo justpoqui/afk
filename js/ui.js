@@ -334,9 +334,9 @@ const pages = {
       </div>
       <div class="sub">Tools: each tier makes that skill ${TOOL_SPEED * 100}% faster</div>
       <div class="shop-list">${Object.entries(TOOLS).map(([sk, names]) => {
-        const t = toolTier(sk), maxed = t >= 3;
+        const t = toolTier(sk), maxed = t >= names.length;
         return `<div class="shop-row"><span class="ico lg">${SKILLS[sk].icon}</span>
-          <div class="shop-info"><b>${maxed ? names[2] + ' (max)' : names[t]}</b>
+          <div class="shop-info"><b>${maxed ? names[names.length - 1] + ' (max)' : names[t]}</b>
           <small>${t ? `Owned: ${names[t - 1]} (−${t * 10}%)` : 'No tool yet'}${maxed ? '' : ` · needs ${SKILLS[sk].name} ${TOOL_REQ[t]}`}</small></div>
           ${maxed ? '<span class="owned">✓</span>' : `<button class="btn sm ${state.gold < TOOL_COST[t] || skillLevel(sk) < TOOL_REQ[t] ? 'off' : 'gold'}" data-act="buytool" data-skill="${sk}">🪙 ${fmt(TOOL_COST[t])}</button>`}</div>`;
       }).join('')}</div>`;

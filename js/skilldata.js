@@ -1,16 +1,18 @@
 // Skills, items, crafting recipes and the task chain.
 // All gather/production data is generated from 5 material tiers.
-const TIER_TINT = ['#c9844a', '#9aa7b4', '#dfe6ee', '#4fd6c4', '#b48cff'];
+const TIER_TINT = ['#c9844a', '#9aa7b4', '#dfe6ee', '#4fd6c4', '#b48cff', '#ff6a4a', '#ffc84a', '#7a5aff'];
 // ---- Tier levels: the level each of the five tiers belongs to ----
 // Raw materials, bars and consumables unlock at T_LEVEL; gear (weapons, armor, shields) at GEAR_LEVEL,
 // which is also the level needed to equip it (Attack for weapons, Defence for armor and shields).
 // Late-game tiers can be added by extending these lists.
-const T_LEVEL = [1, 10, 20, 30, 40];
-const GEAR_LEVEL = [5, 10, 20, 30, 40];
-const T_DUR = [3, 4, 5, 6.5, 8];
-const T_XP = [10, 28, 58, 105, 185];
-const T_SELL = [2, 6, 14, 30, 65];
-const METALS = ['Copper', 'Iron', 'Silver', 'Mythril', 'Starmetal'];
+// Late-game tiers at 70 / 80 / 90 (index 5-7).
+const T_LEVEL = [1, 10, 20, 30, 40, 70, 80, 90];
+const GEAR_LEVEL = [5, 10, 20, 30, 40, 70, 80, 90];
+const TIERS = T_LEVEL.length;
+const T_DUR = [3, 4, 5, 6.5, 8, 9.5, 11, 12.5];
+const T_XP = [10, 28, 58, 105, 185, 330, 520, 780];
+const T_SELL = [2, 6, 14, 30, 65, 120, 210, 350];
+const METALS = ['Copper', 'Iron', 'Silver', 'Mythril', 'Starmetal', 'Obsidian', 'Sunsteel', 'Voidsteel'];
 
 const SKILLS = {
   // Combat skills: trained by fighting. The attack style picks which one gets the XP.
@@ -45,28 +47,32 @@ function addAction_(skill, outId, d) {
 }
 
 const gatherDefs = [
-  ['woodcutting', 'log',  'Logs',  ['Pine Log', 'Birch Log', 'Emberwood Log', 'Silverbark Log', 'Elderheart Log'], ['🪵', '🪵', '🪵', '🪵', '🪵']],
-  ['mining',      'ore',  'Ores',  METALS.map(m => m + ' Ore'), ['🪨', '🪨', '🪨', '🪨', '🪨']],
-  ['fishing',     'fish', 'Fish',  ['Raw Minnow', 'Raw Trout', 'Raw Spinefin', 'Raw Reef Shark', 'Raw Leviathan Eel'], ['🐟', '🐠', '🐡', '🦈', '🐍']],
-  ['herbalism',   'herb', 'Herbs', ['Mintleaf', 'Sunpetal', 'Moonbloom', 'Dragonroot', 'Starmoss'], ['🌿', '🌼', '🌸', '🌶️', '🍀']],
+  ['woodcutting', 'log',  'Logs',  ['Pine Log', 'Birch Log', 'Emberwood Log', 'Silverbark Log', 'Elderheart Log', 'Ironbark Log', 'Dragonwood Log', 'Worldtree Log'], Array(8).fill('🪵')],
+  ['mining',      'ore',  'Ores',  METALS.map(m => m + ' Ore'), Array(8).fill('🪨')],
+  ['fishing',     'fish', 'Fish',  ['Raw Minnow', 'Raw Trout', 'Raw Spinefin', 'Raw Reef Shark', 'Raw Leviathan Eel', 'Raw Glowfin Ray', 'Raw Stormmarlin', 'Raw Abyssal Angler'], ['🐟', '🐠', '🐡', '🦈', '🐍', '🐟', '🐟', '🐡']],
+  ['herbalism',   'herb', 'Herbs', ['Mintleaf', 'Sunpetal', 'Moonbloom', 'Dragonroot', 'Starmoss', 'Embervine', 'Frostlotus', 'Voidbloom'], ['🌿', '🌼', '🌸', '🌶️', '🍀', '🌿', '🪷', '🥀']],
 ];
 for (const [skill, p, cat, names, icons] of gatherDefs) {
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < TIERS; i++) {
     addItem_(p + i, { name: names[i], icon: icons[i], tint: TIER_TINT[i], cat, tier: i, sell: T_SELL[i] });
     addAction_(skill, p + i, { level: T_LEVEL[i], dur: T_DUR[i], xp: T_XP[i] });
   }
 }
 
-const FOOD = [['Grilled Minnow', '🍢'], ['Baked Trout', '🍣'], ['Spinefin Stew', '🍲'], ['Shark Steak', '🥩'], ['Eel Feast', '🍱']];
-const FOOD_HEAL = [150, 380, 850, 1800, 3600];
+const FOOD = [['Grilled Minnow', '🍢'], ['Baked Trout', '🍣'], ['Spinefin Stew', '🍲'], ['Shark Steak', '🥩'], ['Eel Feast', '🍱'],
+  ['Seared Glowfin', '🍤'], ['Stormmarlin Steak', '🍖'], ['Angler Banquet', '🍱']];
+const FOOD_HEAL = [150, 380, 850, 1800, 3600, 6000, 9500, 14000];
 const POTIONS = [
   ['Potion of Might', { atk: 0.15 }, 'ATK +15%'],
   ['Ironskin Draught', { def: 0.3 }, 'DEF +30%'],
   ['Vitality Tonic', { hp: 0.2 }, 'HP +20%'],
   ['Swiftness Brew', { spd: 0.15 }, 'SPD +15%'],
   ['Elixir of Heroes', { atk: 0.15, def: 0.15, hp: 0.15, spd: 0.1 }, 'All stats +10-15%'],
+  ['Titan Draught', { atk: 0.25 }, 'ATK +25%'],
+  ['Aegis Elixir', { def: 0.35, hp: 0.15 }, 'DEF +35%, HP +15%'],
+  ['Phoenix Tonic', { atk: 0.2, def: 0.2, hp: 0.2, spd: 0.15 }, 'All stats +15-20%'],
 ];
-const POTION_SECOND = [{}, { ore1: 1 }, { food1: 1 }, { log3: 1 }, { bar4: 1 }];
+const POTION_SECOND = [{}, { ore1: 1 }, { food1: 1 }, { log3: 1 }, { bar4: 1 }, { ore5: 1 }, { log6: 1 }, { bar7: 1 }];
 // Gear stats scale with the tier's level L: a short sword gives the damage, a chestplate the HP and defence.
 const gearAtk = L => Math.round(4 * L + 0.12 * L * L);
 const gearHp = L => Math.round(40 * L + 1.6 * L * L);
@@ -85,9 +91,9 @@ const GEAR_SLOT_INFO = {
   gloves: { name: 'Gloves', icon: '🧤' }, boots: { name: 'Boots', icon: '👢' }, weapon: { name: 'Weapon', icon: '🗡️' },
   shield: { name: 'Shield', icon: '🛡️' },
 };
-const WOODS = ['Pine', 'Birch', 'Emberwood', 'Silverbark', 'Elderheart'];
-const BOWS = ['Pine Shortbow', 'Birch Longbow', 'Emberwood Bow', 'Silverbark Bow', 'Elderheart Greatbow'];
-const ORBS = ['Verdant Orb', 'Sunfire Orb', 'Moonlight Orb', 'Dragonfire Orb', 'Starlight Orb'];
+const WOODS = ['Pine', 'Birch', 'Emberwood', 'Silverbark', 'Elderheart', 'Ironbark', 'Dragonwood', 'Worldtree'];
+const BOWS = ['Pine Shortbow', 'Birch Longbow', 'Emberwood Bow', 'Silverbark Bow', 'Elderheart Greatbow', 'Ironbark Warbow', 'Dragonwood Longbow', 'Worldtree Greatbow'];
+const ORBS = ['Verdant Orb', 'Sunfire Orb', 'Moonlight Orb', 'Dragonfire Orb', 'Starlight Orb', 'Ember Orb', 'Frost Orb', 'Void Orb'];
 // Metal armor pieces: [id prefix, name, slot, bars, level offset, hp share, def share, atk share of a blade]
 const METAL_PIECES = [
   ['helm',   'Helmet',     'helmet', 2, 0, 0.3, 0.4, 0],
@@ -117,7 +123,7 @@ addAction_('glassworking', 'glass', { level: 1, dur: 3, xp: 12, inputs: { sand: 
 addItem_('vial', { name: 'Glass Vial', icon: '🧪', tint: '#cfe8ff', cat: 'Glass', tier: 0, sell: 8 });
 addAction_('glassworking', 'vial', { level: 3, dur: 2.5, xp: 14, inputs: { glass: 1 }, group: 'Vials' });
 
-for (let i = 0; i < 5; i++) {
+for (let i = 0; i < TIERS; i++) {
   const t = TIER_TINT[i], cx = Math.round(T_XP[i] * 1.5), barSell = T_SELL[i] * 3 + 2;
   addItem_('bar' + i, { name: METALS[i] + ' Bar', icon: '🧱', tint: t, cat: 'Bars', tier: i, sell: barSell });
   smelt(i);
@@ -218,6 +224,16 @@ const TASK_TIERS = [
     { t: 'stage', n: 80, r: { gems: 500 } },
     { t: 'lvl', skill: 'woodcutting', n: 80, r: { scrolls: 3 } },
     { t: 'lvl', skill: 'defence', n: 70, r: { gems: 500 } },
+  ] },
+  { name: 'Mythic Artisan', reward: { gems: 5000, scrolls: 30 }, tasks: [
+    { t: 'lvl', skill: 'woodcutting', n: 85, r: { scrolls: 4 } },
+    { t: 'lvl', skill: 'mining', n: 85, r: { scrolls: 4 } },
+    { t: 'lvl', skill: 'fishing', n: 85, r: { scrolls: 4 } },
+    { t: 'act', id: 'greatsword7', n: 1, r: { gems: 1000 } },
+    { t: 'act', id: 'staff7', n: 1, r: { gems: 1000 } },
+    { t: 'act', id: 'food7', n: 50, r: { gems: 800 } },
+    { t: 'act', id: 'pot7', n: 10, r: { gems: 800 } },
+    { t: 'lvl', skill: 'metalworking', n: 90, r: { scrolls: 5 } },
   ] },
 ];
 TASK_TIERS.forEach((tier, ti) => tier.tasks.forEach((t, i) => { t.key = ti + '.' + i; }));

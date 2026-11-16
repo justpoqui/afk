@@ -28,22 +28,26 @@ const QUESTS = [
     steps: [{ t: 'kill', id: 'skeleton', n: 30 }, { t: 'kill', id: 'wraith', n: 20 }], r: { gems: 400, items: { armor2: 1 } } },
   { id: 'dragon', name: 'Dragon Slayer', icon: '🐉', desc: 'The Ancient Wyrm waits in its lair. End it.',
     steps: [{ t: 'kill', id: 'wyrm', n: 1 }, { t: 'lvl', skill: 'strength', n: 70 }], r: { gems: 2000, slots: 4 } },
+  { id: 'voidforge', name: 'The Void Forge', icon: '🌀', desc: 'Smiths speak of a metal pulled from between the stars. Prove you can work it.',
+    steps: [{ t: 'deliver', id: 'bar7', n: 15 }, { t: 'lvl', skill: 'metalworking', n: 90 }], r: { gems: 4000, items: { armor7: 1 } } },
+  { id: 'legends', name: 'A Feast for Legends', icon: '🍱', desc: 'The champions of every arena gather for one last banquet.',
+    steps: [{ t: 'deliver', id: 'food7', n: 25 }, { t: 'deliver', id: 'pot7', n: 5 }, { t: 'lvl', skill: 'cooking', n: 90 }], r: { gems: 5000, slots: 8 } },
 ];
 
 // ---- Shop (gold) ----
 const TOOLS = {
-  woodcutting: ['Iron Axe', 'Steel Axe', 'Mythril Axe'],
-  mining:      ['Iron Pickaxe', 'Steel Pickaxe', 'Mythril Pickaxe'],
-  fishing:     ['Sturdy Rod', 'Fiberglass Rod', 'Mythril Rod'],
-  herbalism:   ['Iron Sickle', 'Steel Sickle', 'Mythril Sickle'],
-  metalworking:['Iron Hammer', 'Steel Hammer', 'Mythril Hammer'],
-  carpentry:   ['Iron Saw', 'Steel Saw', 'Mythril Saw'],
-  glassworking:['Blowpipe', 'Steel Blowpipe', 'Mythril Blowpipe'],
+  woodcutting: ['Iron Axe', 'Steel Axe', 'Mythril Axe', 'Voidsteel Axe'],
+  mining:      ['Iron Pickaxe', 'Steel Pickaxe', 'Mythril Pickaxe', 'Voidsteel Pickaxe'],
+  fishing:     ['Sturdy Rod', 'Fiberglass Rod', 'Mythril Rod', 'Voidsteel Rod'],
+  herbalism:   ['Iron Sickle', 'Steel Sickle', 'Mythril Sickle', 'Voidsteel Sickle'],
+  metalworking:['Iron Hammer', 'Steel Hammer', 'Mythril Hammer', 'Voidsteel Hammer'],
+  carpentry:   ['Iron Saw', 'Steel Saw', 'Mythril Saw', 'Voidsteel Saw'],
+  glassworking:['Blowpipe', 'Steel Blowpipe', 'Mythril Blowpipe', 'Voidsteel Blowpipe'],
   cooking:     ['Cast-iron Pan', 'Stone Oven', 'Dragonfire Range'],
   alchemy:     ['Glass Vials', 'Copper Still', "Philosopher's Kit"],
 };
-const TOOL_COST = [1500, 12000, 60000];
-const TOOL_REQ = [10, 30, 55];      // skill level needed to buy each tier
+const TOOL_COST = [1500, 12000, 60000, 400000];
+const TOOL_REQ = [10, 30, 55, 75];      // skill level needed to buy each tier
 const TOOL_SPEED = 0.1;             // each tool tier makes that skill's actions 10% faster
 const BACKPACK_COST = [2000, 7500, 20000, 50000, 120000]; // +4 inventory slots each
 const COURIER_COST = 30000;         // auto-deposits to the bank when the inventory is full

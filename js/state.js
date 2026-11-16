@@ -307,11 +307,15 @@ const chapterOf = stage => Math.ceil(stage / 10);
 const chapterName = stage => CHAPTER_NAMES[(chapterOf(stage) - 1) % CHAPTER_NAMES.length];
 const stageLabel = stage => `${chapterOf(stage)}-${((stage - 1) % 10) + 1}`;
 
+// Enemy strength by level (n = level - 1). Past level 40 enemies grow faster so the 70-90 gear
+// tiers face a matching challenge.
+const enemyMult = n => (1 + 0.15 * n + 0.0012 * n * n) * (1 + LATE_ENEMY_GROWTH * Math.max(0, n - 40));
+const LATE_ENEMY_GROWTH = 0.012;
 const ARENA_POWER = 1.35; // arena fighters are tougher than the hunting grounds
 const floorOf = stage => ((stage - 1) % 10) + 1;
 function stageEnemies(stage) {
   const n = stage - 1;
-  const mult = 1 + 0.15 * n + 0.0012 * n * n;
+  const mult = enemyMult(n);
   const mk = (tpl, boss) => ({
     key: tpl.sprite.replace(/^(mon|boss)_/, ''), name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss, lvl: stage,
     proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (boss ? 'bolt' : null), bolt: tpl.bolt || (boss ? '#ff5d5d' : null),
@@ -337,7 +341,7 @@ function stageEnemies(stage) {
 function monsterUnit(areaIdx, monIdx) {
   const [key, lvl] = AREAS[areaIdx].monsters[monIdx];
   const tpl = monsterTemplate(key), boss = tpl.sprite.startsWith('boss_'), n = lvl - 1;
-  const mult = 1 + 0.15 * n + 0.0012 * n * n;
+  const mult = enemyMult(n);
   return {
     key, name: tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss, lvl,
     proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (boss ? 'bolt' : null), bolt: tpl.bolt || (boss ? '#ff5d5d' : null),
@@ -348,7 +352,8 @@ function monsterUnit(areaIdx, monIdx) {
 }
 // Gold and item drops for a hunting kill: materials of the area's tier, rare gear, the odd gem.
 function rollLoot(areaIdx, lvl) {
-  const t = Math.min(4, areaIdx), loot = { gold: Math.round(lvl * (3 + Math.random() * 3)), items: {}, gems: 0 };
+  // Drops come from the highest tier at or below the monster's level.
+  const t = Math.max(0, T_LEVEL.filter(l => l <= lvl).length - 1), loot = { gold: Math.round(lvl * (3 + Math.random() * 3)), items: {}, gems: 0 };
   if (Math.random() < 0.35) { const id = ['log', 'ore', 'fish', 'herb'][Math.floor(Math.random() * 4)] + t; loot.items[id] = 1 + Math.floor(Math.random() * 2); }
   if (Math.random() < 0.02) { // a rare piece of gear of the area's tier
     const kinds = ['dagger', 'sword', 'longsword', 'greatsword', 'bow', 'staff', 'helm', 'armor', 'legs', 'gloves', 'boots', 'kite', 'wshield'];
@@ -370,7 +375,7 @@ function stageReward(stage) {
 const toolTier = skill => state.upgrades.tools[skill] || 0;
 function buyTool(skill) {
   const t = toolTier(skill);
-  if (t >= 3 || skillLevel(skill) < TOOL_REQ[t] || state.gold < TOOL_COST[t]) return false;
+  if (t >= TOOLS[skill].length || skillLevel(skill) < TOOL_REQ[t] || state.gold < TOOL_COST[t]) return false;
   state.gold -= TOOL_COST[t]; state.upgrades.tools[skill] = t + 1; save(); return true;
 }
 function buyBackpack() {
