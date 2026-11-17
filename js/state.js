@@ -11,7 +11,7 @@ function newState() {
   return {
     gold: 300, gems: 120, scrolls: 3,
     stage: 1, lastClaim: Date.now(),
-    player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: emptyGear() },
+    player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: emptyGear(), blessings: [] },
     looks: { tobin: 0 }, // owned looks -> duplicate stars
     upgrades: { tools: {}, backpack: 0, courier: false, bankSlots: 0 }, bonusSlots: 0, quests: {},
     bank: {}, inv: [], skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
@@ -144,16 +144,32 @@ function gearTotals() {
   }
   return t;
 }
+// Active Grace blessings, combined: the strongest blessing of each kind counts.
+const activeBlessings = () => (state.player.blessings || []).map(id => BLESSING_BY_ID[id]).filter(b => b && skillLevel('grace') >= b.lvl);
+function blessingFx() {
+  const best = {};
+  for (const b of activeBlessings()) for (const [k, v] of Object.entries(b.fx)) best[k] = Math.max(best[k] || 0, v);
+  return best;
+}
+function toggleBlessing(id) {
+  const b = BLESSING_BY_ID[id], list = state.player.blessings || (state.player.blessings = []);
+  if (!b || skillLevel('grace') < b.lvl) return 'locked';
+  const i = list.indexOf(id);
+  if (i >= 0) { list.splice(i, 1); save(); return 'off'; }
+  if (list.length >= blessingSlots(skillLevel('grace'))) return 'full';
+  list.push(id); save(); return 'on';
+}
 function playerStats(withPotion = false) {
   const a = skillLevel('attack'), s = skillLevel('strength'), d = skillLevel('defence'), h = skillLevel('hitpoints');
   const sk = skinBonus(state.player.skin), g = gearTotals();
-  const pe = withPotion ? potionEffect() : {};
+  const pe = withPotion ? potionEffect() : {}, bl = blessingFx();
   const st = {
-    hp: (baseHp(h) + g.hp) * (1 + (sk.hp || 0)) * (1 + (pe.hp || 0)),
-    atk: (baseAtk(s) + g.atk) * (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)),
-    def: (baseDef(d) + g.def) * (1 + (sk.def || 0)) * (1 + (pe.def || 0)),
-    spd: 100 * (1 + atkSpeedBonus(a)) * (1 + (sk.spd || 0)) * (1 + (pe.spd || 0)) * (1 + weaponSpeed()),
-    accLvl: a, defLvl: d, regen: sk.regen || 0, ult: sk.ult || 0, energyMult: 1,
+    hp: (baseHp(h) + g.hp) * (1 + (sk.hp || 0)) * (1 + (pe.hp || 0)) * (1 + (bl.hp || 0)),
+    atk: (baseAtk(s) + g.atk) * (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)) * (1 + (bl.atk || 0)),
+    def: (baseDef(d) + g.def) * (1 + (sk.def || 0)) * (1 + (pe.def || 0)) * (1 + (bl.def || 0)),
+    spd: 100 * (1 + atkSpeedBonus(a)) * (1 + (sk.spd || 0)) * (1 + (pe.spd || 0)) * (1 + weaponSpeed()) * (1 + (bl.spd || 0)),
+    accLvl: a, defLvl: d, regen: (sk.regen || 0) + (bl.regen || 0), ult: (sk.ult || 0) + (bl.ult || 0), energyMult: 1,
+    accBonus: bl.acc || 0, ward: bl.ward || 0,
   };
   const ct = state.player.ctype;
   if (ct === 'melee') st.atk *= 1.1;
@@ -171,7 +187,7 @@ function playerBattleUnit() {
   const ct = state.player.ctype;
   // No weapon equipped: you fight up close with your fists and feet, whatever your style.
   const unarmed = !gearItem('weapon');
-  const grace = Math.min(0.5, skillLevel('grace') * GRACE_PER_LEVEL); // Grace blessing: less damage taken
+  const grace = Math.min(0.6, skillLevel('grace') * GRACE_PER_LEVEL + st.ward); // Grace: less damage taken
   const special = STYLE_SPECIALS[unarmed ? 'unarmed' : ct];
   return { ...st, lvl: combatLevel(), name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' || unarmed ? 'melee' : 'ranged', cls: d.cls,
     skill: { ...special, power: special.power * (1 + st.ult) }, color: FACTIONS[d.faction].color, unarmed, grace,
@@ -224,12 +240,12 @@ function invAdd(id, qty = 1) {
 function buryOne(id) {
   const it = ITEMS[id];
   if (!it || !it.bury || !invCount(id)) return null;
-  const before = skillLevel('grace');
+  const before = skillLevel('grace'), xp = buryXp(it);
   invRemove(id, 1);
-  state.skills.grace.xp += it.bury;
+  state.skills.grace.xp += xp;
   state.stats.actions['bury_' + id] = (state.stats.actions['bury_' + id] || 0) + 1;
   save();
-  return { xp: it.bury, levelUp: skillLevel('grace') > before ? skillLevel('grace') : 0 };
+  return { xp, levelUp: skillLevel('grace') > before ? skillLevel('grace') : 0 };
 }
 // Remains left by defeated enemies go to the inventory; returns { id: added } and how many were lost.
 function collectRemains(units) {
@@ -437,18 +453,22 @@ function questStep(step) {
   return [0, 1];
 }
 const questDone = q => state.quests[q.id] === 'done';
-const questUnlocked = q => { const i = QUESTS.indexOf(q); return i === 0 || questDone(QUESTS[i - 1]); };
+// A quest opens when its skill requirements are met and the quest it follows (if any) is done.
+const questReqsMet = q => (q.req || []).every(r => skillLevel(r.skill) >= r.n);
+const questUnlocked = q => questReqsMet(q) && (!q.after || questDone(QUESTS.find(x => x.id === q.after)));
 const questReady = q => !questDone(q) && questUnlocked(q) && q.steps.every(st => { const [c, n] = questStep(st); return c >= n; });
 function completeQuest(q) {
   if (!questReady(q)) return false;
   for (const st of q.steps) if (st.t === 'deliver') take(st.id, st.n);
   state.gold += q.r.gold || 0; state.gems += q.r.gems || 0;
   if (q.r.slots) state.bonusSlots = (state.bonusSlots || 0) + q.r.slots;
+  for (const [sk, xp] of Object.entries(q.r.xp || {})) if (state.skills[sk]) state.skills[sk].xp += xp;
   for (const [id, n] of Object.entries(q.r.items || {})) if (!(bankHasRoom(id) && (addItem(id, n), true))) { const k = invAdd(id, n); if (k < n) addItem(id, n - k); }
   state.quests[q.id] = 'done'; save();
   return true;
 }
-const questRewardText = r => [r.gold && `🪙 ${r.gold}`, r.gems && `💎 ${r.gems}`, r.slots && `🎒 +${r.slots} slots`,
+const questRewardText = r => [r.gold && `🪙 ${fmt(r.gold)}`, r.gems && `💎 ${r.gems}`, r.slots && `🎒 +${r.slots} slots`,
+  ...Object.entries(r.xp || {}).map(([sk, xp]) => `${SKILLS[sk].icon} ${fmt(xp)} ${SKILLS[sk].name} XP`),
   ...Object.entries(r.items || {}).map(([id, n]) => `${ITEMS[id].icon} ${ITEMS[id].name}${n > 1 ? ' ×' + n : ''}`)].filter(Boolean).join('  ');
 
 // ---- Idle rewards ----

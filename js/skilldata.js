@@ -21,7 +21,7 @@ const SKILLS = {
   defence:     { name: 'Defence',     icon: '🛡️', type: 'combat', desc: 'Reduces damage taken and makes enemies miss more.' },
   hitpoints:   { name: 'Hitpoints',   icon: '❤️', type: 'combat', desc: 'Raises your maximum health. Always gains a third of combat XP.' },
   // Grace: trained by burying the remains of defeated enemies. Each level blesses you in battle.
-  grace:       { name: 'Grace',       icon: '🙏', type: 'combat', verb: 'Bury', desc: 'Bury bones and scatter ashes from defeated enemies. Each level: -0.15% damage taken in battle.' },
+  grace:       { name: 'Grace',       icon: '🙏', type: 'combat', verb: 'Bury', desc: 'Bury bones and scatter ashes from defeated enemies. Unlocks blessings that buff you in battle.' },
   woodcutting: { name: 'Woodcutting', icon: '🪓', type: 'gather', verb: 'Chop' },
   mining:      { name: 'Mining',      icon: '⛏️', type: 'gather', verb: 'Mine' },
   fishing:     { name: 'Fishing',     icon: '🎣', type: 'gather', verb: 'Catch' },
@@ -175,15 +175,42 @@ addItem_('burnt', { name: 'Burnt Food', icon: '🍖', tint: '#3a2a22', cat: 'Mis
 
 // ---- Remains: every enemy drops one; burying (or scattering) one trains Grace. Stack 10 per slot. ----
 const GRACE_PER_LEVEL = 0.0015; // damage taken -0.15% per Grace level
-addItem_('bones', { name: 'Bones', icon: '🦴', tint: '#e8e0cc', cat: 'Remains', tier: 0, sell: 3, stack: true, maxStack: 10, bury: 4 });
-addItem_('bigbones', { name: 'Big Bones', icon: '🦴', tint: '#d8c8a8', cat: 'Remains', tier: 1, sell: 10, stack: true, maxStack: 10, bury: 5 });
-addItem_('ash', { name: 'Demonic Ash', icon: '⚱️', tint: '#8a5a7a', cat: 'Remains', tier: 1, sell: 10, stack: true, maxStack: 10, bury: 5, scatter: true });
+// bury: [min, max] Grace XP per burial (a random whole number in that range).
+addItem_('bones', { name: 'Bones', icon: '🦴', tint: '#e8e0cc', cat: 'Remains', tier: 0, sell: 3, stack: true, maxStack: 10, bury: [4, 5] });
+addItem_('bigbones', { name: 'Big Bones', icon: '🦴', tint: '#d8c8a8', cat: 'Remains', tier: 1, sell: 15, stack: true, maxStack: 5, bury: [15, 20] });
+addItem_('ash', { name: 'Demonic Ash', icon: '⚱️', tint: '#8a5a7a', cat: 'Remains', tier: 2, sell: 25, stack: true, maxStack: 15, bury: [25, 30], scatter: true });
+const buryXp = it => it.bury[0] + Math.floor(Math.random() * (it.bury[1] - it.bury[0] + 1));
+const buryXpText = it => `${it.bury[0]}–${it.bury[1]}`;
 for (const id of ['bones', 'bigbones', 'ash']) {
   const it = ITEMS[id], verb = it.scatter ? 'Scatter' : 'Bury';
   // Bury actions consume one item and produce nothing (noOutput); XP is exact, not scaled.
   ACTIONS['bury_' + id] = { id: 'bury_' + id, skill: 'grace', item: id, noOutput: true, name: `${verb} ${it.name}`, icon: it.icon, tint: it.tint,
-    level: 1, dur: 1.8, xp: it.bury, inputs: { [id]: 1 }, qty: 0, group: '', verb };
+    level: 1, dur: 1.8, xp: it.bury[0], xpMax: it.bury[1], inputs: { [id]: 1 }, qty: 0, group: '', verb };
 }
+
+// ---- Grace blessings: switched on from the Grace page; unlock by Grace level ----
+// cat: only the strongest active blessing of each kind counts. Effects: def/atk/hp/spd/ult are multipliers,
+// acc adds hit chance, regen heals that share of max HP per second, ward cuts damage taken.
+const BLESSINGS = [
+  { id: 'stoneskin',  lvl: 1,  cat: 'def',   icon: '🪨', name: 'Stoneskin',      fx: { def: 0.05 },  desc: '+5% defence' },
+  { id: 'might',      lvl: 5,  cat: 'atk',   icon: '💪', name: 'Might',          fx: { atk: 0.05 },  desc: '+5% damage' },
+  { id: 'keeneye',    lvl: 10, cat: 'acc',   icon: '👁️', name: 'Keen Eye',       fx: { acc: 0.04 },  desc: '+4% hit chance' },
+  { id: 'vigor',      lvl: 15, cat: 'hp',    icon: '❤️', name: 'Vigor',          fx: { hp: 0.05 },   desc: '+5% max HP' },
+  { id: 'haste',      lvl: 20, cat: 'spd',   icon: '💨', name: 'Haste',          fx: { spd: 0.05 },  desc: '+5% attack speed' },
+  { id: 'ironskin',   lvl: 25, cat: 'def',   icon: '🛡️', name: 'Ironskin',       fx: { def: 0.10 },  desc: '+10% defence' },
+  { id: 'fury',       lvl: 30, cat: 'atk',   icon: '🔥', name: 'Fury',           fx: { atk: 0.10 },  desc: '+10% damage' },
+  { id: 'hawkeye',    lvl: 40, cat: 'acc',   icon: '🦅', name: 'Hawk Eye',       fx: { acc: 0.08 },  desc: '+8% hit chance' },
+  { id: 'renewal',    lvl: 45, cat: 'regen', icon: '🌱', name: 'Renewal',        fx: { regen: 0.005 }, desc: 'Heal 0.5% max HP per second' },
+  { id: 'vitality',   lvl: 50, cat: 'hp',    icon: '💖', name: 'Vitality',       fx: { hp: 0.10 },   desc: '+10% max HP' },
+  { id: 'smite',      lvl: 55, cat: 'ult',   icon: '⚡', name: 'Smite',          fx: { ult: 0.25 },  desc: '+25% special attack power' },
+  { id: 'diamond',    lvl: 60, cat: 'def',   icon: '💎', name: 'Diamondskin',    fx: { def: 0.15 },  desc: '+15% defence' },
+  { id: 'wrath',      lvl: 70, cat: 'atk',   icon: '⚔️', name: 'Wrath',          fx: { atk: 0.15 },  desc: '+15% damage' },
+  { id: 'celerity',   lvl: 80, cat: 'spd',   icon: '🌪️', name: 'Celerity',       fx: { spd: 0.10 },  desc: '+10% attack speed' },
+  { id: 'ward',       lvl: 85, cat: 'ward',  icon: '✨', name: 'Holy Ward',      fx: { ward: 0.10 }, desc: '-10% damage taken' },
+  { id: 'divine',     lvl: 90, cat: 'regen', icon: '🌟', name: 'Divine Renewal', fx: { regen: 0.012 }, desc: 'Heal 1.2% max HP per second' },
+];
+const BLESSING_BY_ID = Object.fromEntries(BLESSINGS.map(b => [b.id, b]));
+const blessingSlots = graceLvl => 1 + Math.floor(graceLvl / 25); // 1 slot, +1 at Grace 25, 50 and 75
 
 // ---- Task chain: complete every task in a tier to unlock the next ----
 const TASK_TIERS = [

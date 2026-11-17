@@ -518,6 +518,18 @@ body.nav-open #scrim { display: block; }
 .q-step { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--line); }
 .q-step.ok { color: var(--good); }
 .q-reward { font-size: 13px; color: var(--gold); margin-top: 6px; }
+.q-reqs { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.q-req { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--bad, #c55); color: var(--bad, #e77); }
+.q-req.ok { border-color: var(--good); color: var(--good); }
+.bless-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 8px 0; }
+.bless { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; padding: 10px 6px; border-radius: 10px;
+  border: 1px solid var(--line); background: rgba(255,255,255,0.03); color: inherit; font: inherit; }
+.bless .bl-ico { font-size: 24px; }
+.bless small { font-size: 11px; opacity: 0.8; }
+.bless em { font-size: 11px; font-style: normal; color: var(--gold); }
+.bless.on { border-color: var(--gold); background: rgba(255, 200, 80, 0.12); box-shadow: 0 0 0 1px var(--gold) inset; }
+.bless.on em { color: var(--good); }
+.bless.locked { opacity: 0.45; }
 .quest.done { opacity: .55; }
 .quest.locked { opacity: .45; }
 

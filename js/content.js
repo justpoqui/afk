@@ -12,7 +12,7 @@ const AREAS = [
 ];
 const monsterTemplate = key => MONSTERS.find(m => m.sprite === 'mon_' + key) || BOSSES.find(b => b.sprite === 'boss_' + key);
 
-// ---- Quests: deliver items, slay monsters, reach levels. Each unlocks the next. ----
+// ---- Quests: deliver items, slay monsters, reach levels. Story quests unlock in order; skill quests need levels to start. ----
 const QUESTS = [
   { id: 'woodsman', name: "The Woodsman's Request", icon: '🪵', desc: 'The camp needs firewood and metal for the winter.',
     steps: [{ t: 'deliver', id: 'log0', n: 30 }, { t: 'deliver', id: 'bar0', n: 10 }], r: { gold: 800, gems: 40 } },
@@ -32,7 +32,37 @@ const QUESTS = [
     steps: [{ t: 'deliver', id: 'bar7', n: 15 }, { t: 'lvl', skill: 'metalworking', n: 90 }], r: { gems: 4000, items: { armor7: 1 } } },
   { id: 'legends', name: 'A Feast for Legends', icon: '🍱', desc: 'The champions of every arena gather for one last banquet.',
     steps: [{ t: 'deliver', id: 'food7', n: 25 }, { t: 'deliver', id: 'pot7', n: 5 }, { t: 'lvl', skill: 'cooking', n: 90 }], r: { gems: 5000, slots: 8 } },
+  // ---- Skill quests: need specific levels to start, and gathered items to turn in ----
+  { id: 'lumber', name: "Lumberjack's Contract", icon: '🪵', desc: 'The sawmill is behind on orders and needs a skilled feller.',
+    req: [{ skill: 'woodcutting', n: 15 }, { skill: 'carpentry', n: 5 }],
+    steps: [{ t: 'deliver', id: 'log1', n: 50 }, { t: 'deliver', id: 'plank0', n: 20 }], r: { gold: 2500, xp: { woodcutting: 2500, carpentry: 1500 } } },
+  { id: 'garrison', name: 'Ore for the Garrison', icon: '⛏️', desc: 'The garrison needs iron to rearm before winter.',
+    req: [{ skill: 'mining', n: 20 }, { skill: 'metalworking', n: 15 }],
+    steps: [{ t: 'deliver', id: 'ore1', n: 40 }, { t: 'deliver', id: 'bar1', n: 15 }], r: { gold: 4000, xp: { metalworking: 4000 }, items: { legs1: 1 } } },
+  { id: 'fishmonger', name: "The Fishmonger's Feast", icon: '🐟', desc: 'The harbour festival needs fresh and cooked fish.',
+    req: [{ skill: 'fishing', n: 25 }, { skill: 'cooking', n: 20 }],
+    steps: [{ t: 'deliver', id: 'fish2', n: 20 }, { t: 'deliver', id: 'food1', n: 30 }], r: { gold: 4500, xp: { cooking: 5000, fishing: 3000 } } },
+  { id: 'remedy', name: "The Herbalist's Remedy", icon: '🌸', desc: 'A fever is spreading through the village. Brew the cure.',
+    req: [{ skill: 'herbalism', n: 30 }, { skill: 'alchemy', n: 25 }],
+    steps: [{ t: 'deliver', id: 'herb2', n: 25 }, { t: 'deliver', id: 'pot2', n: 10 }, { t: 'deliver', id: 'vial', n: 10 }], r: { gold: 6000, xp: { alchemy: 8000 } } },
+  { id: 'observatory', name: 'Glass for the Observatory', icon: '🔭', desc: 'The stargazers need lenses and moonlit orbs.',
+    req: [{ skill: 'glassworking', n: 35 }],
+    steps: [{ t: 'deliver', id: 'glass', n: 50 }, { t: 'deliver', id: 'orb2', n: 5 }], r: { gems: 300, xp: { glassworking: 10000 } } },
+  { id: 'fallen', name: 'Rest for the Fallen', icon: '🪦', desc: 'The old battlefield is restless. Bring remains to the chapel.',
+    req: [{ skill: 'grace', n: 20 }],
+    steps: [{ t: 'deliver', id: 'bones', n: 50 }, { t: 'deliver', id: 'bigbones', n: 15 }], r: { gems: 300, xp: { grace: 6000 } } },
+  { id: 'bridge', name: 'The Ironbark Bridge', icon: '🌉', desc: 'Only ironbark and obsidian can span the chasm.',
+    req: [{ skill: 'woodcutting', n: 70 }, { skill: 'carpentry', n: 65 }, { skill: 'metalworking', n: 70 }],
+    steps: [{ t: 'deliver', id: 'plank5', n: 40 }, { t: 'deliver', id: 'bar5', n: 20 }], r: { gold: 60000, xp: { carpentry: 60000, metalworking: 40000 } } },
+  { id: 'abyss', name: 'Cleansing the Abyss', icon: '⚱️', desc: 'Demons crawl out of the depths. Burn them and gather their ash.',
+    req: [{ skill: 'grace', n: 60 }, { skill: 'defence', n: 60 }],
+    steps: [{ t: 'kill', id: 'imp', n: 20 }, { t: 'deliver', id: 'ash', n: 40 }], r: { gems: 2000, xp: { grace: 80000 } } },
+  { id: 'angler', name: 'Master Angler', icon: '🎣', desc: 'Legends speak of a fish that glows in the deepest dark.',
+    req: [{ skill: 'fishing', n: 85 }, { skill: 'cooking', n: 80 }],
+    steps: [{ t: 'deliver', id: 'fish7', n: 20 }, { t: 'deliver', id: 'food7', n: 10 }], r: { gold: 150000, xp: { fishing: 200000, cooking: 120000 } } },
 ];
+// Story quests (no level requirement) unlock one after another; skill quests open by level instead.
+{ let prev = null; for (const q of QUESTS) if (!q.req) { if (prev && !q.after) q.after = prev; prev = q.id; } }
 
 // ---- Shop (gold) ----
 const TOOLS = {

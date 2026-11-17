@@ -176,6 +176,7 @@ function validateState(s) {
     style: STYLES[p.style] ? p.style : 'strength',
     ctype: COMBAT_TYPES[p.ctype] ? p.ctype : 'melee',
     gear,
+    blessings: [...new Set((Array.isArray(p.blessings) ? p.blessings : []).filter(id => BLESSING_BY_ID[id]))].slice(0, 4),
   };
 
   const st = plainObj(s.stats), stats = {};

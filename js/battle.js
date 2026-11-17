@@ -65,7 +65,7 @@ class Battle {
   // ---- combat (state changes now, visuals land when the hit arrives) ----
   // Attack trains accuracy against the enemy's level; Defence makes enemies miss more.
   hitChance(src, tgt) {
-    return src.side === 'ally' ? playerHitChance(src.accLvl, tgt.lvl) : enemyHitChance(tgt.defLvl, src.lvl);
+    return src.side === 'ally' ? Math.min(0.99, playerHitChance(src.accLvl, tgt.lvl) + (src.accBonus || 0)) : enemyHitChance(tgt.defLvl, src.lvl);
   }
 
   damage(src, tgt, mult, delay = 0) {

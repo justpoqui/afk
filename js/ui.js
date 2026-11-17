@@ -230,6 +230,7 @@ const pages = {
           <button class="style-btn ${state.player.style === k ? 'on' : ''}" data-act="style" data-style="${k}">
             <span>${SKILLS[k].icon}</span><b>${label}</b><small>${SKILLS[k].name} XP</small></button>`).join('')}</div>
         <p class="hint">❤️ Hitpoints always gets a third of your combat XP.</p>
+        <p class="hint">🙏 Blessings: ${activeBlessings().length ? activeBlessings().map(bl => `${bl.icon} ${bl.name}`).join(', ') : 'none active'} · <a data-page="skill:grace">change</a></p>
         <div class="cskills">${['attack', 'strength', 'defence', 'hitpoints', 'grace'].map(k => {
           const b = xpBar(k);
           return `<button class="cskill" data-page="skill:${k}"><span>${SKILLS[k].icon}</span>
@@ -345,10 +346,14 @@ const pages = {
   },
 
   quests() {
-    return QUESTS.map(q => {
+    const card = q => {
       const done = questDone(q), open = questUnlocked(q);
+      const why = !questReqsMet(q) ? '🔒 Needs the skill levels below to start' : '🔒 Complete the previous quest first';
+      const reqs = !done && q.req ? `<div class="q-reqs">${q.req.map(r => { const ok = skillLevel(r.skill) >= r.n;
+        return `<span class="q-req ${ok ? 'ok' : ''}">${ok ? '✓' : '✗'} ${SKILLS[r.skill].icon} ${SKILLS[r.skill].name} ${r.n}</span>`; }).join('')}</div>` : '';
       return `<section class="panel quest ${done ? 'done' : ''} ${open ? '' : 'locked'}">
-        <div class="quest-head"><span>${q.icon}</span><div><b>${q.name}</b><small>${done ? '✓ Completed' : open ? q.desc : '🔒 Complete the previous quest first'}</small></div></div>
+        <div class="quest-head"><span>${q.icon}</span><div><b>${q.name}</b><small>${done ? '✓ Completed' : open ? q.desc : why}</small></div></div>
+        ${reqs}
         ${open && !done ? q.steps.map(st => {
           const [c, n] = questStep(st);
           const label = st.t === 'deliver' ? `Deliver ${n} × ${ITEMS[st.id].icon} ${ITEMS[st.id].name}` : st.t === 'kill' ? `Defeat ${n} × ${monsterTemplate(st.id).name}` : `Reach ${SKILLS[st.skill].name} level ${n}`;
@@ -357,7 +362,11 @@ const pages = {
         <div class="q-reward">Reward: ${questRewardText(q.r)}</div>
         ${questReady(q) ? `<button class="btn gold" data-act="quest" data-id="${q.id}">Complete quest${q.steps.some(st => st.t === 'deliver') ? ' (hands over the items)' : ''}</button>` : ''}
       </section>`;
-    }).join('');
+    };
+    const story = QUESTS.filter(q => !q.req), skill = QUESTS.filter(q => q.req);
+    const count = list => `${list.filter(questDone).length}/${list.length}`;
+    return `<div class="panel-title">📜 Story quests <span class="muted">· ${count(story)} · unlock one after another</span></div>${story.map(card).join('')}
+      <div class="panel-title">🛠️ Skill quests <span class="muted">· ${count(skill)} · need skill levels to start, items are handed in from inventory and bank</span></div>${skill.map(card).join('')}`;
   },
 
   skill(id) {
@@ -392,8 +401,7 @@ const pages = {
     const cur = groups.includes(skillGroup[id]) ? skillGroup[id] : groups[0];
     const picker = groups.length > 1 ? `<label class="select"><select data-change="actgroup" data-skill="${id}">${groups.map(g =>
       `<option value="${g}" ${g === cur ? 'selected' : ''}>${GROUP_ICON[g] || '📦'} ${g}</option>`).join('')}</select></label>` : '';
-    const blessing = id === 'grace' ? `<section class="panel"><p>🙏 <b>Blessing:</b> you take <b>${(Math.min(0.5, b.lv * GRACE_PER_LEVEL) * 100).toFixed(1)}%</b> less damage in battle.</p>
-      <p class="muted">Every enemy leaves remains: 🦴 Bones (+4 XP), 🦴 Big Bones from big creatures and bosses (+5 XP), ⚱️ Demonic Ash from demons (+5 XP). Bury one at a time from your inventory, or start an action below to bury them one after another.</p></section>` : '';
+    const blessing = id === 'grace' ? graceBlessings(b.lv) : '';
     return `${head}${blessing}${invBar()}${picker}
       ${id === 'cooking' ? `<p class="hint">Food can burn: ${Math.round(burnChance(ACTIONS.food0) * 100)}% for ${ACTIONS.food0.name} at your level. Burnt dishes become stackable 🍖 Burnt Food.</p>` : ''}
       <div class="act-grid">${acts.filter(a => a.group === cur).map(actCard).join('')}</div>
@@ -453,13 +461,29 @@ const pages = {
   },
 };
 
+// Grace page: blessings you switch on for battle, plus the passive damage reduction.
+function graceBlessings(lv) {
+  const on = state.player.blessings || [], slots = blessingSlots(lv);
+  const card = bl => {
+    const unlocked = lv >= bl.lvl, active = on.includes(bl.id);
+    return `<button class="bless ${active ? 'on' : ''} ${unlocked ? '' : 'locked'}" ${unlocked ? `data-act="bless" data-id="${bl.id}"` : 'disabled'}>
+      <span class="bl-ico">${unlocked ? bl.icon : '🔒'}</span><b>${bl.name}</b><small>${bl.desc}</small>
+      <em>${active ? '✓ Active' : unlocked ? 'Tap to activate' : `Grace ${bl.lvl}`}</em></button>`;
+  };
+  return `<section class="panel">
+    <div class="panel-title">🙏 Blessings <span class="muted">· ${on.length}/${slots} active</span></div>
+    <p class="muted">Blessings buff you in every battle. New ones unlock as Grace levels up, and you get another slot at Grace 25, 50 and 75. If two blessings boost the same stat, only the stronger one counts.</p>
+    <div class="bless-grid">${BLESSINGS.map(card).join('')}</div>
+    <p class="hint">Passive: you take <b>${(Math.min(0.5, lv * GRACE_PER_LEVEL) * 100).toFixed(1)}%</b> less damage. Remains: 🦴 Bones +4–5 XP, 🦴 Big Bones (big creatures, bosses) +15–20 XP, ⚱️ Demonic Ash (demons) +25–30 XP. Bury one at a time from your inventory, or start an action below.</p>
+  </section>`;
+}
 function actCard(a) {
   const lv = skillLevel(a.skill), locked = lv < a.level;
   const active = state.active && state.active.action === a.id;
   const inputs = Object.entries(a.inputs), shown = a.item || a.id; // bury actions show the bones they use
   return `<button class="act-card ${locked ? 'locked' : ''} ${active ? 'active' : ''}" data-action="${a.id}">
     <div class="ac-top">${icon(shown, 'lg')}<div><div class="ac-name">${a.name}</div>
-      <div class="ac-meta">⏱ ${actionDur(a)}s · +${a.xp} XP</div></div></div>
+      <div class="ac-meta">⏱ ${actionDur(a)}s · +${a.xpMax ? `${a.xp}–${a.xpMax}` : a.xp} XP</div></div></div>
     ${inputs.length ? `<div class="ac-inputs">${inputs.map(([id, n]) =>
       `<span class="${invCount(id) < n ? 'lack' : ''}">${icon(id, 'sm')} ${n}<small>(🎒${fmt(invCount(id))}${itemCount(id) ? ` 🏦${fmt(itemCount(id))}` : ''})</small></span>`).join('')}</div>` : ''}
     ${inputs.length && !locked && craftsToFill(a) > Math.min(...inputs.map(([id, n]) => Math.floor(invCount(id) / n))) ? `<span class="wd-btn" data-act="withdrawfor" data-id="${a.id}">📥 Withdraw for ${craftsToFill(a)}</span>` : ''}
@@ -481,7 +505,7 @@ function describeItem(id) {
   if (it.heal) return `Food · heals ${it.heal} HP in battle`;
   if (it.effect) return `Potion · ${it.effectText} for ${POTION_BATTLES} battles`;
   if (it.burnt) return 'Ruined while cooking. Stacks in your inventory. Only good for selling.';
-  if (it.bury) return `Remains · ${it.scatter ? 'scatter' : 'bury'} for +${it.bury} 🙏 Grace XP · stacks ${it.maxStack} per slot`;
+  if (it.bury) return `Remains · ${it.scatter ? 'scatter' : 'bury'} for +${buryXpText(it)} 🙏 Grace XP · stacks ${it.maxStack} per slot`;
   return '';
 }
 
@@ -564,7 +588,7 @@ function showItem(id, from = 'bank') {
           : `<div class="row-btns"><button class="btn" data-act="withdraw" data-item="${id}" data-n="1">Withdraw 1</button><button class="btn" data-act="withdraw" data-item="${id}" data-n="${n}">Withdraw all${it.stack ? '' : ` (≤${invFree()})`}</button></div>`}
     ${it.heal ? `<button class="btn" data-act="setfood" data-item="${id}">Use as battle food</button>` : ''}
     ${it.effect ? `<button class="btn" data-act="drink" data-item="${id}">Drink now (${POTION_BATTLES} battles)</button>` : ''}
-    ${inv && it.bury ? `<button class="btn gold" data-act="bury" data-item="${id}">${it.scatter ? 'Scatter' : 'Bury'} 1 (+${it.bury} 🙏 Grace XP)</button>` : ''}
+    ${inv && it.bury ? `<button class="btn gold" data-act="bury" data-item="${id}">${it.scatter ? 'Scatter' : 'Bury'} 1 (+${buryXpText(it)} 🙏 Grace XP)</button>` : ''}
     ${!inv && it.bury ? '<p class="hint">Withdraw remains to your inventory to bury them.</p>' : ''}
     ${it.slot ? `<button class="btn" data-act="equip" data-item="${id}">Equip${state.player.gear[it.slot] ? ` (replaces ${ITEMS[state.player.gear[it.slot]].name})` : ''}</button>` : ''}
     <div class="row-btns"><button class="btn ghost" data-act="sell" data-from="${from}" data-item="${id}" data-n="1">Sell 1</button>
@@ -857,6 +881,13 @@ document.addEventListener('click', e => {
       case 'claimtier': { const ti = Number(d.tier); if (claimTier(ti)) toast(`Tier complete! ${rewardText(TASK_TIERS[ti].reward)}`); render(); break; }
       case 'reset': if (confirm('Delete your save and start over?')) { resetSave(); go('home'); } break;
       case 'savebackup': showSaveBackup(); break;
+      case 'bless': {
+        const r = toggleBlessing(d.id), bl = BLESSING_BY_ID[d.id];
+        if (r === 'full') toast(`All ${blessingSlots(skillLevel('grace'))} blessing slots are in use. Turn one off first.`);
+        else if (r === 'on') toast(`${bl.icon} ${bl.name} is active`);
+        render();
+        break;
+      }
       case 'bury': {
         const r = buryOne(d.item);
         if (r) toast(r.levelUp ? `🙏 Grace level ${r.levelUp}!` : `🙏 +${r.xp} Grace XP`);

@@ -71,10 +71,11 @@ function doAction(act, sum) {
     for (const [id, n] of Object.entries(act.inputs)) invRemove(id, n);
   }
   sum.count++;
-  if (act.noOutput) { // burying: XP only
-    state.skills[act.skill].xp += act.xp;
+  if (act.noOutput) { // burying: XP only (a random amount in the item's range)
+    const xp = act.item ? buryXp(ITEMS[act.item]) : act.xp;
+    state.skills[act.skill].xp += xp;
     state.stats.actions[act.id] = (state.stats.actions[act.id] || 0) + 1;
-    sum.xp += act.xp;
+    sum.xp += xp;
     const now = skillLevel(act.skill);
     if (now > before) sum.levelUp = now;
     return;
