@@ -23,6 +23,7 @@ const actionDur = act => +(act.dur * (1 - TOOL_SPEED * toolTier(act.skill))).toF
 // The Bank Courier (shop) empties the inventory into the bank when it fills up, keeping food and
 // the materials the current recipe still needs.
 function courierCheck(act) {
+  if (act.noOutput) return false; // burying frees space, it never needs room
   if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(true, Object.keys(act.inputs)); return invRoomFor(act.id, 1) > 0; }
   return false;
 }
@@ -46,7 +47,7 @@ function withdrawFor(act) {
   return k;
 }
 // Every finished item needs a free inventory slot (cooking can also produce stackable Burnt Food).
-const hasRoom = act => invRoomFor(act.id, 1) > 0;
+const hasRoom = act => act.noOutput || invRoomFor(act.id, 1) > 0;
 const canDo = act => skillLevel(act.skill) >= act.level && hasInputs(act) && hasRoom(act);
 // Cooking burns sometimes: 40% at the recipe's level, 1.2% less per level above it, never below 2%.
 const burnChance = act => (act.skill === 'cooking' ? Math.max(0.02, 0.4 - (skillLevel('cooking') - act.level) * 0.012) : 0);
@@ -70,6 +71,14 @@ function doAction(act, sum) {
     for (const [id, n] of Object.entries(act.inputs)) invRemove(id, n);
   }
   sum.count++;
+  if (act.noOutput) { // burying: XP only
+    state.skills[act.skill].xp += act.xp;
+    state.stats.actions[act.id] = (state.stats.actions[act.id] || 0) + 1;
+    sum.xp += act.xp;
+    const now = skillLevel(act.skill);
+    if (now > before) sum.levelUp = now;
+    return;
+  }
   if (Math.random() < burnChance(act)) { // burnt: no XP, the dish becomes Burnt Food
     invAdd('burnt');
     state.stats.burnt++;
@@ -126,7 +135,7 @@ function taskProgress(t) {
 }
 function taskText(t) {
   switch (t.t) {
-    case 'act': return `${ACTIONS[t.id].verb || SKILLS[ACTIONS[t.id].skill].verb} ${t.n} × ${ITEMS[t.id].name}`;
+    case 'act': return `${ACTIONS[t.id].verb || SKILLS[ACTIONS[t.id].skill].verb} ${t.n} × ${ITEMS[ACTIONS[t.id].item || t.id].name}`;
     case 'lvl': return `Reach ${SKILLS[t.skill].name} level ${t.n}`;
     case 'total': return `Reach a total skill level of ${t.n}`;
     case 'stage': return `Clear campaign stage ${stageLabel(t.n)}`;

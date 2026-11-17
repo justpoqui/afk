@@ -20,6 +20,8 @@ const SKILLS = {
   strength:    { name: 'Strength',    icon: '💪', type: 'combat', desc: 'Raises the damage of every hit.' },
   defence:     { name: 'Defence',     icon: '🛡️', type: 'combat', desc: 'Reduces damage taken and makes enemies miss more.' },
   hitpoints:   { name: 'Hitpoints',   icon: '❤️', type: 'combat', desc: 'Raises your maximum health. Always gains a third of combat XP.' },
+  // Grace: trained by burying the remains of defeated enemies. Each level blesses you in battle.
+  grace:       { name: 'Grace',       icon: '🙏', type: 'combat', verb: 'Bury', desc: 'Bury bones and scatter ashes from defeated enemies. Each level: -0.15% damage taken in battle.' },
   woodcutting: { name: 'Woodcutting', icon: '🪓', type: 'gather', verb: 'Chop' },
   mining:      { name: 'Mining',      icon: '⛏️', type: 'gather', verb: 'Mine' },
   fishing:     { name: 'Fishing',     icon: '🎣', type: 'gather', verb: 'Catch' },
@@ -35,7 +37,7 @@ const SKILLS = {
 
 const ITEMS = {};
 const ACTIONS = {}; // keyed by output item id (each item has exactly one recipe)
-const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Misc'];
+const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Remains', 'Misc'];
 
 // Every item has a Blender-rendered icon at assets/items/<id>.webp (see art/blender/items.py).
 // New items, including future monster drops, need a model there too; run `node art/check-item-icons.js`.
@@ -171,6 +173,18 @@ for (let i = 0; i < TIERS; i++) {
 addItem_('bread', { name: 'Bread', icon: '🍞', tint: '#d9a35a', cat: 'Food', tier: 0, heal: 220, sell: 8 });
 addItem_('burnt', { name: 'Burnt Food', icon: '🍖', tint: '#3a2a22', cat: 'Misc', tier: 0, sell: 1, stack: true, burnt: true });
 
+// ---- Remains: every enemy drops one; burying (or scattering) one trains Grace. Stack 10 per slot. ----
+const GRACE_PER_LEVEL = 0.0015; // damage taken -0.15% per Grace level
+addItem_('bones', { name: 'Bones', icon: '🦴', tint: '#e8e0cc', cat: 'Remains', tier: 0, sell: 3, stack: true, maxStack: 10, bury: 4 });
+addItem_('bigbones', { name: 'Big Bones', icon: '🦴', tint: '#d8c8a8', cat: 'Remains', tier: 1, sell: 10, stack: true, maxStack: 10, bury: 5 });
+addItem_('ash', { name: 'Demonic Ash', icon: '⚱️', tint: '#8a5a7a', cat: 'Remains', tier: 1, sell: 10, stack: true, maxStack: 10, bury: 5, scatter: true });
+for (const id of ['bones', 'bigbones', 'ash']) {
+  const it = ITEMS[id], verb = it.scatter ? 'Scatter' : 'Bury';
+  // Bury actions consume one item and produce nothing (noOutput); XP is exact, not scaled.
+  ACTIONS['bury_' + id] = { id: 'bury_' + id, skill: 'grace', item: id, noOutput: true, name: `${verb} ${it.name}`, icon: it.icon, tint: it.tint,
+    level: 1, dur: 1.8, xp: it.bury, inputs: { [id]: 1 }, qty: 0, group: '', verb };
+}
+
 // ---- Task chain: complete every task in a tier to unlock the next ----
 const TASK_TIERS = [
   { name: 'First Steps', reward: { gems: 100, scrolls: 2 }, tasks: [
@@ -198,6 +212,7 @@ const TASK_TIERS = [
     { t: 'lvl', skill: 'mining', n: 20, r: { scrolls: 1 } },
     { t: 'total', n: 75, r: { gems: 150 } },
     { t: 'stage', n: 15, r: { gems: 100 } },
+    { t: 'lvl', skill: 'grace', n: 10, r: { gems: 100 } },
   ] },
   { name: 'Seasoned Hero', reward: { gems: 500, scrolls: 8 }, tasks: [
     { t: 'act', id: 'armor1', n: 1, r: { gems: 100 } },

@@ -149,7 +149,11 @@ function validateState(s) {
   for (const x of Array.isArray(s.inv) ? s.inv : []) {
     if (!x || !ITEMS[x.id]) continue;
     const n = int(x.n, 1, MAX, 1);
-    if (ITEMS[x.id].stack) inv.push({ id: x.id, n });
+    if (ITEMS[x.id].stack) {
+      const cap = ITEMS[x.id].maxStack || Infinity;
+      inv.push({ id: x.id, n: Math.min(n, cap) });
+      if (n > cap) s.bank[x.id] = (s.bank[x.id] || 0) + (n - cap); // over the stack limit: to the bank
+    }
     else for (let i = 0; i < Math.min(n, 1000); i++) inv.push({ id: x.id, n: 1 });
   }
   const cap = BASE_INV + 4 * s.upgrades.backpack + s.bonusSlots;

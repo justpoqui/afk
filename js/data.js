@@ -112,6 +112,10 @@ const BOSSES = [
 ];
 
 // The campaign is a chain of arenas, 10 rounds each (round 10 is the champion).
+// What each enemy leaves behind: demonic enemies turn to ash, big creatures (and every boss) leave big bones.
+const DEMONIC = new Set(['imp', 'fire_sprite']);
+const BIG_CREATURES = new Set(['golem', 'treant', 'ogre', 'wyrm', 'lich', 'kraken']);
+const remainsOf = (key, boss) => (DEMONIC.has(key) ? 'ash' : boss || BIG_CREATURES.has(key) ? 'bigbones' : 'bones');
 const CHAPTER_NAMES = ['Mistvale Colosseum', 'Thornwood Ring', 'Ashfire Pit', 'Frostpeak Coliseum', 'Sunken Amphitheatre', 'Crystal Abyss Arena'];
 // Fighting styles. Looks are grouped the same way in the Library.
 const COMBAT_TYPES = {

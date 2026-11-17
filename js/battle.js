@@ -78,6 +78,7 @@ class Battle {
     const soak = 100 + 12 * (src.lvl || 1);
     let dmg = this.atkOf(src) * mult * (soak / (soak + tgt.def)) * (0.9 + Math.random() * 0.2);
     if (crit) dmg *= 1.6;
+    if (tgt.grace) dmg *= 1 - tgt.grace; // the player's Grace blessing
     dmg = Math.max(1, Math.round(dmg));
     const absorbed = Math.min(tgt.shield, dmg);
     tgt.shield -= absorbed;

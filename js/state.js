@@ -171,9 +171,10 @@ function playerBattleUnit() {
   const ct = state.player.ctype;
   // No weapon equipped: you fight up close with your fists and feet, whatever your style.
   const unarmed = !gearItem('weapon');
+  const grace = Math.min(0.5, skillLevel('grace') * GRACE_PER_LEVEL); // Grace blessing: less damage taken
   const special = STYLE_SPECIALS[unarmed ? 'unarmed' : ct];
   return { ...st, lvl: combatLevel(), name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' || unarmed ? 'melee' : 'ranged', cls: d.cls,
-    skill: { ...special, power: special.power * (1 + st.ult) }, color: FACTIONS[d.faction].color, unarmed,
+    skill: { ...special, power: special.power * (1 + st.ult) }, color: FACTIONS[d.faction].color, unarmed, grace,
     held: GEAR_SLOTS.filter(s => s === 'weapon' || s === 'shield').map(s => gearItem(s)).filter(Boolean),
     proj: unarmed ? null : ct === 'archery' ? 'arrow' : ct === 'magic' ? 'bolt' : null, bolt: d.bolt || (ct === 'magic' ? '#9f7aff' : boltColor(d)) };
 }
@@ -197,19 +198,49 @@ const invCount = id => state.inv.reduce((s, x) => (x.id === id ? s + x.n : s), 0
 const invUsed = () => state.inv.length;
 const invFree = () => invSize() - state.inv.length;
 const invFull = () => invFree() <= 0;
+// Stackable items share a slot up to their maxStack (e.g. bones: 10), then start a new slot.
 function invRoomFor(id, qty = 1) {
-  if (ITEMS[id].stack) return state.inv.some(x => x.id === id) || invFree() > 0 ? qty : 0;
-  return Math.max(0, Math.min(qty, invFree()));
+  const it = ITEMS[id];
+  if (!it) return 0;
+  if (!it.stack) return Math.max(0, Math.min(qty, invFree()));
+  const cap = it.maxStack || Infinity;
+  if (cap === Infinity) return state.inv.some(x => x.id === id) || invFree() > 0 ? qty : 0;
+  let room = invFree() * cap;
+  for (const x of state.inv) if (x.id === id) room += Math.max(0, cap - x.n);
+  return Math.max(0, Math.min(qty, room));
 }
 function invAdd(id, qty = 1) {
   const room = invRoomFor(id, qty);
   if (!room) return 0;
   if (ITEMS[id].stack) {
-    let slot = state.inv.find(x => x.id === id);
-    if (!slot) { slot = { id, n: 0 }; state.inv.push(slot); }
-    slot.n += room;
+    const cap = ITEMS[id].maxStack || Infinity;
+    let left = room;
+    for (const x of state.inv) if (x.id === id && x.n < cap && left > 0) { const k = Math.min(cap - x.n, left); x.n += k; left -= k; }
+    while (left > 0) { const k = Math.min(cap, left); state.inv.push({ id, n: k }); left -= k; }
   } else for (let i = 0; i < room; i++) state.inv.push({ id, n: 1 });
   return room;
+}
+// Bury (or scatter) one item of remains from the inventory for Grace XP.
+function buryOne(id) {
+  const it = ITEMS[id];
+  if (!it || !it.bury || !invCount(id)) return null;
+  const before = skillLevel('grace');
+  invRemove(id, 1);
+  state.skills.grace.xp += it.bury;
+  state.stats.actions['bury_' + id] = (state.stats.actions['bury_' + id] || 0) + 1;
+  save();
+  return { xp: it.bury, levelUp: skillLevel('grace') > before ? skillLevel('grace') : 0 };
+}
+// Remains left by defeated enemies go to the inventory; returns { id: added } and how many were lost.
+function collectRemains(units) {
+  const got = {}; let lost = 0;
+  for (const u of units) {
+    if (u.side !== 'enemy' || u.hp > 0 || !u.key) continue;
+    const id = remainsOf(u.key, u.boss);
+    const k = invAdd(id) || (state.upgrades.courier && (depositAll(true), invAdd(id))) || 0;
+    if (k) got[id] = (got[id] || 0) + 1; else lost++;
+  }
+  return { got, lost };
 }
 function invRemove(id, qty = 1) {
   let left = qty;
@@ -351,7 +382,7 @@ function monsterUnit(areaIdx, monIdx) {
   };
 }
 // Gold and item drops for a hunting kill: materials of the area's tier, rare gear, the odd gem.
-function rollLoot(areaIdx, lvl) {
+function rollLoot(areaIdx, lvl, key) {
   // Drops come from the highest tier at or below the monster's level.
   const t = Math.max(0, T_LEVEL.filter(l => l <= lvl).length - 1), loot = { gold: Math.round(lvl * (3 + Math.random() * 3)), items: {}, gems: 0 };
   if (Math.random() < 0.35) { const id = ['log', 'ore', 'fish', 'herb'][Math.floor(Math.random() * 4)] + t; loot.items[id] = 1 + Math.floor(Math.random() * 2); }
@@ -360,6 +391,7 @@ function rollLoot(areaIdx, lvl) {
     loot.items[kinds[Math.floor(Math.random() * kinds.length)] + t] = 1;
   }
   if (Math.random() < 0.08) loot.gems = 1 + Math.floor(areaIdx / 2);
+  if (key) { const r = remainsOf(key, !!(monsterTemplate(key) || {}).sprite?.startsWith('boss_')); loot.items[r] = (loot.items[r] || 0) + 1; } // every kill leaves remains
   return loot;
 }
 const stagePower = stage => stageEnemies(stage).reduce((s, e) => s + (e ? power(e) : 0), 0);

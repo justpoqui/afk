@@ -563,8 +563,37 @@ def angler_banquet():
         sphere((R.uniform(-1.1, 1.1), R.uniform(-0.6, 0.6), -0.22), 0.09, mat(R.choice(('#4fa64a', '#e8434a', '#ffe66b', '#ff8a3a'))), outline=False)
 
 
+# ---------------- remains (Grace) ----------------
+def bone(length=1.5, r=0.11, knob=0.17, c='#efe6d2', cracks=False):
+    m = mat(c, rough=0.7)
+    cyl((0, 0, 0), r, length, m, rot=(0, 90, 0), verts=16)
+    for x in (-length / 2, length / 2):
+        for y in (-knob * 0.55, knob * 0.55):
+            sphere((x, y, 0), knob, m, seg=16, rings=10)
+    if cracks:
+        for x in (-0.25, 0.2):
+            box((x, -r * 0.95, 0.02), (0.02, 0.01, r * 1.2), mat('#8a7a5a'), rot=(0, 25, 0), outline=False)
+    group(rot=(0, 0, 30))
+
+
+def bones():
+    bone()
+
+
+def bigbones():
+    bone(length=1.7, r=0.19, knob=0.28, c='#e2d4b4', cracks=True)
+
+
+def demonic_ash():
+    cyl((0, 0, -0.3), 0.95, 0.5, mat('#3a3438', rough=1), r2=0.2, verts=24)
+    for _ in range(14):
+        sphere((R.uniform(-0.55, 0.55), R.uniform(-0.55, 0.1), R.uniform(-0.2, 0.0)), 0.05, glow(R.choice(('#c84aff', '#ff4a6a')), 6), outline=False)
+    for k in range(3):
+        sphere((0.1 * k - 0.1, 0.05, 0.25 + k * 0.28), 0.17 + k * 0.05, mat('#6a5a7a', emit=0.3, alpha=0.45), outline=False)
+
+
 ITEMS = {
-    'sand': sand, 'glass': molten_glass, 'vial': vial,
+    'sand': sand, 'bones': bones, 'bigbones': bigbones, 'ash': demonic_ash, 'glass': molten_glass, 'vial': vial,
     'log0': lambda: log('#8a5a35', '#e8c99a', '#b8925a'),
     'log1': lambda: log('#efe9dc', '#f2e2c4', '#cdb08a', marks='#2a2420'),
     'log2': lambda: log('#7a2a1f', '#f2905a', '#c85a2a', glow_c='#ffb04a'),
