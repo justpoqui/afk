@@ -592,7 +592,162 @@ def demonic_ash():
         sphere((0.1 * k - 0.1, 0.05, 0.25 + k * 0.28), 0.17 + k * 0.05, mat('#6a5a7a', emit=0.3, alpha=0.45), outline=False)
 
 
+# ---------------- bone gear (Bonecraft) ----------------
+BONE_C, BONE_D, LEATHER = '#efe6d2', '#d2c29e', '#5a3d22'
+
+
+def bmat(c=BONE_C):
+    return mat(c, rough=0.7)
+
+
+def knuckle(loc, r, c=BONE_C, scale=(1, 1, 1)):
+    sphere(loc, r, bmat(c), seg=16, rings=10, scale=scale)
+
+
+def skull(loc=(0, 0, 0), s=1.0, eyes='#1b1426', glow_eyes=None):
+    """A small skull: cranium, jaw, two eye sockets and a nose hole."""
+    x, y, z = loc
+    sphere((x, y, z + 0.05 * s), 0.32 * s, bmat(), scale=(1, 1, 0.95))
+    box((x, y - 0.06 * s, z - 0.22 * s), (0.36 * s, 0.34 * s, 0.16 * s), bmat(), bevel=0.04 * s)
+    em = glow(glow_eyes, 5) if glow_eyes else mat(eyes)
+    for sx in (-1, 1):
+        sphere((x + sx * 0.12 * s, y - 0.26 * s, z), 0.085 * s, em, outline=False)
+    cyl((x, y - 0.29 * s, z - 0.11 * s), 0.035 * s, 0.05 * s, mat(eyes), rot=(90, 0, 0), verts=3, outline=False)
+    for k in range(4):
+        box((x - 0.12 * s + k * 0.08 * s, y - 0.23 * s, z - 0.25 * s), (0.05 * s, 0.02 * s, 0.07 * s), mat('#fffaf0'), outline=False)
+
+
+def bone_dagger():
+    # a sharpened shard of big bone on a leather-wrapped knuckle grip
+    cyl((0, 0, 0.35), 0.14, 0.9, bmat(), r2=0.0, verts=6, scale=(1, 0.35, 1))
+    for k in range(3):
+        box((0.05, -0.05, 0.12 + k * 0.22), (0.12, 0.01, 0.02), mat('#a8987a'), rot=(0, 30, 0), outline=False)
+    box((0, 0, -0.12), (0.4, 0.14, 0.1), bmat(BONE_D), bevel=0.03)
+    cyl((0, 0, -0.35), 0.07, 0.38, mat(LEATHER))
+    knuckle((0.0, 0.04, -0.58), 0.1)
+    knuckle((0.0, -0.04, -0.58), 0.1)
+    group(rot=(0, 45, 0))
+
+
+def bone_sword():
+    # a jawbone-edged blade: long bone core with teeth along one edge
+    cyl((0, 0, 0.55), 0.13, 1.6, bmat(), r2=0.05, verts=8, scale=(1, 0.4, 1))
+    for k in range(7):
+        cyl((0.13, 0, -0.05 + k * 0.2), 0.045, 0.13, mat('#fffaf0'), r2=0.0, rot=(0, 90, 0), verts=6)
+    for sx in (-1, 1):
+        knuckle((sx * 0.3, 0, -0.3), 0.13, BONE_D)
+    box((0, 0, -0.3), (0.5, 0.14, 0.1), bmat(BONE_D), bevel=0.03)
+    cyl((0, 0, -0.58), 0.07, 0.5, mat(LEATHER))
+    for k in range(4):
+        torus((0, 0, -0.4 - k * 0.12), 0.075, 0.015, mat('#3a2614'), outline=False)
+    skull((0, 0, -0.95), 0.4)
+    group(rot=(0, 45, 0))
+
+
+def bone_bow():
+    # two curved rib bones joined at a vertebra grip
+    pts = [(0.15, 0, 1.2), (0.48, 0, 0.75), (0.6, 0, 0.18)]
+    tube(pts, [0.04, 0.08, 0.09], bmat())
+    tube([(0.6, 0, -0.18), (0.48, 0, -0.75), (0.15, 0, -1.2)], [0.09, 0.08, 0.04], bmat())
+    for z in (1.2, -1.2):
+        knuckle((0.15, 0, z), 0.08, BONE_D)
+    for k in range(3):
+        cyl((0.62, 0, -0.2 + k * 0.2), 0.13, 0.12, bmat(BONE_D), verts=12)
+    tube([(0.15, 0, 1.2), (0.15, 0, -1.2)], [0.012, 0.012], mat('#c8b890'), outline=False)
+    group(rot=(0, -30, 0))
+
+
+def bone_staff():
+    # a long leg bone with a skull on top and glowing eyes
+    cyl((0, 0, -0.2), 0.07, 2.2, bmat(), verts=12)
+    for sx in (-1, 1):
+        knuckle((sx * 0.05, 0, -1.3), 0.11)
+    torus((0, 0, -0.15), 0.08, 0.03, mat(LEATHER), outline=False)
+    torus((0, 0, 0.0), 0.08, 0.03, mat(LEATHER), outline=False)
+    skull((0, 0, 1.15), 1.15, glow_eyes='#7dff9a')
+    group(rot=(0, 35, 0))
+
+
+def bone_helm():
+    # a big-creature skull worn as a helm, with two horns
+    sphere((0, 0, 0.1), 0.7, bmat(), scale=(1, 1, 1.0))
+    box((0, -0.6, -0.08), (0.6, 0.2, 0.32), mat('#120d18'), outline=False)
+    for sx in (-1, 1):
+        sphere((sx * 0.2, -0.6, 0.22), 0.13, mat('#120d18'), outline=False)
+        tube([(sx * 0.55, 0, 0.35), (sx * 0.95, -0.1, 0.65), (sx * 1.0, -0.25, 1.05)], [0.13, 0.08, 0.02], bmat(BONE_D))
+    for k in range(5):
+        cyl((-0.24 + k * 0.12, -0.66, -0.3), 0.04, 0.16, mat('#fffaf0'), r2=0.0, rot=(180, 0, 0), verts=6)
+    cyl((0, 0, -0.5), 0.72, 0.16, bmat(BONE_D), verts=28)
+
+
+def bone_gauntlets():
+    cyl((0, 0, -0.55), 0.38, 0.55, mat(LEATHER), r2=0.32, verts=20)
+    for k in range(4):
+        torus((0, 0, -0.75 + k * 0.14), 0.38 - k * 0.015, 0.035, bmat(), outline=False)  # bone bands on the cuff
+    box((0, 0, 0.05), (0.62, 0.32, 0.6), mat(LEATHER), bevel=0.08)
+    for k in range(4):
+        x = -0.22 + k * 0.15
+        cyl((x, 0, 0.5), 0.055, 0.35, bmat(), verts=10)
+        knuckle((x, -0.02, 0.32), 0.08)
+        knuckle((x, 0, 0.7), 0.065)
+    cyl((0.42, 0, 0.1), 0.06, 0.35, bmat(), rot=(0, 50, 0), verts=10)
+    group(rot=(0, 0, -20))
+
+
+def bone_boots():
+    for x in (-0.38, 0.38):
+        cyl((x, 0.05, 0.15), 0.25, 0.8, mat(LEATHER), verts=18)
+        box((x, -0.22, -0.32), (0.42, 0.75, 0.25), bmat(BONE_D), bevel=0.08)
+        for k in range(3):
+            tube([(x - 0.27, 0.05, -0.05 + k * 0.22), (x, -0.25, -0.05 + k * 0.22), (x + 0.27, 0.05, -0.05 + k * 0.22)], [0.04, 0.05, 0.04], bmat())
+        for t in (-0.12, 0, 0.12):
+            knuckle((x + t, -0.6, -0.36), 0.06)
+    group(rot=(0, 0, -30))
+
+
+def bone_shield():
+    # round leather shield with a big skull boss and a rim of crossed bones
+    cyl((0, 0, 0), 0.9, 0.12, mat('#7a5a3a', rough=0.9), rot=(90, 0, 0), verts=36)
+    for a in range(10):
+        t = a * math.tau / 10
+        x, z = 0.82 * math.cos(t), 0.82 * math.sin(t)
+        cyl((x, -0.07, z), 0.06, 0.42, bmat(), rot=(0, -math.degrees(t), 0), verts=10)
+        knuckle((x, -0.08, z), 0.08, BONE_D)
+    skull((0, -0.2, 0.05), 1.0)
+    group(rot=(0, 0, -25))
+
+
+def bone_legs():
+    box((0, 0, 0.55), (0.95, 0.5, 0.3), mat(LEATHER), bevel=0.08)
+    sphere((0, -0.05, 0.45), 0.42, bmat(), scale=(1.15, 0.6, 0.45))   # hip bone plate
+    for x in (-0.25, 0.25):
+        cyl((x, 0, -0.15), 0.22, 1.2, mat(LEATHER), r2=0.17, verts=18)
+        cyl((x, -0.15, -0.2), 0.07, 1.0, bmat(), verts=10)              # shin bone
+        knuckle((x - 0.04, -0.17, 0.32), 0.1)
+        knuckle((x + 0.04, -0.17, 0.32), 0.1)
+        sphere((x, -0.12, -0.05), 0.15, bmat(BONE_D), scale=(1, 0.8, 0.8))  # kneecap
+
+
+def bone_chest():
+    # a ribcage breastplate: spine down the middle, ribs curving round a leather vest
+    cyl((0, 0, 0), 0.62, 1.15, mat(LEATHER), r2=0.5, verts=24, scale=(1, 0.62, 1))
+    for s_ in (-1, 1):
+        sphere((s_ * 0.62, 0, 0.42), 0.3, bmat(BONE_D), scale=(1, 0.9, 0.6))   # shoulder blades
+    for k in range(4):
+        z = 0.32 - k * 0.22
+        w = 0.6 - k * 0.04
+        for s_ in (-1, 1):
+            tube([(0, -0.42, z), (s_ * w * 0.6, -0.38, z + 0.02), (s_ * w, -0.12, z - 0.06)], [0.045, 0.05, 0.03], bmat())
+    for k in range(6):
+        knuckle((0, -0.43, 0.42 - k * 0.17), 0.065, BONE_D, scale=(1, 0.8, 0.8))
+    cyl((0, 0, 0.58), 0.25, 0.05, mat('#1b1426'), scale=(1, 0.7, 1), outline=False)
+    torus((0, 0, -0.42), 0.6, 0.06, mat('#3a2614'), scale=(1, 0.64, 1))
+
+
 ITEMS = {
+    'bonedagger': bone_dagger, 'bonesword': bone_sword, 'bonebow': bone_bow, 'bonestaff': bone_staff,
+    'bonehelm': bone_helm, 'bonegloves': bone_gauntlets, 'boneboots': bone_boots, 'boneshield': bone_shield,
+    'bonelegs': bone_legs, 'bonechest': bone_chest,
     'sand': sand, 'bones': bones, 'bigbones': bigbones, 'ash': demonic_ash, 'glass': molten_glass, 'vial': vial,
     'log0': lambda: log('#8a5a35', '#e8c99a', '#b8925a'),
     'log1': lambda: log('#efe9dc', '#f2e2c4', '#cdb08a', marks='#2a2420'),
@@ -646,7 +801,7 @@ def build(item_id):
     sun((-120, 0, 15), 1.6, '#ffe6c0')
     cam = camera((3.0, -6.0, 4.5), (0, 0, 0), ortho=3)
     # Melee weapons fill less or more of the frame by size, so a dagger reads small and a 2H sword huge.
-    margin = {'dagger': 1.9, 'sword': 1.5, 'longsword': 1.28, 'greatsword': 1.08}.get(item_id.rstrip('01234'), 1.12)
+    margin = {'dagger': 1.9, 'sword': 1.5, 'longsword': 1.28, 'greatsword': 1.08, 'bonedagger': 1.8, 'bonesword': 1.4}.get(item_id.rstrip('01234567'), 1.12)
     frame_ortho(cam, margin)
     render(os.path.join(OUT, item_id + '.webp'), 128, 128, quality=88)
 

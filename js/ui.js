@@ -5,7 +5,7 @@ let lookCat = 'all'; // all | melee | archery | magic
 let shopTab = 'upgrades';
 let hunt = null; // active hunting session
 const skillGroup = {}; // which recipe group each crafting skill page shows
-const GROUP_ICON = { 'Smelt Bars': '🔥', Weapons: '⚔️', Armor: '🛡️', Shields: '🛡️', Planks: '🪵', Glass: '🫧', Vials: '🧪', Orbs: '🔮', Bars: '🧱' };
+const GROUP_ICON = { Bury: '🪦', Bonecraft: '🦴', 'Smelt Bars': '🔥', Weapons: '⚔️', Armor: '🛡️', Shields: '🛡️', Planks: '🪵', Glass: '🫧', Vials: '🧪', Orbs: '🔮', Bars: '🧱' };
 let battle = null;
 let autoTimer = null;
 
@@ -430,7 +430,7 @@ const pages = {
         <div class="panel-title">🎒 Inventory <span class="muted">· ${invUsed()}/${invSize()} slots</span></div>
         ${invGrid()}
         <div class="row-btns"><button class="btn ghost" data-act="depositall">Deposit all</button><button class="btn ghost" data-act="depositkeep">Deposit all but food</button></div>
-        <p class="hint">Each item takes one slot. Only the bank stacks items, except stackables: 🍖 Burnt Food, and 🦴 bones and ⚱️ ash (10 per slot). Skill actions stop when your inventory is full. Food you carry here is what you eat in battle.</p>
+        <p class="hint">Each item takes one slot. Only the bank stacks items, except stackables: 🍖 Burnt Food, and 🦴 Bones (10 per slot), Big Bones (5) and ⚱️ Demonic Ash (15). Skill actions stop when your inventory is full. Food you carry here is what you eat in battle.</p>
       </section>`;
   },
 
@@ -581,7 +581,7 @@ function showItem(id, from = 'bank') {
   if (!n) { closeModal(); return; }
   const recipe = ACTIONS[id];
   openModal(`<button class="close" data-act="close">✕</button>
-    <div class="item-head">${icon(id, 'xl')}<div><h2>${it.name}</h2><small class="muted">${it.cat}${it.slot ? ` · Tier ${it.tier + 1} (level ${GEAR_LEVEL[it.tier]})` : ''}${it.stack ? ' · stackable' : ''}</small></div></div>
+    <div class="item-head">${icon(id, 'xl')}<div><h2>${it.name}</h2><small class="muted">${it.cat}${it.slot ? (it.bone ? ` · Bone gear (level ${it.req.level})` : ` · Tier ${it.tier + 1} (level ${GEAR_LEVEL[it.tier]})`) : ''}${it.stack ? ' · stackable' : ''}</small></div></div>
     ${describeItem(id) ? `<p>${describeItem(id)}</p>` : ''}
     <p class="muted">${inv ? 'In inventory' : 'In bank'} <b>${fmt(n)}</b> · sells for 🪙 ${it.sell} each${recipe ? ` · made with ${SKILLS[recipe.skill].icon} ${SKILLS[recipe.skill].name}` : ''}</p>
     ${inv ? `<div class="row-btns"><button class="btn" data-act="deposit" data-item="${id}" data-n="1">Deposit 1</button><button class="btn" data-act="deposit" data-item="${id}" data-n="${n}">Deposit all ${n}</button></div>`

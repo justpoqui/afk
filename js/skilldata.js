@@ -173,7 +173,7 @@ for (let i = 0; i < TIERS; i++) {
 addItem_('bread', { name: 'Bread', icon: '🍞', tint: '#d9a35a', cat: 'Food', tier: 0, heal: 220, sell: 8 });
 addItem_('burnt', { name: 'Burnt Food', icon: '🍖', tint: '#3a2a22', cat: 'Misc', tier: 0, sell: 1, stack: true, burnt: true });
 
-// ---- Remains: every enemy drops one; burying (or scattering) one trains Grace. Stack 10 per slot. ----
+// ---- Remains: every enemy drops one; burying (or scattering) one trains Grace. Stack limits per slot vary. ----
 const GRACE_PER_LEVEL = 0.0015; // damage taken -0.15% per Grace level
 // bury: [min, max] Grace XP per burial (a random whole number in that range).
 addItem_('bones', { name: 'Bones', icon: '🦴', tint: '#e8e0cc', cat: 'Remains', tier: 0, sell: 3, stack: true, maxStack: 10, bury: [4, 5] });
@@ -185,7 +185,35 @@ for (const id of ['bones', 'bigbones', 'ash']) {
   const it = ITEMS[id], verb = it.scatter ? 'Scatter' : 'Bury';
   // Bury actions consume one item and produce nothing (noOutput); XP is exact, not scaled.
   ACTIONS['bury_' + id] = { id: 'bury_' + id, skill: 'grace', item: id, noOutput: true, name: `${verb} ${it.name}`, icon: it.icon, tint: it.tint,
-    level: 1, dur: 1.8, xp: it.bury[0], xpMax: it.bury[1], inputs: { [id]: 1 }, qty: 0, group: '', verb };
+    level: 1, dur: 1.8, xp: it.bury[0], xpMax: it.bury[1], inputs: { [id]: 1 }, qty: 0, group: 'Bury', verb };
+}
+
+// ---- Bonecraft (Grace page dropdown): gear carved from a mix of Bones and Big Bones ----
+// One set with level-25 stats (between Silver and Mythril). Crafting XP matches burying the bones it uses.
+const BONE_L = 25, BONE_TINT = '#e8dcc0';
+const BONE_GEAR = [
+  // [id, name, slot, wtype, Grace level, bones, big bones, stats as shares of a level-25 blade / chestplate, extra]
+  ['bonedagger', 'Bone Dagger',     'weapon', 'melee',   15, 6, 1, { atk: 0.6 },  { spd: 0.25 }],
+  ['bonesword',  'Bone Sword',      'weapon', 'melee',   20, 8, 3, { atk: 1 },    { spd: 0 }],
+  ['bonebow',    'Bone Bow',        'weapon', 'archery', 22, 6, 3, { atk: 0.95 }, {}],
+  ['bonestaff',  'Bone Staff',      'weapon', 'magic',   26, 5, 4, { atk: 0.95 }, {}],
+  ['bonehelm',   'Bone Helm',       'helmet', null,      16, 5, 2, { hp: 0.3, def: 0.4 }, {}],
+  ['bonegloves', 'Bone Gauntlets',  'gloves', null,      18, 6, 1, { def: 0.2, atk: 0.15 }, {}],
+  ['boneboots',  'Bone Boots',      'boots',  null,      19, 6, 1, { hp: 0.2, def: 0.3 }, {}],
+  ['boneshield', 'Bone Shield',     'shield', null,      24, 4, 4, { hp: 0.2, def: 0.8 }, {}],
+  ['bonelegs',   'Bone Greaves',    'legs',   null,      27, 8, 3, { hp: 0.6, def: 0.6 }, {}],
+  ['bonechest',  'Bone Chestplate', 'chest',  null,      30, 10, 5, { hp: 1, def: 1 }, {}],
+];
+for (const [id, name, slot, wtype, lvl, b, bb, sh, extra] of BONE_GEAR) {
+  const it = { name, icon: GEAR_SLOT_INFO[slot].icon, tint: BONE_TINT, cat: slot === 'weapon' ? 'Weapons' : slot === 'shield' ? 'Shields' : 'Armor',
+    tier: 2, slot, req: { skill: slot === 'weapon' ? 'attack' : 'defence', level: BONE_L }, sell: b * 3 + bb * 15 + 40, bone: true, ...extra };
+  if (wtype) it.wtype = wtype;
+  if (sh.atk) it.atk = Math.round(gearAtk(BONE_L) * sh.atk);
+  if (sh.hp) it.hp = Math.round(gearHp(BONE_L) * sh.hp);
+  if (sh.def) it.def = Math.round(gearDef(BONE_L) * sh.def);
+  addItem_(id, it);
+  addAction_('grace', id, { level: lvl, dur: 3 + (b + bb) * 0.25, xp: Math.round(b * 4.5 + bb * 17.5), inputs: { bones: b, bigbones: bb }, group: 'Bonecraft', verb: 'Carve' });
+  ACTIONS[id].xp = Math.round(b * 4.5 + bb * 17.5); // not scaled: same as burying those bones
 }
 
 // ---- Grace blessings: switched on from the Grace page; unlock by Grace level ----
