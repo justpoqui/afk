@@ -109,7 +109,7 @@ class Battle {
       this.fx(tgt, 'hit');
       this.float(tgt, (blocked ? '🛡️' : crit ? '💥' : '') + dmg, blocked ? 'block' : crit ? 'crit' : 'dmg');
       this.sound(tgt, blocked || soaked ? 'block' : crit ? 'crit' : this.hitSound(src));
-      if (dies) setTimeout(() => this.sound(tgt, 'death'), 120);
+      if (dies) setTimeout(() => this.cry(tgt, 'die') || this.sound(tgt, 'death'), 120);
     });
     return dmg;
   }
@@ -131,6 +131,7 @@ class Battle {
 
   // One attack against `t`: melee units dash in, ranged units fire over the front line.
   strike(u, t, mult, big = false) {
+    if (!big && Math.random() < 0.45) this.cry(u, 'atk'); // monsters growl, hiss and cackle as they attack
     if (u.range === 'melee' || !u.proj) {
       this.fx(u, 'lunge');
       if (u.unarmed) { // fists and feet: alternate punches and kicks
@@ -166,7 +167,7 @@ class Battle {
     u.energy = 0;
     this.fx(u, 'ult');
     this.float(u, s.name, 'skill');
-    this.sound(u, 'special');
+    if (!this.cry(u, 'special')) this.sound(u, 'special');
     const foes = this.foes(u), friends = this.friends(u);
     switch (s.type) {
       case 'nuke':    { const t = this.pickTarget(u); if (t) this.strike(u, t, s.power, true); break; }
@@ -219,6 +220,8 @@ class Battle {
       }, this.silent ? 0 : PROJ_MS / this.speed);
       const won = enemyLeft === 0 && allyLeft > 0;
       if (!this.silent && (!this.hunt || !allyLeft)) setTimeout(() => sfx(won ? 'win' : 'lose'), 500 / this.speed);
+      // the arena crowd cheers every win and boos every loss
+      if (!this.silent && !this.hunt) setTimeout(() => sfx(won ? 'cheer' : 'boo'), 750 / this.speed);
       setTimeout(() => this.onEnd(won), this.silent ? 300 : (this.hunt && allyLeft ? 650 : 1300));
     }
   }
@@ -403,6 +406,8 @@ class Battle {
   }
   // Sounds play only for a battle that is on screen (not skipped or running in the background).
   sound(u, name) { if (!this.silent && u.el && u.el.isConnected) sfx(name); }
+  // A monster's own voice (returns false for units without one, e.g. the player).
+  cry(u, mode) { return !!(u.key && !this.silent && u.el && u.el.isConnected && Sfx.monster(u.key, mode)); }
   float(u, text, cls) {
     if (this.silent || !u.el) return;
     u.floatN = ((u.floatN || 0) + 1) % 3; // stagger so back-to-back numbers don't overlap
