@@ -15,6 +15,9 @@ const SPOTS = {
   ally:  { 0: [73, 22, 1], 1: [81, 26, 0.88], 2: [84, 23, 1], 3: [81, 26, 0.88], 4: [84, 23, 1] },
 };
 
+const BLOCK_CHANCE = 0.15;    // with a shield equipped: chance to block part of a hit
+const BLOCK_REDUCTION = 0.5;  // a blocked hit does half damage
+
 class Battle {
   // One player character (from playerBattleUnit) against a group of enemies.
   // opts.hunt: endless 1v1 hunting (no time limit, HP carried over between kills via player.startHp).
@@ -68,17 +71,28 @@ class Battle {
     return src.side === 'ally' ? Math.min(0.99, playerHitChance(src.accLvl, tgt.lvl) + (src.accBonus || 0)) : enemyHitChance(tgt.defLvl, src.lvl);
   }
 
+  // Which impact sound an attacker makes.
+  hitSound(src) { return src.unarmed || (src.side === 'enemy' && !src.proj) ? 'punch' : src.proj === 'arrow' ? 'arrow' : src.proj ? 'magic' : 'slash'; }
+  // Holding a shield turns enemy misses into blocks, and blocks part of some hits.
+  hasShield(u) { return !!(u.held && u.held.some(it => it.slot === 'shield')); }
+
   damage(src, tgt, mult, delay = 0) {
+    const shielded = src.side === 'enemy' && this.hasShield(tgt);
     if (Math.random() > this.hitChance(src, tgt)) {
-      this.later(delay, () => this.float(tgt, 'Miss', 'miss'));
+      this.later(delay, () => {
+        this.float(tgt, shielded ? '🛡️ Block' : 'Miss', shielded ? 'block' : 'miss');
+        this.sound(tgt, shielded ? 'block' : 'miss');
+      });
       return 0;
     }
+    const blocked = shielded && Math.random() < BLOCK_CHANCE;
     const crit = Math.random() < 0.12;
     // Defence soaks less against stronger attackers: armor is measured against the attacker's level.
     const soak = 100 + 12 * (src.lvl || 1);
     let dmg = this.atkOf(src) * mult * (soak / (soak + tgt.def)) * (0.9 + Math.random() * 0.2);
     if (crit) dmg *= 1.6;
     if (tgt.grace) dmg *= 1 - tgt.grace; // the player's Grace blessing
+    if (blocked) dmg *= 1 - BLOCK_REDUCTION;
     dmg = Math.max(1, Math.round(dmg));
     const absorbed = Math.min(tgt.shield, dmg);
     tgt.shield -= absorbed;
@@ -89,17 +103,20 @@ class Battle {
       if (tgt.hp <= 0) { this.kills++; if (tgt.key) state.stats.mkills[tgt.key] = (state.stats.mkills[tgt.key] || 0) + 1; }
     }
     tgt.energy = Math.min(100, tgt.energy + 8);
+    const dies = tgt.hp <= 0, soaked = absorbed >= dmg;
     this.later(delay, () => {
       tgt.shownHp = tgt.hp;
       this.fx(tgt, 'hit');
-      this.float(tgt, (crit ? '💥' : '') + dmg, crit ? 'crit' : 'dmg');
+      this.float(tgt, (blocked ? '🛡️' : crit ? '💥' : '') + dmg, blocked ? 'block' : crit ? 'crit' : 'dmg');
+      this.sound(tgt, blocked || soaked ? 'block' : crit ? 'crit' : this.hitSound(src));
+      if (dies) setTimeout(() => this.sound(tgt, 'death'), 120);
     });
     return dmg;
   }
   heal(tgt, amt, delay = 0) {
     amt = Math.round(amt);
     tgt.hp = Math.min(tgt.maxHp, tgt.hp + amt);
-    this.later(delay, () => { tgt.shownHp = tgt.hp; this.float(tgt, '+' + amt, 'heal'); });
+    this.later(delay, () => { tgt.shownHp = tgt.hp; this.float(tgt, '+' + amt, 'heal'); this.sound(tgt, 'heal'); });
   }
 
   // Heroes eat the selected provisions from the bank when they get low.
@@ -123,6 +140,7 @@ class Battle {
       return this.damage(u, t, mult, 140);
     }
     this.fx(u, 'cast');
+    this.sound(u, u.proj === 'arrow' ? 'twang' : 'cast');
     const ms = this.shoot(u, t, u.proj, u.bolt, big);
     return this.damage(u, t, mult, ms);
   }
@@ -148,6 +166,7 @@ class Battle {
     u.energy = 0;
     this.fx(u, 'ult');
     this.float(u, s.name, 'skill');
+    this.sound(u, 'special');
     const foes = this.foes(u), friends = this.friends(u);
     switch (s.type) {
       case 'nuke':    { const t = this.pickTarget(u); if (t) this.strike(u, t, s.power, true); break; }
@@ -198,7 +217,9 @@ class Battle {
         this.units.forEach(x => { x.shownHp = x.hp; });
         this.render();
       }, this.silent ? 0 : PROJ_MS / this.speed);
-      setTimeout(() => this.onEnd(enemyLeft === 0 && allyLeft > 0), this.silent ? 300 : (this.hunt && allyLeft ? 650 : 1300));
+      const won = enemyLeft === 0 && allyLeft > 0;
+      if (!this.silent && (!this.hunt || !allyLeft)) setTimeout(() => sfx(won ? 'win' : 'lose'), 500 / this.speed);
+      setTimeout(() => this.onEnd(won), this.silent ? 300 : (this.hunt && allyLeft ? 650 : 1300));
     }
   }
 
@@ -380,6 +401,8 @@ class Battle {
     clearTimeout(u['fx_' + cls]);
     u['fx_' + cls] = setTimeout(() => u.el && u.el.classList.remove(cls), 650);
   }
+  // Sounds play only for a battle that is on screen (not skipped or running in the background).
+  sound(u, name) { if (!this.silent && u.el && u.el.isConnected) sfx(name); }
   float(u, text, cls) {
     if (this.silent || !u.el) return;
     u.floatN = ((u.floatN || 0) + 1) % 3; // stagger so back-to-back numbers don't overlap

@@ -403,6 +403,7 @@ body.nav-open #scrim { display: block; }
 .unit.hero, .unit.hero .u-emoji, .unit.hero .u-emoji .spr { width: 96px; height: 96px; }
 .unit.hero { height: auto; }
 .float.miss { color: #c9c3e0; font-size: 13px; font-style: italic; }
+.float.block { color: #9fd3ff; font-size: 15px; font-weight: 800; }
 .battle-ctrl { gap: 4px; }
 .battle-ctrl button { white-space: nowrap; padding: 6px 8px; font-size: 12px; }
 .battle-head { grid-template-columns: 1fr auto auto; gap: 6px; padding: 10px 10px; }

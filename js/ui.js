@@ -160,7 +160,7 @@ const pages = {
         ${tile('shop', '🏪', 'Shop', 'Tools, backpacks, supplies')}
       </div>
       ${updateInfo && updateInfo.available ? `<button class="panel update-banner" data-act="showupdate">⬆️ <b>Update available: v${esc(updateInfo.version)}</b><small>Tap to download</small></button>` : ''}
-      <div class="footer-links"><button class="link" data-act="savebackup">🛡️ Save &amp; backup</button> · <button class="link" data-act="reset">Reset save</button>
+      <div class="footer-links"><button class="link" data-act="savebackup">🛡️ Save &amp; backup</button> · <button class="link" data-act="reset">Reset save</button> · <button class="link" data-act="sound">${Sfx.on ? '🔊 Sound on' : '🔇 Sound off'}</button>
         ${window.IRApp ? `<br><span class="muted">Version ${esc(appVersion())}</span> · <button class="link" data-act="checkupdate">Check for updates</button>` : ''}</div>`;
   },
 
@@ -498,7 +498,7 @@ function describeItem(id) {
   if (it.slot) {
     const stats = [it.atk && `Damage +${it.atk}`, it.hp && `HP +${it.hp}`, it.def && `Defence +${it.def}`].filter(Boolean).join(', ');
     const kind = it.slot === 'weapon' ? `${COMBAT_TYPES[it.wtype].icon} ${COMBAT_TYPES[it.wtype].name} weapon` : GEAR_SLOT_INFO[it.slot].name;
-    const extra = [it.spd && `${it.spd > 0 ? '+' : ''}${Math.round(it.spd * 100)}% attack speed`, it.twoHanded && 'two-handed (no shield)'].filter(Boolean).join(', ');
+    const extra = [it.spd && `${it.spd > 0 ? '+' : ''}${Math.round(it.spd * 100)}% attack speed`, it.twoHanded && 'two-handed (no shield)', it.slot === 'shield' && `blocks ${Math.round(BLOCK_CHANCE * 100)}% of hits for half damage`].filter(Boolean).join(', ');
     const req = it.req ? ` · <span class="${meetsReq(it) ? 'req-ok' : 'req-no'}">needs ${SKILLS[it.req.skill].icon} ${SKILLS[it.req.skill].name} ${it.req.level}</span>` : '';
     return `${kind} · ${stats}${extra ? ' · ' + extra : ''}${req}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
   }
@@ -881,6 +881,7 @@ document.addEventListener('click', e => {
       case 'claimtier': { const ti = Number(d.tier); if (claimTier(ti)) toast(`Tier complete! ${rewardText(TASK_TIERS[ti].reward)}`); render(); break; }
       case 'reset': if (confirm('Delete your save and start over?')) { resetSave(); go('home'); } break;
       case 'savebackup': showSaveBackup(); break;
+      case 'sound': Sfx.toggle(); soundIcon(); render(); break;
       case 'bless': {
         const r = toggleBlessing(d.id), bl = BLESSING_BY_ID[d.id];
         if (r === 'full') toast(`All ${blessingSlots(skillLevel('grace'))} blessing slots are in use. Turn one off first.`);
@@ -932,6 +933,9 @@ $('#btn-speed').addEventListener('click', () => {
   $('#btn-speed').textContent = battle.speed + 'x';
 });
 $('#btn-skip').addEventListener('click', () => { if (battle && !battle.over) battle.skip(); });
+const soundIcon = () => { $('#btn-sound').textContent = Sfx.on ? '🔊' : '🔇'; };
+$('#btn-sound').addEventListener('click', () => { Sfx.toggle(); soundIcon(); toast(Sfx.on ? '🔊 Sound on' : '🔇 Sound off'); });
+soundIcon();
 $('#btn-auto').addEventListener('click', () => {
   localSet('auto', autoOn() ? '0' : '1');
   renderAutoBtn();
