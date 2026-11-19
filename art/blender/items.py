@@ -744,10 +744,296 @@ def bone_chest():
     torus((0, 0, -0.42), 0.6, 0.06, mat('#3a2614'), scale=(1, 0.64, 1))
 
 
+# ---------------- glyphs, chipped stone, ranger armor, mage robes, spells ----------------
+def mix(a, b, t):
+    a, b = a.lstrip('#'), b.lstrip('#')
+    ca = [int(a[i:i + 2], 16) for i in (0, 2, 4)]
+    cb = [int(b[i:i + 2], 16) for i in (0, 2, 4)]
+    return '#' + ''.join(f'{round(x + (y - x) * t):02x}' for x, y in zip(ca, cb))
+
+
+def seg(points, r, m, outline=False):
+    """Straight strokes between points (sharp corners), with round joints."""
+    for a, b in zip(points, points[1:]):
+        tube([a, b], [r, r], m, outline=outline)
+    for p_ in points:
+        sphere(p_, r, m, seg=10, rings=6, outline=False)
+
+
+GLYPH_COL = {'spark': '#ffe14a', 'tide': '#4fb3ff', 'root': '#5fd068', 'gale': '#cfeeff',
+             'ember': '#ff7a2a', 'frost': '#9ff0ff', 'radiant': '#ffe9a0', 'void': '#a06bff'}
+GLYPH_KEYS = list(GLYPH_COL)
+STONE = '#7f8aa6'
+
+
+def glyph_symbol(k, y, s=1.0, m=None, r=0.055):
+    """Draws glyph `k` as glowing strokes in the XZ plane at depth y (the face of a tablet or robe)."""
+    m = m or glow(GLYPH_COL[k], 4)
+    P = lambda x, z: (x * s, y, z * s)
+    if k == 'spark':     # lightning zigzag
+        seg([P(0.18, 0.55), P(-0.12, 0.08), P(0.14, 0.02), P(-0.2, -0.55)], r * s, m)
+    elif k == 'tide':    # two waves
+        for z in (0.18, -0.18):
+            seg([P(-0.5 + i * 0.125, z + 0.1 * math.sin(i * math.pi / 2)) for i in range(9)], r * s, m)
+    elif k == 'root':    # a stem splitting into roots
+        seg([P(0, 0.55), P(0, -0.05)], r * s, m)
+        for dx in (-0.35, 0, 0.35):
+            seg([P(0, -0.05), P(dx * 0.6, -0.3), P(dx, -0.55)], r * s * 0.85, m)
+        seg([P(0, 0.3), P(-0.2, 0.45)], r * s * 0.8, m)
+    elif k == 'gale':    # spiral
+        pts = [P(math.cos(a) * (0.08 + a * 0.06), math.sin(a) * (0.08 + a * 0.06)) for a in [i * 0.45 for i in range(20)]]
+        seg(pts, r * s * 0.9, m)
+    elif k == 'ember':   # flame
+        seg([P(0, 0.6), P(0.3, 0.1), P(0.28, -0.25), P(0, -0.45), P(-0.28, -0.25), P(-0.3, 0.1), P(-0.1, 0.25), P(0, 0.6)], r * s, m)
+        seg([P(0, 0.15), P(0.12, -0.15), P(0, -0.3), P(-0.12, -0.15), P(0, 0.15)], r * s * 0.8, m)
+    elif k == 'frost':   # snowflake
+        for a in (0, 60, 120):
+            t = math.radians(a)
+            c, sn = math.cos(t), math.sin(t)
+            seg([P(-0.55 * c, -0.55 * sn), P(0.55 * c, 0.55 * sn)], r * s, m)
+            for e in (-1, 1):
+                bx, bz = e * 0.38 * c, e * 0.38 * sn
+                for w in (-1, 1):
+                    t2 = t + w * math.radians(45)
+                    seg([P(bx, bz), P(bx - e * 0.15 * math.cos(t2), bz - e * 0.15 * math.sin(t2))], r * s * 0.7, m)
+    elif k == 'radiant':  # sun: ring and rays
+        torus(P(0, 0), 0.2 * s, r * s, m, rot=(90, 0, 0), outline=False)
+        for i in range(8):
+            t = i * math.pi / 4
+            seg([P(0.32 * math.cos(t), 0.32 * math.sin(t)), P(0.55 * math.cos(t), 0.55 * math.sin(t))], r * s * 0.85, m)
+    elif k == 'void':    # an eye: ring, pupil and lids
+        torus(P(0, 0), 0.22 * s, r * s, m, rot=(90, 0, 0), outline=False)
+        sphere(P(0, 0), 0.09 * s, m, outline=False)
+        for e in (-1, 1):
+            seg([P(-0.58, 0), P(-0.3, e * 0.28), P(0.3, e * 0.28), P(0.58, 0)], r * s * 0.8, m)
+
+
+def chipped_stone():
+    m = mat(STONE, rough=0.95)
+    ico((0, 0, 0), 0.62, m, sub=1, scale=(1.1, 0.8, 0.75), rot=(10, 20, 5))
+    ico((0.55, -0.1, -0.25), 0.3, m, sub=1, rot=(30, 10, 40))
+    ico((-0.5, -0.2, -0.3), 0.22, m, sub=1, rot=(5, 50, 20))
+    # faint blue veins of magic in the stone
+    for pts in (((-0.35, -0.42, 0.2), (-0.05, -0.5, 0.05), (0.25, -0.46, 0.2)), ((-0.1, -0.48, -0.15), (0.2, -0.45, -0.25))):
+        seg(list(pts), 0.03, glow('#8fb8ff', 3))
+    group(rot=(0, 0, 15))
+
+
+def enchanted_stone():
+    """The Enchanted Stone you mine: a big rune-scored boulder with blue crystals."""
+    m = mat('#5a6688', rough=0.95)
+    ico((0, 0, -0.1), 1.0, m, sub=2, scale=(1.15, 0.9, 0.75))
+    ico((0.8, 0.2, -0.45), 0.45, m, sub=1)
+    ico((-0.85, 0.1, -0.5), 0.38, m, sub=1)
+    cm = mat('#8fb8ff', rough=0.1, emit=1.6)
+    for x, z, h, t in ((0.15, 0.85, 0.9, 10), (-0.25, 0.75, 0.65, -25), (0.5, 0.7, 0.55, 35), (-0.55, 0.5, 0.4, -45)):
+        cyl((x, -0.1, z), 0.16, h, cm, r2=0.0, verts=5, rot=(0, t, 0))
+        cyl((x - math.sin(math.radians(t)) * h * 0.45, -0.1, z - h * 0.45), 0.16, 0.12, cm, verts=5, rot=(0, t, 0))
+    glyph_symbol('frost', -0.93, s=0.5, m=glow('#8fb8ff', 3), r=0.05)
+    group(rot=(0, 0, 15))
+
+
+def glyph_tablet(k):
+    rim = mat(STONE, rough=0.9)
+    cyl((0, 0, 0), 0.85, 0.22, rim, rot=(90, 0, 0), verts=7)
+    cyl((0, -0.06, 0), 0.72, 0.14, mat(mix(STONE, '#2a2a3a', 0.35), rough=0.9), rot=(90, 0, 0), verts=7, outline=False)
+    glyph_symbol(k, -0.14)
+    group(rot=(-35, 0, 18))
+
+
+# Ranger armor: leather with wood-toned trim and green cloth
+LEATHER_C, CLOTH_G = '#7a5236', '#4a6a3a'
+
+
+def r_hood(i):
+    sphere((0, 0, 0.1), 0.66, mat(mix(CLOTH_G, WOOD[i], 0.25), rough=0.9), scale=(1, 1, 1.1))
+    sphere((0, -0.42, 0.0), 0.42, mat('#120d18'), scale=(0.95, 0.6, 1.0), outline=False)
+    for x in (-0.14, 0.14):
+        sphere((x, -0.66, 0.05), 0.045, glow('#fff1a8', 3), outline=False)   # eyes glinting in the shadow
+    cyl((0, 0.15, -0.55), 0.75, 0.35, mat(mix(CLOTH_G, WOOD[i], 0.25), rough=0.9), r2=0.55, verts=20)   # cape drape
+    cyl((0, 0.1, 0.62), 0.12, 0.45, mat(mix(CLOTH_G, WOOD[i], 0.25), rough=0.9), r2=0.0, rot=(-35, 0, 0), verts=12)  # hood point
+    torus((0, -0.05, -0.38), 0.55, 0.05, mat(WOOD[i], rough=0.5), scale=(1, 0.8, 1))
+    if i >= 3:
+        sphere((0, -0.6, -0.38), 0.09, glow(GEM[i], 4), outline=False)
+
+
+def r_gloves(i):
+    lm = mat(LEATHER_C, rough=0.8)
+    for x in (-0.42, 0.42):
+        cyl((x, 0, -0.1), 0.3, 0.95, lm, r2=0.24, verts=18)
+        for k in range(3):
+            torus((x, 0, -0.4 + k * 0.28), 0.29 - k * 0.02, 0.035, mat(WOOD[i], rough=0.5), outline=False)
+        box((x, -0.27, 0.05), (0.06, 0.04, 0.6), mat('#3a2614'), outline=False)
+    group(rot=(0, 0, -25))
+
+
+def r_boots(i):
+    lm = mat(LEATHER_C, rough=0.8)
+    for x in (-0.38, 0.38):
+        cyl((x, 0.05, 0.15), 0.25, 0.8, lm, verts=18)
+        box((x, -0.22, -0.32), (0.42, 0.75, 0.25), lm, bevel=0.1)
+        cyl((x, 0.05, 0.58), 0.3, 0.12, mat(WOOD[i], rough=0.5), verts=18)   # cuff
+        for k in range(3):
+            box((x, -0.22, 0.0 + k * 0.18), (0.3, 0.02, 0.03), mat('#3a2614'), outline=False)
+    group(rot=(0, 0, -30))
+
+
+def r_legs(i):
+    lm = mat(LEATHER_C, rough=0.8)
+    box((0, 0, 0.55), (0.95, 0.5, 0.3), lm, bevel=0.08)
+    box((0, -0.27, 0.55), (0.95, 0.04, 0.1), mat(WOOD[i], rough=0.5), outline=False)
+    for x in (-0.25, 0.25):
+        cyl((x, 0, -0.15), 0.22, 1.2, lm, r2=0.17, verts=18)
+        box((x, -0.2, -0.05), (0.2, 0.06, 0.5), mat(mix(CLOTH_G, WOOD[i], 0.25), rough=0.9), bevel=0.03)   # knee pads
+    sphere((0.38, -0.12, 0.42), 0.12, mat('#3a2614'), scale=(1, 0.6, 1.2))  # belt pouch
+
+
+def r_body(i):
+    lm = mat(LEATHER_C, rough=0.8)
+    cyl((0, 0, 0), 0.62, 1.15, lm, r2=0.5, verts=24, scale=(1, 0.62, 1))
+    for s_ in (-1, 1):
+        sphere((s_ * 0.62, 0, 0.42), 0.3, mat(mix(CLOTH_G, WOOD[i], 0.25), rough=0.9), scale=(1, 0.9, 0.6))
+    cyl((0, 0, 0.58), 0.25, 0.05, mat('#1b1426'), scale=(1, 0.7, 1), outline=False)
+    # a quiver strap across the chest with buckles in the tier's wood colour
+    box((0, -0.39, 0.05), (0.14, 0.04, 1.3), mat('#3a2614'), rot=(0, 40, 0), outline=False)
+    for z in (-0.25, 0.2):
+        box((z * -0.8, -0.42, z), (0.14, 0.03, 0.1), mat(WOOD[i], rough=0.4, metal=0.3), rot=(0, 40, 0), outline=False)
+    torus((0, 0, -0.42), 0.6, 0.06, mat(WOOD[i], rough=0.5), scale=(1, 0.64, 1))
+    if i >= 3:
+        sphere((0, -0.42, -0.42), 0.08, glow(GEM[i], 4), outline=False)
+
+
+# Mage robes: cloth tinted by the tier's glyph, gold trim, a glowing glyph
+def robe_cols(i):
+    k = GLYPH_KEYS[i]
+    return k, mat(mix(GLYPH_COL[k], '#1d1838', 0.55), rough=0.85), mat('#e8c25a', rough=0.35, metal=0.6)
+
+
+def m_hood(i):
+    k, cloth, trim = robe_cols(i)
+    cyl((0, 0, -0.45), 0.95, 0.1, cloth, verts=32, scale=(1, 0.9, 1))          # brim
+    tube([(0, 0, -0.4), (0, 0, 0.3), (0.15, 0.05, 0.8), (0.45, 0.1, 1.0)], [0.55, 0.38, 0.16, 0.04], cloth)  # bent cone
+    torus((0, 0, -0.32), 0.53, 0.06, trim)
+    glyph_symbol(k, -0.47, s=0.3, r=0.06)
+    for _ in range(3):
+        sphere((R.uniform(-0.3, 0.3), -0.42, R.uniform(0.1, 0.4)), 0.035, glow('#fff6c0', 5), outline=False)
+
+
+def m_gloves(i):
+    k, cloth, trim = robe_cols(i)
+    for x in (-0.42, 0.42):
+        cyl((x, 0, -0.15), 0.28, 0.75, cloth, r2=0.32, verts=18)
+        box((x, 0, 0.35), (0.42, 0.24, 0.42), cloth, bevel=0.08)
+        torus((x, 0, -0.5), 0.29, 0.045, trim)
+    for x in (-0.42, 0.42):
+        sphere((x, -0.15, 0.35), 0.1, glow(GLYPH_COL[k], 4), outline=False)
+    group(rot=(0, 0, -25))
+
+
+def m_boots(i):
+    k, cloth, trim = robe_cols(i)
+    for x in (-0.38, 0.38):
+        cyl((x, 0.05, 0.12), 0.24, 0.7, cloth, verts=18)
+        box((x, -0.2, -0.32), (0.4, 0.65, 0.22), cloth, bevel=0.1)
+        tube([(x, -0.5, -0.32), (x, -0.68, -0.2), (x, -0.6, -0.02)], [0.12, 0.07, 0.03], cloth)   # curled toe
+        torus((x, 0.05, 0.47), 0.25, 0.045, trim)
+        sphere((x, -0.6, -0.02), 0.05, glow(GLYPH_COL[k], 4), outline=False)
+    group(rot=(0, 0, -30))
+
+
+def m_legs(i):
+    k, cloth, trim = robe_cols(i)
+    cyl((0, 0, -0.1), 0.42, 1.35, cloth, r2=0.62, verts=28, rot=(180, 0, 0), scale=(1, 0.7, 1))   # flared skirt
+    torus((0, 0, 0.56), 0.43, 0.06, trim, scale=(1, 0.7, 1))
+    torus((0, 0, -0.76), 0.62, 0.05, trim, scale=(1, 0.7, 1))
+    glyph_symbol(k, -0.47, s=0.35)
+
+
+def m_body(i):
+    k, cloth, trim = robe_cols(i)
+    cyl((0, 0, 0), 0.6, 1.2, cloth, r2=0.48, verts=24, scale=(1, 0.62, 1))
+    for s_ in (-1, 1):
+        sphere((s_ * 0.6, 0, 0.42), 0.3, cloth, scale=(1, 0.9, 0.6))
+        box((s_ * 0.16, -0.38, 0.1), (0.08, 0.04, 1.0), trim, rot=(0, s_ * -12, 0), outline=False)   # trim down the front
+    torus((0, 0, 0.6), 0.28, 0.07, trim, scale=(1, 0.75, 1))   # collar
+    torus((0, 0, -0.25), 0.55, 0.06, trim, scale=(1, 0.66, 1))  # sash
+    glyph_symbol(k, -0.4, s=0.3)
+
+
+SPELL_COL = {'sparkbolt': '#ffe14a', 'tidebolt': '#4fb3ff', 'rootlash': '#5fd068', 'galestrike': '#cfeeff', 'emberblast': '#ff7a2a',
+             'frostlance': '#9ff0ff', 'thornstorm': '#7fe07a', 'sunflare': '#ffd84a', 'voidrend': '#a06bff', 'cataclysm': '#ff4a8a'}
+
+
+def spell_art(sid):
+    c = SPELL_COL[sid]
+    g = glow(c, 5)
+    if sid == 'sparkbolt':
+        prism([(0.25, 1.0), (-0.3, 0.05), (0.02, 0.05), (-0.25, -1.0), (0.35, 0.15), (0.03, 0.15)], 0.18, g)
+        for _ in range(6):
+            sphere((R.uniform(-0.7, 0.7), R.uniform(-0.2, 0.2), R.uniform(-0.8, 0.8)), 0.05, glow('#ffffff', 6), outline=False)
+    elif sid == 'tidebolt':
+        sphere((0, 0, 0), 0.55, mat(c, rough=0.05, emit=1.2, alpha=0.85))
+        for k in range(3):
+            torus((0, 0, 0), 0.72 + k * 0.08, 0.05, glow(mix(c, '#ffffff', 0.4), 3), rot=(70 + k * 25, k * 40, 0), outline=False)
+        tube([(0.5, 0.3, -0.2), (1.0, 0.4, -0.6), (1.4, 0.5, -0.7)], [0.35, 0.2, 0.02], mat(c, rough=0.1, emit=0.8, alpha=0.7), outline=False)
+    elif sid == 'rootlash':
+        for k in range(3):
+            a = k * 2.1
+            pts = [(0.2 * math.cos(a), 0.2 * math.sin(a), -1.0), (0.6 * math.cos(a + 0.7), 0.6 * math.sin(a + 0.7), -0.2),
+                   (0.3 * math.cos(a + 1.6), 0.3 * math.sin(a + 1.6), 0.5), (0.7 * math.cos(a + 2.4), 0.5 * math.sin(a + 2.4), 1.0)]
+            tube(pts, [0.12, 0.09, 0.06, 0.02], mat('#4a7a2a', rough=0.7))
+            for p_ in pts[1:3]:
+                cyl(p_, 0.06, 0.2, mat('#2a4a1a'), r2=0.0, rot=(R.uniform(0, 90), R.uniform(0, 90), 0), verts=6)
+        sphere((0, 0, 0), 0.25, glow(c, 3), outline=False)
+    elif sid == 'galestrike':
+        for k in range(5):
+            torus((0, 0, -0.6 + k * 0.3), 0.25 + k * 0.15, 0.04, mat(c, emit=1.5, alpha=0.75), rot=(0, 0, k * 30), outline=False)
+        for _ in range(5):
+            sphere((R.uniform(-0.8, 0.8), R.uniform(-0.3, 0.3), R.uniform(-0.6, 0.8)), 0.05, glow('#ffffff', 4), outline=False)
+    elif sid == 'emberblast':
+        sphere((0, 0, 0), 0.5, glow('#ffd84a', 4), outline=False)
+        sphere((0, 0, 0), 0.62, mat(c, emit=2.5, alpha=0.6), outline=False)
+        for k in range(8):
+            a = k * math.pi / 4
+            cyl((0.75 * math.cos(a), 0, 0.75 * math.sin(a)), 0.16, 0.5, glow(c, 4), r2=0.0, rot=(0, 90 - math.degrees(a), 0), verts=8, outline=False)
+        glyph_symbol('spark', -0.7, s=0.35, r=0.06)
+    elif sid == 'frostlance':
+        cyl((0, 0, 0), 0.22, 2.4, mat(c, rough=0.05, emit=1.0, alpha=0.85), r2=0.0, verts=6, rot=(0, 45, 0))
+        for _ in range(6):
+            ico((R.uniform(-0.6, 0.2), R.uniform(-0.3, 0.3), R.uniform(-0.8, 0.0)), R.uniform(0.07, 0.14), mat(c, rough=0.05, emit=1.2), sub=1)
+        glyph_symbol('frost', -0.6, s=0.4, r=0.045)
+    elif sid == 'thornstorm':
+        for k in range(14):
+            a = k * 0.9
+            rr = 0.25 + k * 0.05
+            cyl((rr * math.cos(a), rr * math.sin(a) * 0.4, -0.7 + k * 0.1), 0.06, 0.28, mat('#3a6a2a', rough=0.7), r2=0.0, rot=(R.uniform(0, 180), R.uniform(0, 180), 0), verts=6)
+        for k in range(3):
+            torus((0, 0, -0.4 + k * 0.4), 0.45 + k * 0.15, 0.03, mat('#cfeeff', emit=1.5, alpha=0.7), rot=(0, 0, k * 40), outline=False)
+        sphere((0, 0, 0), 0.18, glow(c, 4), outline=False)
+    elif sid == 'sunflare':
+        sphere((0, 0, 0), 0.55, glow('#fff1a8', 5), outline=False)
+        for k in range(12):
+            a = k * math.pi / 6
+            cyl((0.85 * math.cos(a), 0, 0.85 * math.sin(a)), 0.12, 0.5, glow(c, 4), r2=0.0, rot=(0, 90 - math.degrees(a), 0), verts=8, outline=False)
+        torus((0, 0, 0), 0.62, 0.05, glow('#ff9a2a', 4), rot=(90, 0, 0), outline=False)
+    elif sid == 'voidrend':
+        sphere((0, 0, 0), 0.5, mat('#08060f', rough=0.3))
+        torus((0, 0, 0), 0.68, 0.08, glow(c, 5), rot=(75, 0, 20), outline=False)
+        torus((0, 0, 0), 0.85, 0.03, glow('#ff6aff', 4), rot=(60, 30, 0), outline=False)
+        for _ in range(8):
+            sphere((R.uniform(-1, 1), R.uniform(-0.2, 0.2), R.uniform(-1, 1)), 0.04, glow(c, 6), outline=False)
+    elif sid == 'cataclysm':
+        ico((0.25, 0, 0.25), 0.5, mat('#3a2a2a', rough=0.95), sub=2)
+        sphere((0.25, 0, 0.25), 0.58, mat('#ff6a2a', emit=2.0, alpha=0.45), outline=False)
+        tube([(0.0, 0, 0.0), (-0.5, 0.05, -0.45), (-1.1, 0.1, -1.0)], [0.5, 0.3, 0.02], mat(c, emit=2.5, alpha=0.6), outline=False)
+        tube([(0.1, 0.05, 0.1), (-0.4, 0.1, -0.5), (-0.9, 0.15, -1.1)], [0.3, 0.18, 0.02], glow('#a06bff', 4), outline=False)
+
+
 ITEMS = {
     'bonedagger': bone_dagger, 'bonesword': bone_sword, 'bonebow': bone_bow, 'bonestaff': bone_staff,
     'bonehelm': bone_helm, 'bonegloves': bone_gauntlets, 'boneboots': bone_boots, 'boneshield': bone_shield,
     'bonelegs': bone_legs, 'bonechest': bone_chest,
+    'chipped': chipped_stone, 'enchstone': enchanted_stone,
     'sand': sand, 'bones': bones, 'bigbones': bigbones, 'ash': demonic_ash, 'glass': molten_glass, 'vial': vial,
     'log0': lambda: log('#8a5a35', '#e8c99a', '#b8925a'),
     'log1': lambda: log('#efe9dc', '#f2e2c4', '#cdb08a', marks='#2a2420'),
@@ -789,6 +1075,16 @@ for i in range(len(METAL)):
                     ('helm', helm), ('gloves', gauntlet), ('boots', boots), ('kite', kite), ('legs', platelegs)):
         ITEMS[f'{pre}{i}'] = (lambda fn, i: lambda: fn(i))(fn, i)
 
+for k in GLYPH_KEYS:
+    ITEMS['glyph_' + k] = (lambda k: lambda: glyph_tablet(k))(k)
+for i in range(len(METAL)):
+    for suf, rfn, mfn in (('hood', r_hood, m_hood), ('gloves', r_gloves, m_gloves), ('boots', r_boots, m_boots), ('legs', r_legs, m_legs), ('body', r_body, m_body)):
+        ITEMS[f'r{suf}{i}'] = (lambda fn, i: lambda: fn(i))(rfn, i)
+        ITEMS[f'm{suf}{i}'] = (lambda fn, i: lambda: fn(i))(mfn, i)
+# Spell pictures go to assets/spells/<id>.webp (python art/blender/items.py spell/sparkbolt)
+for sid in SPELL_COL:
+    ITEMS['spell/' + sid] = (lambda sid: lambda: spell_art(sid))(sid)
+
 
 def build(item_id):
     R.seed(sum(map(ord, item_id)))
@@ -803,7 +1099,9 @@ def build(item_id):
     # Melee weapons fill less or more of the frame by size, so a dagger reads small and a 2H sword huge.
     margin = {'dagger': 1.9, 'sword': 1.5, 'longsword': 1.28, 'greatsword': 1.08, 'bonedagger': 1.8, 'bonesword': 1.4}.get(item_id.rstrip('01234567'), 1.12)
     frame_ortho(cam, margin)
-    render(os.path.join(OUT, item_id + '.webp'), 128, 128, quality=88)
+    out = os.path.join(ROOT, 'assets', 'spells', item_id[6:] + '.webp') if item_id.startswith('spell/') else os.path.join(OUT, item_id + '.webp')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    render(out, 128, 128, quality=88)
 
 
 if __name__ == '__main__':

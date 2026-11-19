@@ -31,6 +31,7 @@ class Battle {
     this.over = false;
     this.dealt = 0; // damage the player dealt: becomes combat XP
     this.kills = 0;
+    this.glyphsUsed = {}; // glyphs spent on spells this battle
     this.player = this.makeUnit('ally', player.range === 'melee' ? 0 : 2, { ...player, hero: true });
     this.units.push(this.player);
     enemySlots.forEach((e, i) => { if (e) this.units.push(this.makeUnit('enemy', i, { ...e, color: e.boss ? '#ff5d5d' : '#888' })); });
@@ -130,7 +131,20 @@ class Battle {
   }
 
   // One attack against `t`: melee units dash in, ranged units fire over the front line.
+  // Magic: each cast uses the spell's glyphs from the inventory. With none left, the staff only fizzles.
+  castSpell(u) {
+    const sp = u.spells.find(canCast);
+    if (!sp) {
+      if (!this.noGlyphs) { this.noGlyphs = true; this.later(0, () => this.float(u, '🔣 Out of glyphs', 'miss')); }
+      return 0.35;
+    }
+    for (const [id, n] of Object.entries(sp.glyphs)) { invRemove(id, n); this.glyphsUsed[id] = (this.glyphsUsed[id] || 0) + n; }
+    u.bolt = sp.color;
+    return 1 + (spellAtk(sp) * (u.spellMult || 1)) / Math.max(1, this.atkOf(u));
+  }
+
   strike(u, t, mult, big = false) {
+    if (u.spells) mult *= this.castSpell(u);
     if (!big && Math.random() < 0.45) this.cry(u, 'atk'); // monsters growl, hiss and cackle as they attack
     if (u.range === 'melee' || !u.proj) {
       this.fx(u, 'lunge');

@@ -20,6 +20,9 @@ const SKILLS = {
   strength:    { name: 'Strength',    icon: '💪', type: 'combat', desc: 'Raises the damage of every hit.' },
   defence:     { name: 'Defence',     icon: '🛡️', type: 'combat', desc: 'Reduces damage taken and makes enemies miss more.' },
   hitpoints:   { name: 'Hitpoints',   icon: '❤️', type: 'combat', desc: 'Raises your maximum health. Always gains a third of combat XP.' },
+  // Archery and Magic: trained by fighting with a bow or a staff. They set your hit chance and damage in that style.
+  archery:     { name: 'Archery',     icon: '🏹', type: 'combat', desc: 'Raises hit chance, attack speed and damage with bows. Trained by fighting with Archery.' },
+  magic:       { name: 'Magic',       icon: '🔮', type: 'combat', desc: 'Raises hit chance and damage with staves, and unlocks spells. Spells use glyphs from your inventory.' },
   // Grace: trained by burying the remains of defeated enemies. Each level blesses you in battle.
   grace:       { name: 'Grace',       icon: '🙏', type: 'combat', verb: 'Bury', desc: 'Bury bones and scatter ashes from defeated enemies. Unlocks blessings that buff you in battle.' },
   woodcutting: { name: 'Woodcutting', icon: '🪓', type: 'gather', verb: 'Chop' },
@@ -30,6 +33,7 @@ const SKILLS = {
   metalworking:{ name: 'Metalworking', icon: '🔨', type: 'craft', group: 'crafting', verb: 'Forge' },
   carpentry:   { name: 'Carpentry',    icon: '🪚', type: 'craft', group: 'crafting', verb: 'Craft' },
   glassworking:{ name: 'Glassworking', icon: '🫙', type: 'craft', group: 'crafting', verb: 'Blow' },
+  glyphmaking: { name: 'Glyph Making', icon: '🔣', type: 'craft', group: 'crafting', verb: 'Inscribe' },
   // Cooking & brewing: consumables
   cooking:     { name: 'Cooking',     icon: '🍳', type: 'craft', group: 'kitchen', verb: 'Cook' },
   alchemy:     { name: 'Alchemy',     icon: '⚗️', type: 'craft', group: 'kitchen', verb: 'Brew' },
@@ -37,7 +41,7 @@ const SKILLS = {
 
 const ITEMS = {};
 const ACTIONS = {}; // keyed by output item id (each item has exactly one recipe)
-const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Remains', 'Misc'];
+const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Glyphs', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Remains', 'Misc'];
 
 // Every item has a Blender-rendered icon at assets/items/<id>.webp (see art/blender/items.py).
 // New items, including future monster drops, need a model there too; run `node art/check-item-icons.js`.
@@ -47,6 +51,14 @@ function addAction_(skill, outId, d) {
   ACTIONS[outId] = { id: outId, skill, inputs: {}, qty: 1, group: '', ...d, name: ITEMS[outId].name, icon: ITEMS[outId].icon, tint: ITEMS[outId].tint };
   ACTIONS[outId].xp = Math.max(1, Math.round(d.xp * SKILL_XP_MULT));
 }
+
+// Mining specials, listed first on the Mining page: Sand (for glass) and Enchanted Stone (for glyphs).
+addItem_('sand', { name: 'Sand', icon: '⏳', tint: '#e2cf9a', cat: 'Glass', tier: 0, sell: 1 });
+addAction_('mining', 'sand', { level: 1, dur: 2.5, xp: 6 });
+addItem_('chipped', { name: 'Chipped Stone', icon: '🪨', tint: '#8fa8ff', cat: 'Glyphs', tier: 0, sell: 4, stack: true, maxStack: 15 });
+// The action is the rock you mine (Enchanted Stone); it gives Chipped Stone.
+addAction_('mining', 'chipped', { level: 5, dur: 3.2, xp: 16, node: 'Enchanted Stone', nodeImg: 'assets/items/enchstone.webp' });
+ACTIONS.chipped.name = 'Enchanted Stone';
 
 const gatherDefs = [
   ['woodcutting', 'log',  'Logs',  ['Pine Log', 'Birch Log', 'Emberwood Log', 'Silverbark Log', 'Elderheart Log', 'Ironbark Log', 'Dragonwood Log', 'Worldtree Log'], Array(8).fill('🪵')],
@@ -83,7 +95,7 @@ const SWORD_ATK = GEAR_LEVEL.map(gearAtk);
 const ARMOR_HP = GEAR_LEVEL.map(gearHp);
 const ARMOR_DEF = GEAR_LEVEL.map(gearDef);
 // Requirement to wear gear of tier i, and where a piece's crafting level sits inside its tier.
-const gearReq = (slot, i) => ({ skill: slot === 'weapon' ? 'attack' : 'defence', level: GEAR_LEVEL[i] });
+const gearReq = (slot, i, skill) => ({ skill: skill || (slot === 'weapon' ? 'attack' : 'defence'), level: GEAR_LEVEL[i] });
 const gearCraftLevel = (i, offset) => GEAR_LEVEL[i] + Math.round(offset / 2);
 const POTION_BATTLES = 5;
 
@@ -118,8 +130,6 @@ const MELEE_WEAPONS = [
 const smelt = i => addAction_('metalworking', 'bar' + i, { level: T_LEVEL[i], dur: 3, xp: Math.round(T_XP[i] * 1.5), inputs: { ['ore' + i]: 2, ['log' + i]: 1 }, group: 'Smelt Bars', verb: 'Smelt' });
 
 // Glassworking basics (sand is dug up with Mining)
-addItem_('sand', { name: 'Sand', icon: '⏳', tint: '#e2cf9a', cat: 'Glass', tier: 0, sell: 1 });
-addAction_('mining', 'sand', { level: 1, dur: 2.5, xp: 6 });
 addItem_('glass', { name: 'Molten Glass', icon: '🫧', tint: '#9fdcff', cat: 'Glass', tier: 0, sell: 6 });
 addAction_('glassworking', 'glass', { level: 1, dur: 3, xp: 12, inputs: { sand: 2, log0: 1 }, group: 'Glass' });
 addItem_('vial', { name: 'Glass Vial', icon: '🧪', tint: '#cfe8ff', cat: 'Glass', tier: 0, sell: 8 });
@@ -149,9 +159,9 @@ for (let i = 0; i < TIERS; i++) {
   // Carpentry: planks, bows (archery), staves (magic), wooden shields
   addItem_('plank' + i, { name: WOODS[i] + ' Plank', icon: '🪵', tint: t, cat: 'Planks', tier: i, sell: T_SELL[i] * 3 });
   addAction_('carpentry', 'plank' + i, { level: T_LEVEL[i], dur: 2.5, xp: Math.round(T_XP[i] * 1.2), inputs: { ['log' + i]: 2 }, group: 'Planks' });
-  addItem_('bow' + i, { name: BOWS[i], icon: '🏹', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'archery', atk: Math.round(SWORD_ATK[i] * 0.95), req: gearReq('weapon', i), sell: T_SELL[i] * 12 });
+  addItem_('bow' + i, { name: BOWS[i], icon: '🏹', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'archery', atk: Math.round(SWORD_ATK[i] * 0.95), req: gearReq('weapon', i, 'archery'), sell: T_SELL[i] * 12 });
   addAction_('carpentry', 'bow' + i, { level: gearCraftLevel(i, 3), dur: 4.5, xp: Math.round(T_XP[i] * 3.6), inputs: { ['plank' + i]: 3 }, group: 'Weapons' });
-  addItem_('staff' + i, { name: WOODS[i] + ' Staff', icon: '🪄', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'magic', atk: Math.round(SWORD_ATK[i] * 0.95), req: gearReq('weapon', i), sell: T_SELL[i] * 16 });
+  addItem_('staff' + i, { name: WOODS[i] + ' Staff', icon: '🪄', tint: t, cat: 'Weapons', tier: i, slot: 'weapon', wtype: 'magic', atk: Math.round(SWORD_ATK[i] * 0.95), req: gearReq('weapon', i, 'magic'), sell: T_SELL[i] * 16 });
   addAction_('carpentry', 'staff' + i, { level: gearCraftLevel(i, 6), dur: 5, xp: Math.round(T_XP[i] * 4.2), inputs: { ['plank' + i]: 2, ['orb' + i]: 1 }, group: 'Weapons' });
   addItem_('wshield' + i, { name: WOODS[i] + ' Shield', icon: '🛡️', tint: t, cat: 'Shields', tier: i, slot: 'shield', hp: Math.round(ARMOR_HP[i] * 0.3), def: Math.round(ARMOR_DEF[i] * 0.5), req: gearReq('shield', i), sell: T_SELL[i] * 14 });
   addAction_('carpentry', 'wshield' + i, { level: gearCraftLevel(i, 4), dur: 5, xp: Math.round(T_XP[i] * 4.4), inputs: { ['plank' + i]: 4 }, group: 'Shields' });
@@ -167,6 +177,74 @@ for (let i = 0; i < TIERS; i++) {
   addItem_('pot' + i, { name: POTIONS[i][0], icon: '🧪', tint: t, cat: 'Potions', tier: i, effect: POTIONS[i][1], effectText: POTIONS[i][2], sell: T_SELL[i] * 6 + 8 });
   addAction_('alchemy', 'pot' + i, { level: T_LEVEL[i], dur: 4, xp: T_XP[i] * 2, inputs: { ['herb' + i]: 3, vial: 1, ...POTION_SECOND[i] } });
 }
+
+// The first bow and staff need no level, so Archery and Magic can be trained from level 1.
+ITEMS.bow0.req = { skill: 'archery', level: 1 };
+ITEMS.staff0.req = { skill: 'magic', level: 1 };
+
+// ---- Glyphs (Glyph Making): Chipped Stone inscribed with a glyph. Spells in battle use them up. ----
+// [key, name, colour, Glyph Making level, chipped stone per craft]. Each craft makes GLYPHS_PER_CRAFT glyphs.
+const GLYPHS = [
+  ['spark',   'Spark Glyph',   '#ffe14a', 1,  1],
+  ['tide',    'Tide Glyph',    '#4fb3ff', 8,  1],
+  ['root',    'Root Glyph',    '#5fd068', 16, 1],
+  ['gale',    'Gale Glyph',    '#cfeeff', 25, 2],
+  ['ember',   'Ember Glyph',   '#ff7a2a', 35, 2],
+  ['frost',   'Frost Glyph',   '#9ff0ff', 50, 3],
+  ['radiant', 'Radiant Glyph', '#ffe9a0', 70, 4],
+  ['void',    'Void Glyph',    '#a06bff', 85, 5],
+];
+const GLYPHS_PER_CRAFT = 10;
+const GLYPH_XP = [9, 16, 26, 42, 66, 110, 190, 300];
+GLYPHS.forEach(([k, name, c, lvl, stones], i) => {
+  addItem_('glyph_' + k, { name, icon: '🔣', tint: c, cat: 'Glyphs', tier: i, sell: 2 + i * 3, stack: true, glyph: true });
+  addAction_('glyphmaking', 'glyph_' + k, { level: lvl, dur: 2.5 + i * 0.3, xp: GLYPH_XP[i], inputs: { chipped: stones }, qty: GLYPHS_PER_CRAFT, group: 'Glyphs' });
+});
+
+// ---- Spells (Magic): each cast uses its glyphs from your inventory. Early spells need one glyph,
+// later ones combine several kinds. L is the spell's power level (bonus damage like a weapon of that level).
+const SPELLS = [
+  { id: 'sparkbolt',  name: 'Spark Bolt',  lvl: 1,  L: 5,  color: '#ffe14a', glyphs: { glyph_spark: 1 } },
+  { id: 'tidebolt',   name: 'Tide Bolt',   lvl: 8,  L: 10, color: '#4fb3ff', glyphs: { glyph_tide: 1 } },
+  { id: 'rootlash',   name: 'Root Lash',   lvl: 16, L: 16, color: '#5fd068', glyphs: { glyph_root: 1 } },
+  { id: 'galestrike', name: 'Gale Strike', lvl: 25, L: 25, color: '#cfeeff', glyphs: { glyph_gale: 1 } },
+  { id: 'emberblast', name: 'Ember Blast', lvl: 35, L: 35, color: '#ff7a2a', glyphs: { glyph_ember: 1, glyph_spark: 1 } },
+  { id: 'frostlance', name: 'Frost Lance', lvl: 45, L: 45, color: '#9ff0ff', glyphs: { glyph_frost: 1, glyph_tide: 2 } },
+  { id: 'thornstorm', name: 'Thornstorm',  lvl: 55, L: 55, color: '#7fe07a', glyphs: { glyph_root: 2, glyph_gale: 2, glyph_frost: 1 } },
+  { id: 'sunflare',   name: 'Sunflare',    lvl: 70, L: 70, color: '#ffd84a', glyphs: { glyph_radiant: 1, glyph_ember: 2, glyph_spark: 2 } },
+  { id: 'voidrend',   name: 'Void Rend',   lvl: 85, L: 85, color: '#a06bff', glyphs: { glyph_void: 1, glyph_frost: 2, glyph_gale: 2 } },
+  { id: 'cataclysm',  name: 'Cataclysm',   lvl: 95, L: 95, color: '#ff4a8a', glyphs: { glyph_void: 2, glyph_radiant: 2, glyph_ember: 2, glyph_tide: 2 } },
+];
+SPELLS.forEach(sp => { sp.img = `assets/spells/${sp.id}.webp`; });
+const SPELL_BY_ID = Object.fromEntries(SPELLS.map(s => [s.id, s]));
+const SPELL_POWER = 0.6; // a spell adds this share of a same-level weapon's damage
+const spellAtk = sp => Math.round(gearAtk(sp.L) * SPELL_POWER);
+
+// ---- Ranger armor (Carpentry) and mage robes (Glyph Making): lighter than metal, but each piece adds
+// damage when you fight in its style. Wearing any tier needs the same Defence level as metal armor.
+// [id suffix, ranger name, mage name, slot, materials, level offset, hp share, def share, damage share]
+const STYLE_ARMOR = [
+  ['hood',  'Ranger Hood',    'Wizard Hat',   'helmet', 2, 0, 0.25, 0.25, 0.06],
+  ['gloves','Ranger Bracers', 'Spell Gloves', 'gloves', 2, 3, 0,    0.15, 0.08],
+  ['boots', 'Ranger Boots',   'Mage Boots',   'boots',  2, 4, 0.15, 0.2,  0.05],
+  ['legs',  'Ranger Chaps',   'Robe Bottoms', 'legs',   4, 6, 0.5,  0.4,  0.08],
+  ['body',  'Ranger Vest',    'Robe Top',     'chest',  5, 8, 0.8,  0.6,  0.12],
+];
+for (let i = 0; i < TIERS; i++) {
+  const [gk, gname, gc] = GLYPHS[i], glyphWord = gname.replace(' Glyph', '');
+  for (const [suf, rName, mName, slot, n, lo, hpS, defS, atkS] of STYLE_ARMOR) {
+    const base = { icon: GEAR_SLOT_INFO[slot].icon, cat: 'Armor', tier: i, slot, req: gearReq(slot, i) };
+    const stat = (k, v) => (v ? Math.round(v) : undefined);
+    addItem_('r' + suf + i, { ...base, name: `${WOODS[i]} ${rName}`, tint: TIER_TINT[i], atype: 'archery', sell: T_SELL[i] * (n + 2) * 2,
+      hp: stat('hp', ARMOR_HP[i] * hpS * 0.8), def: stat('def', ARMOR_DEF[i] * defS * 0.8), atk: stat('atk', SWORD_ATK[i] * atkS) });
+    addAction_('carpentry', 'r' + suf + i, { level: gearCraftLevel(i, lo), dur: 3 + n * 0.6, xp: Math.round(T_XP[i] * 1.3 * n), inputs: { ['plank' + i]: n, ['herb' + i]: 1 }, group: 'Ranger Armor' });
+    addItem_('m' + suf + i, { ...base, name: `${glyphWord} ${mName}`, tint: gc, atype: 'magic', sell: T_SELL[i] * (n + 2) * 2,
+      hp: stat('hp', ARMOR_HP[i] * hpS * 0.7), def: stat('def', ARMOR_DEF[i] * defS * 0.65), atk: stat('atk', SWORD_ATK[i] * atkS * 1.15) });
+    addAction_('glyphmaking', 'm' + suf + i, { level: Math.max(GLYPHS[i][3], gearCraftLevel(i, lo)), dur: 3 + n * 0.6, xp: Math.round(T_XP[i] * 1.3 * n),
+      inputs: { ['herb' + i]: n, ['glyph_' + gk]: n * 3 }, group: 'Robes' });
+  }
+}
+for (const it of Object.values(ITEMS)) for (const k of ['hp', 'def', 'atk']) if (it[k] === undefined) delete it[k];
 
 // Stackable items share one inventory slot (everything else takes one slot per item).
 // Every dish that burns while cooking turns into this.

@@ -11,7 +11,7 @@ function newState() {
   return {
     gold: 300, gems: 120, scrolls: 3,
     stage: 1, lastClaim: Date.now(),
-    player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: emptyGear(), blessings: [] },
+    player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: emptyGear(), blessings: [], spell: 'auto' },
     looks: { tobin: 0 }, // owned looks -> duplicate stars
     upgrades: { tools: {}, backpack: 0, courier: false, bankSlots: 0 }, bonusSlots: 0, quests: {},
     bank: {}, inv: [], skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
@@ -140,6 +140,8 @@ function gearTotals() {
     const it = gearItem(slot);
     if (!it || !meetsReq(it)) continue;
     t.hp += it.hp || 0; t.def += it.def || 0;
+    // Ranger armor and mage robes only add damage when you fight in their style.
+    if (it.atype && it.atype !== state.player.ctype) continue;
     t.atk += (it.atk || 0) * (slot === 'weapon' && !weaponMatches(it) ? 0.5 : 1);
   }
   return t;
@@ -159,8 +161,27 @@ function toggleBlessing(id) {
   if (list.length >= blessingSlots(skillLevel('grace'))) return 'full';
   list.push(id); save(); return 'on';
 }
+// Which skill powers (and is trained by) your attacks: Archery with a bow, Magic with a staff,
+// otherwise the melee attack style you picked (Attack, Strength or Defence).
+const rangedStyle = () => state.player.ctype !== 'melee' && !!gearItem('weapon');
+const fightSkill = () => (rangedStyle() ? state.player.ctype : state.player.style);
+
+// ---- Spells: Magic picks the chosen spell (or the best one you can cast) and uses its glyphs ----
+const knowsSpell = sp => skillLevel('magic') >= sp.lvl;
+const canCast = sp => Object.entries(sp.glyphs).every(([id, n]) => invCount(id) >= n);
+// Spells to try each cast, best first: just the chosen one, or (auto) every spell you know.
+function spellQueue() {
+  const pick = SPELL_BY_ID[state.player.spell];
+  if (pick && knowsSpell(pick)) return [pick];
+  return SPELLS.filter(knowsSpell).reverse();
+}
+const currentSpell = () => spellQueue().find(canCast) || null;
+
 function playerStats(withPotion = false) {
-  const a = skillLevel('attack'), s = skillLevel('strength'), d = skillLevel('defence'), h = skillLevel('hitpoints');
+  const h = skillLevel('hitpoints'), d = skillLevel('defence');
+  // Archery / Magic replace Attack (hit chance, speed) and Strength (damage) when you fight with a bow or staff.
+  const ranged = rangedStyle(), ct = state.player.ctype;
+  const a = ranged ? skillLevel(ct) : skillLevel('attack'), s = ranged ? skillLevel(ct) : skillLevel('strength');
   const sk = skinBonus(state.player.skin), g = gearTotals();
   const pe = withPotion ? potionEffect() : {}, bl = blessingFx();
   const st = {
@@ -171,15 +192,20 @@ function playerStats(withPotion = false) {
     accLvl: a, defLvl: d, regen: (sk.regen || 0) + (bl.regen || 0), ult: (sk.ult || 0) + (bl.ult || 0), energyMult: 1,
     accBonus: bl.acc || 0, ward: bl.ward || 0,
   };
-  const ct = state.player.ctype;
+  // A spell adds damage on top of the staff, scaled by the same bonuses as your other damage.
+  const sp = ranged && ct === 'magic' ? currentSpell() : null;
+  st.spellMult = (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)) * (1 + (bl.atk || 0));
+  st.spellAtk = sp ? spellAtk(sp) * st.spellMult : 0;
   if (ct === 'melee') st.atk *= 1.1;
   if (ct === 'archery') st.spd *= 1.15;
   if (ct === 'magic') st.energyMult = 1.3;
-  for (const k of ['hp', 'atk', 'def']) st[k] = Math.round(st[k]);
+  for (const k of ['hp', 'atk', 'def', 'spellAtk']) st[k] = Math.round(st[k]);
   return st;
 }
-const combatLevel = () => Math.floor((skillLevel('attack') + skillLevel('strength') + skillLevel('defence') + skillLevel('hitpoints')) / 4);
-const power = st => Math.round(st.hp * 0.1 + st.atk * 3 + st.def * 2);
+// Your best offence (Attack + Strength, or twice Archery or Magic) plus Defence and Hitpoints.
+const combatLevel = () => Math.floor((Math.max(skillLevel('attack') + skillLevel('strength'), 2 * skillLevel('archery'), 2 * skillLevel('magic'))
+  + skillLevel('defence') + skillLevel('hitpoints')) / 4);
+const power = st => Math.round(st.hp * 0.1 + (st.atk + (st.spellAtk || 0)) * 3 + st.def * 2);
 const playerPower = () => power(playerStats());
 
 function playerBattleUnit() {
@@ -189,17 +215,18 @@ function playerBattleUnit() {
   const unarmed = !gearItem('weapon');
   const grace = Math.min(0.6, skillLevel('grace') * GRACE_PER_LEVEL + st.ward); // Grace: less damage taken
   const special = STYLE_SPECIALS[unarmed ? 'unarmed' : ct];
-  return { ...st, lvl: combatLevel(), name: 'You', emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' || unarmed ? 'melee' : 'ranged', cls: d.cls,
+  const magic = !unarmed && ct === 'magic', sp = magic ? currentSpell() : null;
+  return { ...st, lvl: combatLevel(), name: 'You', spells: magic ? spellQueue() : null, emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' || unarmed ? 'melee' : 'ranged', cls: d.cls,
     skill: { ...special, power: special.power * (1 + st.ult) }, color: FACTIONS[d.faction].color, unarmed, grace,
     held: GEAR_SLOTS.filter(s => s === 'weapon' || s === 'shield').map(s => gearItem(s)).filter(Boolean),
-    proj: unarmed ? null : ct === 'archery' ? 'arrow' : ct === 'magic' ? 'bolt' : null, bolt: d.bolt || (ct === 'magic' ? '#9f7aff' : boltColor(d)) };
+    proj: unarmed ? null : ct === 'archery' ? 'arrow' : ct === 'magic' ? 'bolt' : null, bolt: sp ? sp.color : d.bolt || (ct === 'magic' ? '#9f7aff' : boltColor(d)) };
 }
 
 // ---- Combat XP: damage dealt trains the chosen style; Hitpoints always gets a third ----
 const COMBAT_XP_PER_DMG = 0.6;
 const STYLES = { attack: 'Accurate', strength: 'Aggressive', defence: 'Defensive' };
 function grantCombatXp(dmg) {
-  const style = state.player.style, xp = Math.round(dmg * COMBAT_XP_PER_DMG * SKILL_XP_MULT);
+  const style = fightSkill(), xp = Math.round(dmg * COMBAT_XP_PER_DMG * SKILL_XP_MULT);
   const before = { [style]: skillLevel(style), hitpoints: skillLevel('hitpoints') };
   state.skills[style].xp += xp;
   state.skills.hitpoints.xp += Math.round(xp / 3);

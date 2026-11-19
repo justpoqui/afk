@@ -160,8 +160,11 @@ function validateState(s) {
   for (const x of inv.splice(cap)) s.bank[x.id] = (s.bank[x.id] || 0) + x.n; // overflow goes to the bank
   s.inv = inv;
 
-  const skills = {};
-  for (const k of Object.keys(SKILLS)) skills[k] = { xp: num(plainObj(plainObj(s.skills)[k]).xp, 0, XP_TABLE[99] * 50, fresh.skills[k].xp) };
+  const skills = {}, oldSkills = plainObj(s.skills);
+  for (const k of Object.keys(SKILLS)) skills[k] = { xp: num(plainObj(oldSkills[k]).xp, 0, XP_TABLE[99] * 50, fresh.skills[k].xp) };
+  // Saves from before Archery and Magic existed: the style you fought with carries its Attack XP over.
+  for (const k of ['archery', 'magic'])
+    if (!Object.prototype.hasOwnProperty.call(oldSkills, k) && Object.keys(oldSkills).length && plainObj(s.player).ctype === k) skills[k].xp = skills.attack.xp;
   s.skills = skills;
 
   const looks = {};
@@ -177,6 +180,7 @@ function validateState(s) {
     ctype: COMBAT_TYPES[p.ctype] ? p.ctype : 'melee',
     gear,
     blessings: [...new Set((Array.isArray(p.blessings) ? p.blessings : []).filter(id => BLESSING_BY_ID[id]))].slice(0, 4),
+    spell: SPELL_BY_ID[p.spell] ? p.spell : 'auto',
   };
 
   const st = plainObj(s.stats), stats = {};
