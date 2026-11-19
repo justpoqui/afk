@@ -140,7 +140,7 @@ const pages = {
       <section class="panel home-head">
         <img class="camp-banner" src="assets/bg/camp.webp" alt="Your camp" draggable="false">
         <div class="idle-box">
-          <div class="idle-title">Idle Rewards <small>${fmtTime(p.ms)} / 12h · ${r.gold} 🪙/min · ${r.gemsPerHour} 💎/h</small></div>
+          <div class="idle-title">Idle Rewards <small>${fmtTime(p.ms)} / ${AFK_HOURS}h · ${r.gold} 🪙/min · ${r.gemsPerHour} 💎/h</small></div>
           <div class="bar-track"><i style="width:${100 * p.ms / IDLE_CAP_MS}%"></i></div>
           <div class="row-btns"><div class="idle-loot">🪙 ${fmt(p.gold)} &nbsp; 💎 ${fmt(p.gems)}</div><button class="btn gold sm" data-act="claim">Collect</button></div>
         </div>
@@ -220,17 +220,15 @@ const pages = {
         <div class="panel-title">Fighting style</div>
         <label class="select"><select data-change="ctype">${Object.entries(COMBAT_TYPES).map(([k, c]) =>
           `<option value="${k}" ${state.player.ctype === k ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select></label>
-        <p class="hint">${COMBAT_TYPES[state.player.ctype].perk}.${gearItem('weapon') ? '' : ' <b>No weapon equipped: you fight with your fists and feet, up close.</b>'}</p>
-        <div class="skill"><b>${STYLE_SPECIALS[gearItem('weapon') ? state.player.ctype : 'unarmed'].name}</b> <small>Special attack</small>
-          <p>${STYLE_SPECIALS[gearItem('weapon') ? state.player.ctype : 'unarmed'].desc}</p></div>
+        <p class="hint">${COMBAT_TYPES[state.player.ctype].perk}${gearItem('weapon') ? '' : ' · <b>no weapon: fists and feet</b>'} · Special: <b>${STYLE_SPECIALS[gearItem('weapon') ? state.player.ctype : 'unarmed'].name}</b></p>
       </section>
       <section class="panel">
         <div class="panel-title">Attack style <span class="muted">· decides which skill your damage trains</span></div>
-        ${rangedStyle() ? `<p class="good">${SKILLS[state.player.ctype].icon} With a ${state.player.ctype === 'archery' ? 'bow' : 'staff'} your damage trains <b>${SKILLS[state.player.ctype].name}</b>, which also sets your hit chance and damage. The styles below are for melee.</p>` : ''}
+        ${rangedStyle() ? `<p class="good">${SKILLS[state.player.ctype].icon} Your ${state.player.ctype === 'archery' ? 'bow' : 'staff'} trains ${SKILLS[state.player.ctype].name}. Styles below are for melee.</p>` : ''}
         <div class="styles">${Object.entries(STYLES).map(([k, label]) => `
           <button class="style-btn ${state.player.style === k ? 'on' : ''}" data-act="style" data-style="${k}">
             <span>${SKILLS[k].icon}</span><b>${label}</b><small>${SKILLS[k].name} XP</small></button>`).join('')}</div>
-        <p class="hint">❤️ Hitpoints always gets a third of your combat XP.</p>
+        <p class="hint">❤️ Hitpoints gets a third of combat XP.</p>
         <p class="hint">🙏 Blessings: ${activeBlessings().length ? activeBlessings().map(bl => `${bl.icon} ${bl.name}`).join(', ') : 'none active'} · <a data-page="skill:grace">change</a></p>
         <div class="cskills">${['attack', 'strength', 'defence', 'hitpoints', 'archery', 'magic', 'grace'].map(k => {
           const b = xpBar(k);
@@ -257,6 +255,7 @@ const pages = {
         </div>
         <div class="doll-stats">❤️ ${fmt(st.hp)} · ⚔️ ${fmt(st.atk)} · 🛡️ ${fmt(st.def)} · ${COMBAT_TYPES[state.player.ctype].icon} ${COMBAT_TYPES[state.player.ctype].name}</div>
         ${GEAR_SLOTS.map(gearItem).filter(it => it && !meetsReq(it)).map(it => `<p class="warn">⚠️ ${it.name} needs ${SKILLS[it.req.skill].name} ${it.req.level}: it gives no stats until then.</p>`).join('')}
+        ${setProgress().map(x => `<p class="set-line ${x.active ? 'on' : ''}">🧩 <b>${x.set.name}</b> ${x.n}/${x.set.pieces.length} · ${x.set.desc}${x.active ? ' ✓' : x.done ? ' (wrong fighting style)' : ''}</p>`).join('')}
         ${w && !weaponMatches(w) ? `<p class="warn">⚠️ Your ${w.name} is a ${COMBAT_TYPES[w.wtype].name} weapon but you fight with ${COMBAT_TYPES[state.player.ctype].name}: half damage. Change your fighting style on the Character Sheet.</p>` : ''}
       </section>
       <section class="panel"><div class="panel-title">Equipped</div>
@@ -407,7 +406,7 @@ const pages = {
     return `${head}${blessing}${invBar()}${picker}
       ${id === 'cooking' ? `<p class="hint">Food can burn: ${Math.round(burnChance(ACTIONS.food0) * 100)}% for ${ACTIONS.food0.name} at your level. Burnt dishes become stackable 🍖 Burnt Food.</p>` : ''}
       <div class="act-grid">${acts.filter(a => a.group === cur).map(actCard).join('')}</div>
-      <p class="hint">Crafting only uses materials in your <b>inventory</b>; tap 📥 to withdraw a recipe's materials from the bank. You can do one thing at a time: one skill action, or fighting. Items go into your inventory one slot each, and the action stops when it's full, so deposit in the bank, where items stack. Skills keep going while the game is closed (up to 12h).</p>`;
+      <p class="hint">Crafting only uses materials in your <b>inventory</b>; tap 📥 to withdraw a recipe's materials from the bank. You can do one thing at a time: one skill action, or fighting. Items go into your inventory one slot each, and the action stops when it's full, so deposit in the bank, where items stack. Skills keep going while the game is closed (up to ${AFK_HOURS}h, the same as idle combat rewards).</p>`;
   },
 
   bank() {
@@ -481,27 +480,24 @@ function graceBlessings(lv) {
 }
 // Archery / Magic skill pages: what the level does, plus the spell book for Magic.
 function rangedSkillPage(id, lv) {
-  const using = rangedStyle() && state.player.ctype === id, st = playerStats();
-  const what = id === 'archery' ? 'bow' : 'staff';
-  let html = `<section class="panel"><p>With a ${what}: hit chance vs. a level-${state.stage} enemy <b>${Math.round(playerHitChance(lv, state.stage) * 100)}%</b> · base damage <b>${fmt(baseAtk(lv))}</b> · attack speed +${Math.round(atkSpeedBonus(lv) * 100)}%</p>
-    ${using ? `<p class="good">✓ You fight with ${COMBAT_TYPES[id].icon} ${COMBAT_TYPES[id].name}: your damage trains ${SKILLS[id].name}.</p>`
-      : `<p class="muted">Pick ${COMBAT_TYPES[id].icon} ${COMBAT_TYPES[id].name} as your fighting style on the Character Sheet and equip a ${what} to train it.</p>`}
-    <p class="hint">${id === 'archery' ? '🏹 Ranger armor (Carpentry)' : '🧙 Mage robes (Glyph Making)'} adds ${COMBAT_TYPES[id].name} damage. Wearing it needs the same 🛡️ Defence level as metal armor of that tier.</p>
-    <button class="btn ghost" data-page="sheet">🧍 Character Sheet</button> <button class="btn ghost" data-page="fight">⚔️ Go fight</button></section>`;
+  const using = rangedStyle() && state.player.ctype === id, what = id === 'archery' ? 'bow' : 'staff';
+  let html = `<section class="panel"><p>Hit chance <b>${Math.round(playerHitChance(lv, state.stage) * 100)}%</b> · base damage <b>${fmt(baseAtk(lv))}</b> · speed +${Math.round(atkSpeedBonus(lv) * 100)}%</p>
+    ${using ? `<p class="good">✓ Training ${SKILLS[id].name}</p>` : `<p class="muted">Equip a ${what} and pick ${COMBAT_TYPES[id].name} on the Character Sheet to train it.</p>`}
+    <button class="btn ghost" data-page="sheet">🧍 Character Sheet</button></section>`;
   if (id !== 'magic') return html;
-  const pick = state.player.spell, cur = currentSpell();
+  const pick = state.player.spell, cur = currentSpell(), staff = hasStaff(), auto = !SPELL_BY_ID[pick];
   const card = sp => {
     const known = lv >= sp.lvl, chosen = pick === sp.id, ok = canCast(sp);
     return `<button class="spell ${chosen ? 'on' : ''} ${known ? '' : 'locked'}" ${known ? `data-act="spell" data-id="${sp.id}"` : 'disabled'} style="--c:${sp.color}">
       <img class="spell-img" src="${sp.img}" alt="✨" draggable="false">
-      <div class="sp-body"><b>${sp.name}</b><small>${known ? `+${fmt(spellAtk(sp))} spell damage` : `🔒 Magic ${sp.lvl}`}</small>
+      <div class="sp-body"><b>${sp.name}</b><small>${known ? `+${fmt(spellAtk(sp))} damage` : `🔒 Magic ${sp.lvl}`}</small>
         <div class="sp-cost">${Object.entries(sp.glyphs).map(([g, n]) => `<span class="${invCount(g) >= n ? '' : 'lack'}">${icon(g, 'sm')} ${n}</span>`).join('')}</div></div>
-      <em>${chosen ? '✓ Chosen' : known ? (ok ? 'Ready' : 'Need glyphs') : ''}</em></button>`;
+      <em>${chosen ? '✓ Chosen' : known && !ok ? 'Need glyphs' : ''}</em></button>`;
   };
-  return html + `<section class="panel"><div class="panel-title">📖 Spell book <span class="muted">· each attack casts one spell</span></div>
-    <p class="muted">Every cast uses the spell's glyphs from your <b>inventory</b>. Make glyphs from Chipped Stone with 🔣 Glyph Making (mine Enchanted Stone at Mining 5). Early spells need one glyph; stronger spells combine several kinds. Out of glyphs, your staff only fizzles for weak damage.</p>
-    <button class="spell auto ${SPELL_BY_ID[pick] ? '' : 'on'}" data-act="spell" data-id="auto"><span class="spell-img auto">✨</span>
-      <div class="sp-body"><b>Auto</b><small>Casts the strongest spell you have glyphs for${cur && !SPELL_BY_ID[pick] ? `: now ${cur.name}` : ''}</small></div><em>${SPELL_BY_ID[pick] ? '' : '✓ Chosen'}</em></button>
+  return html + `<section class="panel"><div class="panel-title">📖 Spell book <span class="muted">· uses glyphs from your inventory</span></div>
+    ${staff ? '' : '<p class="warn">🪄 Equip a staff to cast spells.</p>'}
+    <button class="spell auto ${auto && staff ? 'on' : ''} ${staff ? '' : 'locked'}" ${staff ? 'data-act="spell" data-id="auto"' : 'disabled'}><span class="spell-img auto">✨</span>
+      <div class="sp-body"><b>Auto cast</b><small>${staff ? `Best spell you have glyphs for${auto && cur ? `: ${cur.name}` : ''}` : '🔒 Needs a staff equipped'}</small></div><em>${auto && staff ? '✓ Chosen' : ''}</em></button>
     <div class="spell-list">${SPELLS.map(card).join('')}</div></section>`;
 }
 
@@ -528,10 +524,10 @@ function describeItem(id) {
     const kind = it.slot === 'weapon' ? `${COMBAT_TYPES[it.wtype].icon} ${COMBAT_TYPES[it.wtype].name} weapon` : GEAR_SLOT_INFO[it.slot].name;
     const extra = [it.spd && `${it.spd > 0 ? '+' : ''}${Math.round(it.spd * 100)}% attack speed`, it.twoHanded && 'two-handed (no shield)', it.slot === 'shield' && `blocks ${Math.round(BLOCK_CHANCE * 100)}% of hits for half damage`].filter(Boolean).join(', ');
     const req = it.req ? ` · <span class="${meetsReq(it) ? 'req-ok' : 'req-no'}">needs ${SKILLS[it.req.skill].icon} ${SKILLS[it.req.skill].name} ${it.req.level}</span>` : '';
-    return `${kind} · ${stats}${extra ? ' · ' + extra : ''}${req}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
+    return `Lv ${it.ilvl} ${kind} · ${stats}${extra ? ' · ' + extra : ''}${it.set ? ` · 🧩 ${SETS[it.set].name}` : ''}${req}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
   }
-  if (it.glyph) { const uses = SPELLS.filter(sp => sp.glyphs[id]).map(sp => sp.name); return `Glyph · used up by spells: ${uses.join(', ')} · stacks without limit`; }
-  if (id === 'chipped') return `Inscribe glyphs on it with 🔣 Glyph Making · stacks ${it.maxStack} per slot`;
+  if (it.glyph) return 'Glyph · used by spells';
+  if (id === 'chipped') return `For 🔣 Glyph Making · stacks ${it.maxStack}`;
   if (it.heal) return `Food · heals ${it.heal} HP in battle`;
   if (it.effect) return `Potion · ${it.effectText} for ${POTION_BATTLES} battles`;
   if (it.burnt) return 'Ruined while cooking. Stacks in your inventory. Only good for selling.';
@@ -617,8 +613,9 @@ function showItem(id, from = 'bank') {
   if (!n) { closeModal(); return; }
   const recipe = ACTIONS[id];
   openModal(`<button class="close" data-act="close">✕</button>
-    <div class="item-head">${icon(id, 'xl')}<div><h2>${it.name}</h2><small class="muted">${it.cat}${it.slot ? (it.bone ? ` · Bone gear (level ${it.req.level})` : ` · Tier ${it.tier + 1} (level ${GEAR_LEVEL[it.tier]})`) : ''}${it.stack ? ' · stackable' : ''}</small></div></div>
+    <div class="item-head">${icon(id, 'xl')}<div><h2>${it.name}</h2><small class="muted">${it.cat}${it.slot ? ` · Item level ${it.ilvl}` : ''}${it.stack ? ' · stackable' : ''}</small></div></div>
     ${describeItem(id) ? `<p>${describeItem(id)}</p>` : ''}
+    ${it.set ? `<p class="set-line on">🧩 ${SETS[it.set].name}: wear all ${SETS[it.set].pieces.length} pieces for ${SETS[it.set].desc}</p>` : ''}
     <p class="muted">${inv ? 'In inventory' : 'In bank'} <b>${fmt(n)}</b> · sells for 🪙 ${it.sell} each${recipe ? ` · made with ${SKILLS[recipe.skill].icon} ${SKILLS[recipe.skill].name}` : ''}</p>
     ${inv ? `<div class="row-btns"><button class="btn" data-act="deposit" data-item="${id}" data-n="1">Deposit 1</button><button class="btn" data-act="deposit" data-item="${id}" data-n="${n}">Deposit all ${n}</button></div>`
           : `<div class="row-btns"><button class="btn" data-act="withdraw" data-item="${id}" data-n="1">Withdraw 1</button><button class="btn" data-act="withdraw" data-item="${id}" data-n="${n}">Withdraw all${it.stack ? '' : ` (≤${invFree()})`}</button></div>`}
@@ -918,7 +915,9 @@ document.addEventListener('click', e => {
       case 'claimtier': { const ti = Number(d.tier); if (claimTier(ti)) toast(`Tier complete! ${rewardText(TASK_TIERS[ti].reward)}`); render(); break; }
       case 'reset': if (confirm('Delete your save and start over?')) { resetSave(); go('home'); } break;
       case 'savebackup': showSaveBackup(); break;
-      case 'spell': state.player.spell = SPELL_BY_ID[d.id] ? d.id : 'auto'; save(); render(); toast(d.id === 'auto' ? '✨ Auto spell' : `🔮 ${SPELL_BY_ID[d.id].name}`); break;
+      case 'spell':
+        if (d.id === 'auto' && !hasStaff()) { toast('🪄 Equip a staff to use Auto cast'); break; }
+        state.player.spell = SPELL_BY_ID[d.id] ? d.id : 'auto'; save(); render(); toast(d.id === 'auto' ? '✨ Auto cast' : `🔮 ${SPELL_BY_ID[d.id].name}`); break;
       case 'sound': Sfx.toggle(); soundIcon(); render(); break;
       case 'bless': {
         const r = toggleBlessing(d.id), bl = BLESSING_BY_ID[d.id];

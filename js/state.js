@@ -1,5 +1,7 @@
 // Save state, the player character, stages, idle economy and skin rerolls.
-const IDLE_CAP_MS = 12 * 3600 * 1000;
+// How long you can be away and still earn: the same limit for idle combat rewards and for skills.
+const AFK_HOURS = 12;
+const IDLE_CAP_MS = AFK_HOURS * 3600 * 1000;
 // Equipment slots, in paper-doll order. Add a slot here + GEAR_SLOT_INFO (skilldata.js) to extend.
 const GEAR_SLOTS = ['helmet', 'chest', 'legs', 'gloves', 'boots', 'weapon', 'shield'];
 const emptyGear = () => Object.fromEntries(GEAR_SLOTS.map(s => [s, null]));
@@ -163,7 +165,9 @@ function toggleBlessing(id) {
 }
 // Which skill powers (and is trained by) your attacks: Archery with a bow, Magic with a staff,
 // otherwise the melee attack style you picked (Attack, Strength or Defence).
-const rangedStyle = () => state.player.ctype !== 'melee' && !!gearItem('weapon');
+// (Only when the weapon matches the style: spells, Auto included, need a staff equipped.)
+const rangedStyle = () => { const w = gearItem('weapon'); return state.player.ctype !== 'melee' && !!w && w.wtype === state.player.ctype; };
+const hasStaff = () => { const w = gearItem('weapon'); return !!w && w.wtype === 'magic'; };
 const fightSkill = () => (rangedStyle() ? state.player.ctype : state.player.style);
 
 // ---- Spells: Magic picks the chosen spell (or the best one you can cast) and uses its glyphs ----
@@ -177,24 +181,37 @@ function spellQueue() {
 }
 const currentSpell = () => spellQueue().find(canCast) || null;
 
+// Armor sets: how many pieces of each set you wear, and the bonuses of the complete ones.
+function setProgress() {
+  const worn = new Set(GEAR_SLOTS.map(s => state.player.gear[s]).filter(Boolean));
+  return Object.values(SETS).map(set => {
+    const n = set.pieces.filter(p => worn.has(p) && meetsReq(ITEMS[p])).length;
+    return { set, n, done: n === set.pieces.length, active: n === set.pieces.length && (!set.atype || set.atype === state.player.ctype) };
+  }).filter(x => x.n > 0);
+}
+function setFx() {
+  const fx = {};
+  for (const x of setProgress()) if (x.active) for (const [k, v] of Object.entries(x.set.fx)) fx[k] = (fx[k] || 0) + v;
+  return fx;
+}
 function playerStats(withPotion = false) {
   const h = skillLevel('hitpoints'), d = skillLevel('defence');
   // Archery / Magic replace Attack (hit chance, speed) and Strength (damage) when you fight with a bow or staff.
   const ranged = rangedStyle(), ct = state.player.ctype;
   const a = ranged ? skillLevel(ct) : skillLevel('attack'), s = ranged ? skillLevel(ct) : skillLevel('strength');
   const sk = skinBonus(state.player.skin), g = gearTotals();
-  const pe = withPotion ? potionEffect() : {}, bl = blessingFx();
+  const pe = withPotion ? potionEffect() : {}, bl = blessingFx(), sx = setFx();
   const st = {
-    hp: (baseHp(h) + g.hp) * (1 + (sk.hp || 0)) * (1 + (pe.hp || 0)) * (1 + (bl.hp || 0)),
-    atk: (baseAtk(s) + g.atk) * (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)) * (1 + (bl.atk || 0)),
-    def: (baseDef(d) + g.def) * (1 + (sk.def || 0)) * (1 + (pe.def || 0)) * (1 + (bl.def || 0)),
-    spd: 100 * (1 + atkSpeedBonus(a)) * (1 + (sk.spd || 0)) * (1 + (pe.spd || 0)) * (1 + weaponSpeed()) * (1 + (bl.spd || 0)),
-    accLvl: a, defLvl: d, regen: (sk.regen || 0) + (bl.regen || 0), ult: (sk.ult || 0) + (bl.ult || 0), energyMult: 1,
-    accBonus: bl.acc || 0, ward: bl.ward || 0,
+    hp: (baseHp(h) + g.hp) * (1 + (sk.hp || 0)) * (1 + (pe.hp || 0)) * (1 + (bl.hp || 0)) * (1 + (sx.hp || 0)),
+    atk: (baseAtk(s) + g.atk) * (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)) * (1 + (bl.atk || 0)) * (1 + (sx.atk || 0)),
+    def: (baseDef(d) + g.def) * (1 + (sk.def || 0)) * (1 + (pe.def || 0)) * (1 + (bl.def || 0)) * (1 + (sx.def || 0)),
+    spd: 100 * (1 + atkSpeedBonus(a)) * (1 + (sk.spd || 0)) * (1 + (pe.spd || 0)) * (1 + weaponSpeed()) * (1 + (bl.spd || 0)) * (1 + (sx.spd || 0)),
+    accLvl: a, defLvl: d, regen: (sk.regen || 0) + (bl.regen || 0), ult: (sk.ult || 0) + (bl.ult || 0) + (sx.ult || 0), energyMult: 1,
+    accBonus: bl.acc || 0, ward: (bl.ward || 0) + (sx.ward || 0),
   };
   // A spell adds damage on top of the staff, scaled by the same bonuses as your other damage.
   const sp = ranged && ct === 'magic' ? currentSpell() : null;
-  st.spellMult = (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)) * (1 + (bl.atk || 0));
+  st.spellMult = (1 + (sk.dmg || 0)) * (1 + (pe.atk || 0)) * (1 + (bl.atk || 0)) * (1 + (sx.atk || 0));
   st.spellAtk = sp ? spellAtk(sp) * st.spellMult : 0;
   if (ct === 'melee') st.atk *= 1.1;
   if (ct === 'archery') st.spd *= 1.15;
@@ -215,7 +232,7 @@ function playerBattleUnit() {
   const unarmed = !gearItem('weapon');
   const grace = Math.min(0.6, skillLevel('grace') * GRACE_PER_LEVEL + st.ward); // Grace: less damage taken
   const special = STYLE_SPECIALS[unarmed ? 'unarmed' : ct];
-  const magic = !unarmed && ct === 'magic', sp = magic ? currentSpell() : null;
+  const magic = ct === 'magic' && hasStaff(), sp = magic ? currentSpell() : null;
   return { ...st, lvl: combatLevel(), name: 'You', spells: magic ? spellQueue() : null, emoji: d.emoji, sprite: d.sprite, range: ct === 'melee' || unarmed ? 'melee' : 'ranged', cls: d.cls,
     skill: { ...special, power: special.power * (1 + st.ult) }, color: FACTIONS[d.faction].color, unarmed, grace,
     held: GEAR_SLOTS.filter(s => s === 'weapon' || s === 'shield').map(s => gearItem(s)).filter(Boolean),

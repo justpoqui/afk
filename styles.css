@@ -638,3 +638,6 @@ textarea.code { width: 100%; min-height: 84px; background: #120f1a; color: var(-
 .sp-cost .lack { color: var(--bad); }
 .spell em { font-style: normal; font-size: 11px; color: var(--gold); white-space: nowrap; }
 .spell.on em { color: var(--good); }
+
+.set-line { font-size: 12px; margin: 4px 0; opacity: 0.75; }
+.set-line.on { color: var(--good); opacity: 1; }

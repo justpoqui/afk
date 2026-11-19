@@ -119,9 +119,9 @@ const remainsOf = (key, boss) => (DEMONIC.has(key) ? 'ash' : boss || BIG_CREATUR
 const CHAPTER_NAMES = ['Mistvale Colosseum', 'Thornwood Ring', 'Ashfire Pit', 'Frostpeak Coliseum', 'Sunken Amphitheatre', 'Crystal Abyss Arena'];
 // Fighting styles. Looks are grouped the same way in the Library.
 const COMBAT_TYPES = {
-  melee:   { name: 'Melee',   icon: '⚔️', perk: '+10% damage, fights up close' },
-  archery: { name: 'Archery', icon: '🏹', perk: '+15% attack speed, shoots arrows from the back' },
-  magic:   { name: 'Magic',   icon: '🔮', perk: 'Specials charge 30% faster, casts spells from the back' },
+  melee:   { name: 'Melee',   icon: '⚔️', perk: '+10% damage' },
+  archery: { name: 'Archery', icon: '🏹', perk: '+15% attack speed' },
+  magic:   { name: 'Magic',   icon: '🔮', perk: 'Specials charge 30% faster' },
 };
 const CLASS_TYPE = { warrior: 'melee', tank: 'melee', ranger: 'archery', mage: 'magic', support: 'magic' };
 // Your special attack comes from how you fight, not from your look.

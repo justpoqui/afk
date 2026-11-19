@@ -21,8 +21,8 @@ const SKILLS = {
   defence:     { name: 'Defence',     icon: '🛡️', type: 'combat', desc: 'Reduces damage taken and makes enemies miss more.' },
   hitpoints:   { name: 'Hitpoints',   icon: '❤️', type: 'combat', desc: 'Raises your maximum health. Always gains a third of combat XP.' },
   // Archery and Magic: trained by fighting with a bow or a staff. They set your hit chance and damage in that style.
-  archery:     { name: 'Archery',     icon: '🏹', type: 'combat', desc: 'Raises hit chance, attack speed and damage with bows. Trained by fighting with Archery.' },
-  magic:       { name: 'Magic',       icon: '🔮', type: 'combat', desc: 'Raises hit chance and damage with staves, and unlocks spells. Spells use glyphs from your inventory.' },
+  archery:     { name: 'Archery',     icon: '🏹', type: 'combat', desc: 'Bow hit chance, speed and damage.' },
+  magic:       { name: 'Magic',       icon: '🔮', type: 'combat', desc: 'Staff hit chance and damage. Unlocks spells.' },
   // Grace: trained by burying the remains of defeated enemies. Each level blesses you in battle.
   grace:       { name: 'Grace',       icon: '🙏', type: 'combat', verb: 'Bury', desc: 'Bury bones and scatter ashes from defeated enemies. Unlocks blessings that buff you in battle.' },
   woodcutting: { name: 'Woodcutting', icon: '🪓', type: 'gather', verb: 'Chop' },
@@ -293,6 +293,34 @@ for (const [id, name, slot, wtype, lvl, b, bb, sh, extra] of BONE_GEAR) {
   addAction_('grace', id, { level: lvl, dur: 3 + (b + bb) * 0.25, xp: Math.round(b * 4.5 + bb * 17.5), inputs: { bones: b, bigbones: bb }, group: 'Bonecraft', verb: 'Carve' });
   ACTIONS[id].xp = Math.round(b * 4.5 + bb * 17.5); // not scaled: same as burying those bones
 }
+
+// ---- Every piece of gear has an item level, and damage, HP and defence based on that level ----
+// Pieces that only had one or two stats get a little of the others, so every piece helps in combat.
+const STAT_AT = { atk: gearAtk, hp: gearHp, def: gearDef };
+const SLOT_EXTRA = {
+  weapon: { hp: 0.06, def: 0.06 }, shield: { atk: 0.04 }, helmet: { atk: 0.03 }, chest: { atk: 0.04 },
+  legs: { atk: 0.03 }, gloves: { hp: 0.1 }, boots: { atk: 0.03 },
+};
+for (const it of Object.values(ITEMS)) {
+  if (!it.slot) continue;
+  it.ilvl = it.bone ? BONE_L : GEAR_LEVEL[it.tier];
+  for (const [k, share] of Object.entries(SLOT_EXTRA[it.slot])) if (!it[k]) it[k] = Math.max(1, Math.round(STAT_AT[k](it.ilvl) * share));
+}
+
+// ---- Armor sets: wearing all five armor pieces of one set (helmet, chest, legs, gloves, boots) adds a bonus ----
+// Ranger and mage set bonuses only count when you fight in their style.
+const SETS = {};
+function addSet_(id, name, pieces, fx, desc, atype) {
+  SETS[id] = { id, name, pieces, fx, desc, atype };
+  for (const p of pieces) ITEMS[p].set = id;
+}
+for (let i = 0; i < TIERS; i++) {
+  const gw = GLYPHS[i][1].replace(' Glyph', '');
+  addSet_('metal' + i, `${METALS[i]} Set`, ['helm', 'armor', 'legs', 'gloves', 'boots'].map(p => p + i), { hp: 0.08, def: 0.12 }, '+8% max HP, +12% defence');
+  addSet_('ranger' + i, `${WOODS[i]} Ranger Set`, ['rhood', 'rbody', 'rlegs', 'rgloves', 'rboots'].map(p => p + i), { atk: 0.1, spd: 0.08 }, '+10% damage, +8% attack speed with Archery', 'archery');
+  addSet_('mage' + i, `${gw} Mage Set`, ['mhood', 'mbody', 'mlegs', 'mgloves', 'mboots'].map(p => p + i), { atk: 0.1, ult: 0.2 }, '+10% damage, +20% special power with Magic', 'magic');
+}
+addSet_('bone', 'Bone Set', ['bonehelm', 'bonechest', 'bonelegs', 'bonegloves', 'boneboots'], { hp: 0.1, ward: 0.05 }, '+10% max HP, 5% less damage taken');
 
 // ---- Grace blessings: switched on from the Grace page; unlock by Grace level ----
 // cat: only the strongest active blessing of each kind counts. Effects: def/atk/hp/spd/ult are multipliers,
