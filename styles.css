@@ -641,3 +641,6 @@ textarea.code { width: 100%; min-height: 84px; background: #120f1a; color: var(-
 
 .set-line { font-size: 12px; margin: 4px 0; opacity: 0.75; }
 .set-line.on { color: var(--good); opacity: 1; }
+
+.mon-drops { display: flex; align-items: center; gap: 2px; opacity: 0.85; }
+.mon-drops .ico.sm { width: 20px; height: 20px; }

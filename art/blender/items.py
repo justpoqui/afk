@@ -1029,11 +1029,135 @@ def spell_art(sid):
         tube([(0.1, 0.05, 0.1), (-0.4, 0.1, -0.5), (-0.9, 0.15, -1.1)], [0.3, 0.18, 0.02], glow('#a06bff', 4), outline=False)
 
 
+# ---------------- monster drops, leather and cloth ----------------
+HIDE_TINT = ['#9a6a45', '#8a8e98', '#6a4a30', '#4a4450', '#e8eef4', '#7a8a4a', '#a83a2a', '#5a4a8a']
+PELT = [(0, 0.95), (0.25, 0.7), (0.75, 0.85), (0.6, 0.35), (0.7, -0.25), (0.85, -0.75), (0.3, -0.6), (0, -0.95),
+        (-0.3, -0.6), (-0.85, -0.75), (-0.7, -0.25), (-0.6, 0.35), (-0.75, 0.85), (-0.25, 0.7)]
+
+
+def wool():
+    m = mat('#f6f2e8', rough=0.95)
+    for x, y, z, r in ((0, 0, 0, 0.55), (0.4, -0.1, 0.15, 0.38), (-0.4, -0.05, 0.12, 0.4), (0.1, -0.2, 0.45, 0.36), (-0.15, 0.1, -0.35, 0.36), (0.35, 0.1, -0.3, 0.32)):
+        sphere((x, y, z), r, m)
+    tube([(0.5, -0.3, -0.3), (0.9, -0.4, -0.5), (1.1, -0.3, -0.8)], [0.05, 0.04, 0.03], m)
+    group(rot=(0, 0, 10))
+
+
+def silk():
+    m = mat('#f4f0fa', rough=0.3, emit=0.15)
+    cyl((0, 0, 0), 0.35, 1.0, mat('#8a5a35'), verts=16)   # spool
+    for z in (-0.55, 0.55):
+        cyl((0, 0, z), 0.55, 0.1, mat('#6a4428'), verts=24)
+    cyl((0, 0, 0), 0.5, 0.95, m, verts=24)
+    for k in range(5):
+        torus((0, 0, -0.38 + k * 0.19), 0.51, 0.02, mat('#ffffff', rough=0.2), outline=False)
+    tube([(0.5, -0.1, 0.2), (0.9, -0.3, 0.5), (1.0, -0.4, 0.95)], [0.02, 0.015, 0.01], m, outline=False)
+    group(rot=(15, 0, 20))
+
+
+def hide(i):
+    c = HIDE_TINT[i]
+    prism(PELT, 0.1, mat(c, rough=0.9))
+    prism([(x * 0.7, z * 0.7) for x, z in PELT], 0.04, mat(mix(c, '#000000', 0.15), rough=0.95), loc=(0, -0.06, 0))
+    if i == 6:      # dragon scales
+        for x in (-0.3, 0, 0.3):
+            for z in (-0.4, 0, 0.4):
+                sphere((x, -0.09, z), 0.12, mat('#d8502a', rough=0.4, metal=0.3), scale=(1, 0.4, 1))
+    elif i == 7:    # kraken suckers
+        for x, z in ((-0.25, 0.3), (0.2, 0.15), (-0.1, -0.25), (0.3, -0.4)):
+            torus((x, -0.08, z), 0.09, 0.03, mat('#c8a0e8'), rot=(90, 0, 0))
+    else:           # fur tufts
+        for _ in range(9):
+            sphere((R.uniform(-0.45, 0.45), -0.08, R.uniform(-0.55, 0.6)), R.uniform(0.06, 0.1), mat(mix(c, '#ffffff', 0.12), rough=0.95), scale=(1, 0.4, 1.4))
+    group(rot=(-25, 0, 20))
+
+
+def leather(i):
+    c = mix(HIDE_TINT[i], '#4a2a18', 0.35)
+    m = mat(c, rough=0.6)
+    cyl((0, 0, 0.1), 0.38, 1.6, m, rot=(0, 90, 0), verts=24)   # a rolled hide
+    box((0, -0.35, -0.35), (1.6, 0.06, 0.7), m, rot=(-20, 0, 0), bevel=0.03)
+    for x in (-0.45, 0.45):
+        torus((x, 0, 0.1), 0.4, 0.04, mat('#3a2614'), rot=(0, 90, 0))   # ties
+    for k in range(6):
+        box((-0.6 + k * 0.24, -0.48, -0.62), (0.1, 0.02, 0.02), mat('#efe2c4'), outline=False)   # stitching
+    group(rot=(0, 0, 20))
+
+
+def cloth():
+    cols = ['#efe8da', '#e2d8c4', '#f4eee4']
+    for k, c in enumerate(cols):
+        box((0.04 * k, 0, -0.3 + k * 0.22), (1.5, 1.0, 0.18), mat(c, rough=0.95), bevel=0.06, rot=(0, 0, k * 6 - 6))
+    tube([(0.75, -0.5, 0.15), (0.95, -0.6, -0.1), (0.9, -0.7, -0.45)], [0.025, 0.02, 0.015], mat('#c8402a'))
+    group(rot=(0, 0, 20))
+
+
+def slime_jelly():
+    sphere((0, 0, -0.1), 0.7, mat('#7fe07a', rough=0.08, emit=0.3, alpha=0.8), scale=(1, 1, 0.65))
+    sphere((0.1, -0.2, 0.25), 0.35, mat('#9ff09a', rough=0.08, emit=0.3, alpha=0.8))
+    for _ in range(4):
+        sphere((R.uniform(-0.4, 0.4), -0.45, R.uniform(-0.2, 0.2)), 0.07, mat('#d8ffd0', emit=0.5, alpha=0.7), outline=False)
+
+
+def wolf_fang():
+    tube([(0, 0, -0.85), (0.15, 0, -0.2), (0.05, 0, 0.45), (-0.3, 0, 0.85)], [0.24, 0.22, 0.12, 0.01], mat('#f4ecd8', rough=0.4))
+    cyl((0, 0, -0.95), 0.22, 0.2, mat('#c88a7a'), verts=16)
+    group(rot=(0, 30, 0))
+
+
+def treant_sap():
+    tube([(0, 0, 0.9), (0, 0, 0.5), (0, 0, -0.2)], [0.01, 0.25, 0.55], mat('#e0a030', rough=0.05, emit=0.4, alpha=0.85))
+    sphere((0, 0, -0.35), 0.55, mat('#e0a030', rough=0.05, emit=0.4, alpha=0.85))
+    sphere((-0.18, -0.4, -0.15), 0.12, glow('#fff1a8', 2), outline=False)
+
+
+def ectoplasm():
+    for k in range(4):
+        sphere((0.1 * math.sin(k * 2), 0, -0.5 + k * 0.35), 0.5 - k * 0.09, mat('#9ff0e0', emit=1.2, alpha=0.6), outline=False)
+    glow_eye = glow('#1b4a4a', 1)
+    for x in (-0.15, 0.15):
+        sphere((x, -0.45, 0.1), 0.07, glow_eye, outline=False)
+    sphere((0, -0.45, -0.15), 0.09, glow_eye, scale=(1.4, 1, 0.6), outline=False)
+
+
+def bat_wing():
+    prism([(0, 0.9), (0.4, 0.3), (0.9, 0.5), (0.7, -0.1), (1.0, -0.5), (0.4, -0.35), (0.1, -0.85), (-0.1, -0.2)], 0.06, mat('#5a3a5a', rough=0.8))
+    for p_ in ((0.9, 0.5), (1.0, -0.5), (0.1, -0.85)):
+        tube([(0, 0, 0.9), (p_[0] * 0.6, -0.05, p_[1] * 0.4 + 0.3), (p_[0], -0.05, p_[1])], [0.05, 0.035, 0.02], mat('#3a2a3a'))
+    group(rot=(-20, 0, 15))
+
+
+def imp_horn():
+    tube([(-0.5, 0, -0.8), (-0.3, 0, -0.1), (0.2, 0, 0.45), (0.65, 0, 0.6), (0.85, 0, 0.35)], [0.3, 0.24, 0.16, 0.08, 0.01], mat('#c8402a', rough=0.4))
+    for k in range(3):
+        torus((-0.45 + k * 0.12, 0, -0.65 + k * 0.28), 0.27 - k * 0.04, 0.03, mat('#7a2018'), rot=(0, 30 + k * 10, 0), outline=False)
+    group(rot=(0, 0, 15))
+
+
+def fire_essence():
+    sphere((0, 0, 0), 0.62, mat('#ffe6c0', rough=0.05, alpha=0.3))
+    sphere((0, 0, -0.05), 0.35, glow('#ffd84a', 6), outline=False)
+    for k in range(5):
+        a = k * 1.25
+        cyl((0.2 * math.cos(a), 0.2 * math.sin(a), 0.2), 0.12, 0.45, glow('#ff7a2a', 4), r2=0.0, verts=8, outline=False)
+    cyl((0, 0, 0.68), 0.15, 0.18, mat('#8a5a35'), verts=12)
+
+
+def lich_dust():
+    cyl((0, 0, -0.35), 0.55, 0.7, mat('#5a4a3a', rough=0.9), r2=0.35, verts=20)   # pouch
+    torus((0, 0, 0.05), 0.33, 0.06, mat('#3a2a1a'))
+    sphere((0, 0, 0.12), 0.32, glow('#b8e8a0', 2), scale=(1, 1, 0.5), outline=False)
+    for _ in range(10):
+        sphere((R.uniform(-0.6, 0.6), R.uniform(-0.4, 0.2), R.uniform(0.2, 0.9)), 0.04, glow('#b8ffa0', 5), outline=False)
+
+
 ITEMS = {
     'bonedagger': bone_dagger, 'bonesword': bone_sword, 'bonebow': bone_bow, 'bonestaff': bone_staff,
     'bonehelm': bone_helm, 'bonegloves': bone_gauntlets, 'boneboots': bone_boots, 'boneshield': bone_shield,
     'bonelegs': bone_legs, 'bonechest': bone_chest,
     'chipped': chipped_stone, 'enchstone': enchanted_stone,
+    'wool': wool, 'silk': silk, 'cloth': cloth, 'jelly': slime_jelly, 'fang': wolf_fang, 'sap': treant_sap, 'ecto': ectoplasm,
+    'batwing': bat_wing, 'imphorn': imp_horn, 'fireess': fire_essence, 'lichdust': lich_dust,
     'sand': sand, 'bones': bones, 'bigbones': bigbones, 'ash': demonic_ash, 'glass': molten_glass, 'vial': vial,
     'log0': lambda: log('#8a5a35', '#e8c99a', '#b8925a'),
     'log1': lambda: log('#efe9dc', '#f2e2c4', '#cdb08a', marks='#2a2420'),
@@ -1075,6 +1199,9 @@ for i in range(len(METAL)):
                     ('helm', helm), ('gloves', gauntlet), ('boots', boots), ('kite', kite), ('legs', platelegs)):
         ITEMS[f'{pre}{i}'] = (lambda fn, i: lambda: fn(i))(fn, i)
 
+for i in range(8):
+    ITEMS[f'hide{i}'] = (lambda i: lambda: hide(i))(i)
+    ITEMS[f'leather{i}'] = (lambda i: lambda: leather(i))(i)
 for k in GLYPH_KEYS:
     ITEMS['glyph_' + k] = (lambda k: lambda: glyph_tablet(k))(k)
 for i in range(len(METAL)):

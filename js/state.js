@@ -296,9 +296,12 @@ function collectRemains(units) {
   const got = {}; let lost = 0;
   for (const u of units) {
     if (u.side !== 'enemy' || u.hp > 0 || !u.key) continue;
-    const id = remainsOf(u.key, u.boss);
-    const k = invAdd(id) || (state.upgrades.courier && (depositAll(true), invAdd(id))) || 0;
-    if (k) got[id] = (got[id] || 0) + 1; else lost++;
+    for (const [id, n] of Object.entries(rollMobDrops(u.key, { [remainsOf(u.key, u.boss)]: 1 }))) {
+      let k = invAdd(id, n);
+      if (k < n && state.upgrades.courier) { depositAll(true); k += invAdd(id, n - k); }
+      if (k) got[id] = (got[id] || 0) + k;
+      lost += n - k;
+    }
   }
   return { got, lost };
 }
@@ -416,7 +419,8 @@ function stageEnemies(stage) {
   });
   const rng = mulberry(stage * 7919);
   // Melee monsters stand in front; archers and casters stay behind.
-  const melee = MONSTERS.filter(m => m.range !== 'ranged'), ranged = MONSTERS.filter(m => m.range === 'ranged');
+  const arena = MONSTERS.filter(m => !m.huntOnly);
+  const melee = arena.filter(m => m.range !== 'ranged'), ranged = arena.filter(m => m.range === 'ranged');
   const pickFor = slot => { const pool = slot < 2 ? melee : ranged; return pool[Math.floor(rng() * pool.length)]; };
   const slots = [null, null, null, null, null];
   if (isBoss(stage)) {
@@ -452,6 +456,7 @@ function rollLoot(areaIdx, lvl, key) {
   }
   if (Math.random() < 0.08) loot.gems = 1 + Math.floor(areaIdx / 2);
   if (key) { const r = remainsOf(key, !!(monsterTemplate(key) || {}).sprite?.startsWith('boss_')); loot.items[r] = (loot.items[r] || 0) + 1; } // every kill leaves remains
+  if (key) rollMobDrops(key, loot.items); // wool, hides, silk and alchemy ingredients
   return loot;
 }
 const stagePower = stage => stageEnemies(stage).reduce((s, e) => s + (e ? power(e) : 0), 0);

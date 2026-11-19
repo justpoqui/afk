@@ -5,7 +5,7 @@ let lookCat = 'all'; // all | melee | archery | magic
 let shopTab = 'upgrades';
 let hunt = null; // active hunting session
 const skillGroup = {}; // which recipe group each crafting skill page shows
-const GROUP_ICON = { Glyphs: '🔣', Robes: '🧙', 'Ranger Armor': '🏹', Bury: '🪦', Bonecraft: '🦴', 'Smelt Bars': '🔥', Weapons: '⚔️', Armor: '🛡️', Shields: '🛡️', Planks: '🪵', Glass: '🫧', Vials: '🧪', Orbs: '🔮', Bars: '🧱' };
+const GROUP_ICON = { Cloth: '🧵', Glyphs: '🔣', Robes: '🧙', 'Ranger Armor': '🏹', Bury: '🪦', Bonecraft: '🦴', 'Smelt Bars': '🔥', Weapons: '⚔️', Armor: '🛡️', Shields: '🛡️', Planks: '🪵', Glass: '🫧', Vials: '🧪', Orbs: '🔮', Bars: '🧱' };
 let battle = null;
 let autoTimer = null;
 
@@ -181,7 +181,8 @@ const pages = {
             ${a.monsters.map(([key, lvl], mi) => {
               const m = monsterUnit(ai, mi);
               return `<div class="mon-row"><span class="mon-art">${art(m, 'flip', true)}</span>
-                <div class="mon-info"><b>${m.name}</b><small>Lv <span class="lv ${diffClass(lvl)}">${lvl}</span> · ❤️ ${fmt(m.hp)} · ⚔️ ${fmt(m.atk)}${state.stats.mkills[key] ? ` · ☠ ${fmt(state.stats.mkills[key])}` : ''}</small></div>
+                <div class="mon-info"><b>${m.name}</b><small>Lv <span class="lv ${diffClass(lvl)}">${lvl}</span> · ❤️ ${fmt(m.hp)} · ⚔️ ${fmt(m.atk)}${state.stats.mkills[key] ? ` · ☠ ${fmt(state.stats.mkills[key])}` : ''}</small>
+                  ${MOB_DROPS[key] ? `<small class="mon-drops">Drops ${MOB_DROPS[key].map(([id]) => icon(id, 'sm')).join('')}</small>` : ''}</div>
                 <button class="btn sm" data-act="hunt" data-a="${ai}" data-m="${mi}">Fight</button></div>`;
             }).join('')}</section>`;
         }).join('')}`;

@@ -7,6 +7,9 @@ import os
 import sys
 import math
 import bpy
+import random
+
+R_ = random.Random(11)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import *  # noqa: E402,F403
@@ -436,6 +439,94 @@ def treant():
     box((0, -0.43, 1.3), (0.3, 0.05, 0.08), mat('#2b1d14'), outline=False)
 
 
+def quad_legs(m, hoof, xs=(-0.28, 0.28), ys=(-0.45, 0.6), h=0.6, r=0.12):
+    for x in xs:
+        for y in ys:
+            cyl((x, y, h / 2), r, h, m)
+            sphere((x, y - 0.03, 0.04), r * 1.05, hoof, scale=(1, 1.25, 0.55))
+
+
+def sheep():
+    wool, face = mat('#f6f2e8', rough=0.95), mat('#3a3038')
+    quad_legs(face, mat('#241c22'), xs=(-0.25, 0.25), ys=(-0.3, 0.45), h=0.85, r=0.1)
+    # fluffy body: a cluster of wool puffs
+    for x, y, z, r in ((0, 0.1, 0.95, 0.55), (-0.3, 0.35, 1.0, 0.36), (0.3, 0.35, 1.0, 0.36), (-0.3, -0.2, 1.0, 0.36), (0.3, -0.2, 1.0, 0.36),
+                       (0, 0.55, 1.05, 0.36), (0, -0.35, 1.15, 0.34), (0, 0.15, 1.35, 0.36), (-0.32, 0.1, 0.75, 0.3), (0.32, 0.1, 0.75, 0.3)):
+        sphere((x, y, z), r, wool)
+    sphere((0, -0.72, 1.18), 0.3, face, scale=(0.85, 1.1, 1))
+    sphere((0, -0.6, 1.42), 0.24, wool)   # woolly top knot
+    for s_ in (-1, 1):
+        sphere((s_ * 0.3, -0.62, 1.2), 0.12, face, scale=(1.6, 0.5, 0.6), rot=(0, s_ * -25, 0))   # floppy ears
+    eyes(z=1.24, y=-0.95, spread=0.12, size=0.055)
+    sphere((0, 0.72, 1.1), 0.14, wool)   # tail
+
+
+def boar():
+    fur, snout = mat('#6a4a32'), mat('#c48a78')
+    quad_legs(mat('#4a3322'), mat('#241a14'), h=0.5, r=0.12)
+    sphere((0, 0.1, 0.85), 0.6, fur, scale=(0.8, 1.35, 0.8))
+    sphere((0, -0.75, 0.95), 0.4, fur, scale=(0.85, 1, 0.9))
+    cyl((0, -1.12, 0.88), 0.17, 0.2, snout, rot=(90, 0, 0))
+    for s_ in (-1, 1):
+        sphere((s_ * 0.06, -1.23, 0.9), 0.035, mat('#3a2020'), outline=False)
+        tube([(s_ * 0.15, -1.0, 0.8), (s_ * 0.25, -1.12, 0.92), (s_ * 0.22, -1.15, 1.08)], [0.05, 0.04, 0.01], mat('#f4ecd8'))   # tusks
+        cyl((s_ * 0.24, -0.65, 1.32), 0.1, 0.22, fur, r2=0.0, rot=(-20, s_ * 20, 0))
+    for k in range(6):   # bristly ridge down the back
+        cyl((0, -0.5 + k * 0.22, 1.4 - abs(k - 2) * 0.04), 0.07, 0.22, mat('#3a2818'), r2=0.0)
+    glow_eyes('#ff6a3a', z=1.08, y=-1.02, spread=0.16, size=0.05)
+    tube([(0, 0.95, 0.95), (0.1, 1.15, 1.05), (0, 1.2, 1.2)], [0.04, 0.03, 0.01], fur)
+
+
+def bear():
+    fur, light = mat('#6b4528'), mat('#c89a6a')
+    quad_legs(fur, mat('#3a2616'), xs=(-0.38, 0.38), ys=(-0.5, 0.65), h=0.7, r=0.19)
+    sphere((0, 0.1, 1.05), 0.8, fur, scale=(0.85, 1.3, 0.85))
+    sphere((0, 0.0, 1.55), 0.45, fur, scale=(1, 1, 0.6))   # shoulder hump
+    sphere((0, -0.95, 1.35), 0.46, fur)
+    sphere((0, -1.32, 1.27), 0.22, light, scale=(0.9, 1.1, 0.8))
+    sphere((0, -1.5, 1.32), 0.07, mat('#1b1426', rough=0.2))
+    for s_ in (-1, 1):
+        sphere((s_ * 0.32, -0.88, 1.78), 0.14, fur)
+        sphere((s_ * 0.32, -0.94, 1.78), 0.08, light, outline=False)
+    eyes(z=1.48, y=-1.36, spread=0.17, size=0.06)
+    sphere((0, -0.75, 0.75), 0.36, light, scale=(0.9, 0.6, 1))   # chest patch
+
+
+def hound():
+    """A graveyard hound: lean, dark and bony, with glowing eyes."""
+    fur, bone = mat('#3c3644'), mat('#d8d0c0')
+    quad_legs(fur, mat('#221e28'), ys=(-0.45, 0.65), h=0.65, r=0.1)
+    sphere((0, 0.1, 0.85), 0.5, fur, scale=(0.7, 1.5, 0.75))
+    for k in range(4):   # ribs showing through
+        torus((0, -0.15 + k * 0.17, 0.85), 0.36, 0.03, bone, rot=(90, 0, 0), scale=(1, 1, 0.75))
+    sphere((0, -0.85, 1.22), 0.33, fur)
+    cyl((0, -1.17, 1.12), 0.17, 0.4, bone, r2=0.06, rot=(90, 0, 0))   # skull-like muzzle
+    for s_ in (-1, 1):
+        cyl((s_ * 0.18, -0.78, 1.55), 0.1, 0.35, fur, r2=0.0, rot=(0, s_ * 18, 0))
+    glow_eyes('#7dff7a', z=1.3, y=-1.08, spread=0.13, size=0.06)
+    tube([(0, 0.95, 0.95), (0, 1.35, 1.15), (0, 1.5, 1.5)], [0.08, 0.06, 0.02], fur)
+    for _ in range(4):
+        sphere((0.0 + 0.3 * (_ % 2 - 0.5), 0.2 * _ - 0.3, 1.2), 0.035, glow('#7dff7a', 4), outline=False)
+
+
+def yeti():
+    fur, skin = mat('#eef2f8', rough=0.95), mat('#7fa0c8')
+    for s_ in (-1, 1):
+        cyl((s_ * 0.35, 0, 0.4), 0.24, 0.8, fur)
+        sphere((s_ * 0.35, -0.12, 0.05), 0.26, skin, scale=(1, 1.4, 0.5))
+        tube([(s_ * 0.75, -0.05, 1.9), (s_ * 1.0, -0.15, 1.3), (s_ * 0.95, -0.25, 0.75)], [0.26, 0.24, 0.2], fur)   # long arms
+        sphere((s_ * 0.95, -0.28, 0.62), 0.2, skin)
+    sphere((0, 0, 1.4), 0.78, fur, scale=(1, 0.85, 1.05))
+    sphere((0, -0.1, 2.25), 0.42, fur)
+    sphere((0, -0.38, 2.2), 0.28, skin, scale=(1, 0.6, 0.9))   # face
+    cyl((0, -0.52, 2.06), 0.12, 0.05, mat('#2a3a5a'), rot=(90, 0, 0), scale=(1.4, 1, 1), outline=False)   # mouth
+    for s_ in (-1, 1):
+        cyl((s_ * 0.09, -0.53, 2.0), 0.03, 0.09, mat('#ffffff'), r2=0.0, rot=(180, 0, 0))
+    glow_eyes('#4fc3ff', z=2.27, y=-0.6, spread=0.1, size=0.05)
+    for _ in range(6):   # icy frost on the fur
+        sphere((R_.uniform(-0.6, 0.6), -0.55, R_.uniform(1.0, 1.9)), 0.04, glow('#cfefff', 2), outline=False)
+
+
 def fire_sprite():
     cyl((0, 0, 0.85), 0.55, 1.6, mat('#ff5a1a', emit=1.6, rough=0.4), r2=0.0, verts=10)
     for sx, h in ((-1, 0.7), (1, 0.85)):
@@ -492,13 +583,18 @@ SPRITES = {
     'mon_wraith': wraith,
     'mon_imp': lambda: humanoid('#d9443a', '#3a1f2a', '#2a1a20', '#000', 'none', accs=('horns', 'batwings', 'devtail'), props=('trident',), pc2='#5a2a3a', eye='#ffd84a'),
     'mon_golem': golem,
+    'mon_sheep': sheep,
+    'mon_boar': boar,
+    'mon_bear': bear,
+    'mon_hound': hound,
+    'mon_yeti': yeti,
     # Bosses
     'boss_ogre': lambda: humanoid('#8fae5a', '#7a5230', '#4f3a26', '#3a2a1a', 'tuft', belly=True, accs=('crown', 'tusks'), props=('club',), pc1='#6b4a2a'),
     'boss_wyrm': wyrm,
     'boss_lich': lambda: humanoid('#e8f2d8', '#2a2140', '#1a142a', '#000', 'none', headkind='skull', accs=('crown', 'cape'), props=('staff',), pc1='#7dff7a', robe=True, eye='#7dff7a'),
     'boss_kraken': kraken,
 }
-TURN = {'mon_wolf': -35, 'boss_wyrm': -30, 'mon_spider': -20}
+TURN = {'mon_wolf': -35, 'boss_wyrm': -30, 'mon_spider': -20, 'mon_sheep': -35, 'mon_boar': -35, 'mon_bear': -35, 'mon_hound': -35}
 
 
 BLEND_DIR = os.path.join(ROOT, 'art', 'blender', 'blend')

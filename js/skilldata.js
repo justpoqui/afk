@@ -34,6 +34,8 @@ const SKILLS = {
   carpentry:   { name: 'Carpentry',    icon: '🪚', type: 'craft', group: 'crafting', verb: 'Craft' },
   glassworking:{ name: 'Glassworking', icon: '🫙', type: 'craft', group: 'crafting', verb: 'Blow' },
   glyphmaking: { name: 'Glyph Making', icon: '🔣', type: 'craft', group: 'crafting', verb: 'Inscribe' },
+  tanning:     { name: 'Tanning',      icon: '🪣', type: 'craft', group: 'crafting', verb: 'Tan' },
+  weaving:     { name: 'Weaving',      icon: '🧶', type: 'craft', group: 'crafting', verb: 'Weave' },
   // Cooking & brewing: consumables
   cooking:     { name: 'Cooking',     icon: '🍳', type: 'craft', group: 'kitchen', verb: 'Cook' },
   alchemy:     { name: 'Alchemy',     icon: '⚗️', type: 'craft', group: 'kitchen', verb: 'Brew' },
@@ -41,7 +43,7 @@ const SKILLS = {
 
 const ITEMS = {};
 const ACTIONS = {}; // keyed by output item id (each item has exactly one recipe)
-const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Glyphs', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Remains', 'Misc'];
+const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Glyphs', 'Mob Drops', 'Leather', 'Cloth', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Remains', 'Misc'];
 
 // Every item has a Blender-rendered icon at assets/items/<id>.webp (see art/blender/items.py).
 // New items, including future monster drops, need a model there too; run `node art/check-item-icons.js`.
@@ -86,7 +88,6 @@ const POTIONS = [
   ['Aegis Elixir', { def: 0.35, hp: 0.15 }, 'DEF +35%, HP +15%'],
   ['Phoenix Tonic', { atk: 0.2, def: 0.2, hp: 0.2, spd: 0.15 }, 'All stats +15-20%'],
 ];
-const POTION_SECOND = [{}, { ore1: 1 }, { food1: 1 }, { log3: 1 }, { bar4: 1 }, { ore5: 1 }, { log6: 1 }, { bar7: 1 }];
 // Gear stats scale with the tier's level L: a short sword gives the damage, a chestplate the HP and defence.
 const gearAtk = L => Math.round(4 * L + 0.12 * L * L);
 const gearHp = L => Math.round(40 * L + 1.6 * L * L);
@@ -175,7 +176,7 @@ for (let i = 0; i < TIERS; i++) {
 
   // Potions are bottled in a Glass Vial from Glassworking
   addItem_('pot' + i, { name: POTIONS[i][0], icon: '🧪', tint: t, cat: 'Potions', tier: i, effect: POTIONS[i][1], effectText: POTIONS[i][2], sell: T_SELL[i] * 6 + 8 });
-  addAction_('alchemy', 'pot' + i, { level: T_LEVEL[i], dur: 4, xp: T_XP[i] * 2, inputs: { ['herb' + i]: 3, vial: 1, ...POTION_SECOND[i] } });
+  addAction_('alchemy', 'pot' + i, { level: T_LEVEL[i], dur: 4, xp: T_XP[i] * 2, inputs: { ['herb' + i]: 3, vial: 1 } }); // + a monster drop (set below)
 }
 
 // The first bow and staff need no level, so Archery and Magic can be trained from level 1.
@@ -245,6 +246,41 @@ for (let i = 0; i < TIERS; i++) {
   }
 }
 for (const it of Object.values(ITEMS)) for (const k of ['hp', 'def', 'atk']) if (it[k] === undefined) delete it[k];
+// ---- Monster drops for Weaving, Tanning and Alchemy (which monster drops what: MOB_DROPS in content.js) ----
+// They stack in the inventory like remains.
+const mobDrop_ = (id, name, icon, tint, tier, sell, maxStack = 10) => addItem_(id, { name, icon, tint, cat: 'Mob Drops', tier, sell, stack: true, maxStack });
+mobDrop_('wool', 'Wool', '🐑', '#f4f0e6', 0, 4);
+mobDrop_('silk', 'Spider Silk', '🕸️', '#e8e4f4', 1, 12);
+// Raw hides, one per tier, from beasts of that level. Tanning turns them into leather.
+const HIDES = [['Boar Hide', 'Boar'], ['Wolf Pelt', 'Wolf'], ['Bear Hide', 'Bear'], ['Hound Hide', 'Hound'], ['Yeti Hide', 'Yeti'], ['Ogre Hide', 'Ogre'], ['Dragon Hide', 'Dragon'], ['Kraken Hide', 'Kraken']];
+const HIDE_TINT = ['#9a6a45', '#8a8e98', '#6a4a30', '#4a4450', '#e8eef4', '#7a8a4a', '#a83a2a', '#5a4a8a'];
+HIDES.forEach(([name, beast], i) => {
+  mobDrop_('hide' + i, name, '🟫', HIDE_TINT[i], i, T_SELL[i] * 3, 5);
+  addItem_('leather' + i, { name: beast + ' Leather', icon: '🟫', tint: HIDE_TINT[i], cat: 'Leather', tier: i, sell: T_SELL[i] * 5 });
+  addAction_('tanning', 'leather' + i, { level: T_LEVEL[i], dur: 3 + i * 0.4, xp: Math.round(T_XP[i] * 1.2), inputs: { ['hide' + i]: 1 } });
+});
+// Alchemy ingredients: every potion now needs one, from the monster listed in MOB_DROPS.
+const ALCH_DROPS = [['jelly', 'Slime Jelly', '🟢', '#7fe07a'], ['fang', 'Wolf Fang', '🦷', '#f2eee0'], ['sap', 'Treant Sap', '🍯', '#e0a030'], ['ecto', 'Ectoplasm', '👻', '#9ff0e0'],
+  ['batwing', 'Bat Wing', '🦇', '#5a3a5a'], ['imphorn', 'Imp Horn', '😈', '#c8402a'], ['fireess', 'Fire Essence', '🔥', '#ff8a2a'], ['lichdust', 'Lich Dust', '💀', '#b8e8a0']];
+ALCH_DROPS.forEach(([id, name, icon, tint], i) => {
+  mobDrop_(id, name, icon, tint, i, T_SELL[i] * 2 + 2);
+  ACTIONS['pot' + i].inputs = { ['herb' + i]: 3, vial: 1, [id]: 1 };
+});
+
+// ---- Weaving: Wool becomes Cloth; ranger armor and mage robes are woven ----
+// Ranger armor: leather (Tanning) + cloth + an herb for lacing (Herbalism).
+// Mage robes: cloth + spider silk (from spiders) + an herb for dye + glyphs.
+addItem_('cloth', { name: 'Cloth', icon: '🧵', tint: '#efe8da', cat: 'Cloth', tier: 0, sell: 10 });
+addAction_('weaving', 'cloth', { level: 1, dur: 2.5, xp: 10, inputs: { wool: 2 }, group: 'Cloth' });
+for (let i = 0; i < TIERS; i++) {
+  for (const [suf, , , , n] of STYLE_ARMOR) {
+    Object.assign(ACTIONS['r' + suf + i], { skill: 'weaving', inputs: { ['leather' + i]: n, cloth: 1, ['herb' + i]: 1 } });
+    ITEMS['r' + suf + i].name = ACTIONS['r' + suf + i].name = ITEMS['r' + suf + i].name.replace(WOODS[i], HIDES[i][1]); // named after the hide
+    Object.assign(ACTIONS['m' + suf + i], { skill: 'weaving', level: ACTIONS['r' + suf + i].level,
+      inputs: { cloth: n, silk: Math.max(1, Math.ceil(n / 2)), ['herb' + i]: 1, ['glyph_' + GLYPHS[i][0]]: n } });
+  }
+}
+
 
 // Stackable items share one inventory slot (everything else takes one slot per item).
 // Every dish that burns while cooking turns into this.
@@ -317,7 +353,7 @@ function addSet_(id, name, pieces, fx, desc, atype) {
 for (let i = 0; i < TIERS; i++) {
   const gw = GLYPHS[i][1].replace(' Glyph', '');
   addSet_('metal' + i, `${METALS[i]} Set`, ['helm', 'armor', 'legs', 'gloves', 'boots'].map(p => p + i), { hp: 0.08, def: 0.12 }, '+8% max HP, +12% defence');
-  addSet_('ranger' + i, `${WOODS[i]} Ranger Set`, ['rhood', 'rbody', 'rlegs', 'rgloves', 'rboots'].map(p => p + i), { atk: 0.1, spd: 0.08 }, '+10% damage, +8% attack speed with Archery', 'archery');
+  addSet_('ranger' + i, `${HIDES[i][1]} Ranger Set`, ['rhood', 'rbody', 'rlegs', 'rgloves', 'rboots'].map(p => p + i), { atk: 0.1, spd: 0.08 }, '+10% damage, +8% attack speed with Archery', 'archery');
   addSet_('mage' + i, `${gw} Mage Set`, ['mhood', 'mbody', 'mlegs', 'mgloves', 'mboots'].map(p => p + i), { atk: 0.1, ult: 0.2 }, '+10% damage, +20% special power with Magic', 'magic');
 }
 addSet_('bone', 'Bone Set', ['bonehelm', 'bonechest', 'bonelegs', 'bonegloves', 'boneboots'], { hp: 0.1, ward: 0.05 }, '+10% max HP, 5% less damage taken');

@@ -3,14 +3,39 @@
 // ---- Hunting grounds: fight one monster at a time, on repeat (Melvor-style) ----
 // [monster key, level]. Keys match sprite names (mon_<key> / boss_<key>).
 const AREAS = [
-  { id: 'meadow', name: 'Mistvale Meadows', icon: '🌾', ch: 1, monsters: [['slime', 2], ['goblin', 5], ['wolf', 9]] },
-  { id: 'thorn',  name: 'Thornwood',        icon: '🌲', ch: 2, monsters: [['spider', 13], ['goblin_archer', 17], ['treant', 22]] },
-  { id: 'grave',  name: 'Ashen Graveyard',  icon: '⚰️', ch: 3, monsters: [['skeleton', 27], ['wraith', 32], ['cultist', 38]] },
-  { id: 'peaks',  name: 'Frostpeak Caves',  icon: '🏔️', ch: 4, monsters: [['bat', 43], ['golem', 49]] },
+  { id: 'meadow', name: 'Mistvale Meadows', icon: '🌾', ch: 1, monsters: [['sheep', 1], ['slime', 2], ['boar', 4], ['goblin', 5], ['wolf', 9]] },
+  { id: 'thorn',  name: 'Thornwood',        icon: '🌲', ch: 2, monsters: [['spider', 13], ['goblin_archer', 17], ['bear', 21], ['treant', 22]] },
+  { id: 'grave',  name: 'Ashen Graveyard',  icon: '⚰️', ch: 3, monsters: [['skeleton', 27], ['hound', 30], ['wraith', 32], ['cultist', 38]] },
+  { id: 'peaks',  name: 'Frostpeak Caves',  icon: '🏔️', ch: 4, monsters: [['bat', 43], ['yeti', 46], ['golem', 49]] },
   { id: 'depths', name: 'Sunken Depths',    icon: '🌊', ch: 5, monsters: [['imp', 55], ['fire_sprite', 62]] },
   { id: 'lairs',  name: 'Boss Lairs',       icon: '👑', ch: 6, monsters: [['ogre', 70], ['wyrm', 80], ['lich', 90], ['kraken', 99]] },
 ];
 const monsterTemplate = key => MONSTERS.find(m => m.sprite === 'mon_' + key) || BOSSES.find(b => b.sprite === 'boss_' + key);
+
+// ---- Monster drops: [item, chance, min, max] for each monster (hunting and arena kills) ----
+const MOB_DROPS = {
+  sheep: [['wool', 1, 1, 3]],
+  slime: [['jelly', 0.6, 1, 1]],
+  boar: [['hide0', 0.7, 1, 1]],
+  wolf: [['hide1', 0.6, 1, 1], ['fang', 0.4, 1, 1]],
+  spider: [['silk', 0.6, 1, 2]],
+  bear: [['hide2', 0.7, 1, 1]],
+  treant: [['sap', 0.5, 1, 1]],
+  hound: [['hide3', 0.65, 1, 1]],
+  wraith: [['ecto', 0.5, 1, 1]],
+  bat: [['batwing', 0.5, 1, 1]],
+  yeti: [['hide4', 0.65, 1, 1]],
+  imp: [['imphorn', 0.5, 1, 1]],
+  fire_sprite: [['fireess', 0.5, 1, 1]],
+  ogre: [['hide5', 0.8, 1, 2]],
+  wyrm: [['hide6', 0.8, 1, 2]],
+  lich: [['lichdust', 0.8, 1, 2]],
+  kraken: [['hide7', 0.8, 1, 2]],
+};
+function rollMobDrops(key, into = {}) {
+  for (const [id, chance, lo, hi] of MOB_DROPS[key] || []) if (Math.random() < chance) into[id] = (into[id] || 0) + lo + Math.floor(Math.random() * (hi - lo + 1));
+  return into;
+}
 
 // ---- Quests: deliver items, slay monsters, reach levels. Story quests unlock in order; skill quests need levels to start. ----
 const QUESTS = [

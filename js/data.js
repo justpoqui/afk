@@ -103,6 +103,12 @@ const MONSTERS = [
   { name: 'Cultist', sprite: 'mon_cultist', emoji: '🧙', range: 'ranged', proj: 'bolt', bolt: '#c77dff' },
   { name: 'Fire Sprite', sprite: 'mon_fire_sprite', emoji: '🔥', range: 'ranged', proj: 'bolt', bolt: '#ff8a2a' },
   { name: 'Golem', sprite: 'mon_golem',    emoji: '🗿', range: 'melee'  },
+  // Beasts hunted for wool and hides (the sheep only lives in the hunting grounds, not the arena)
+  { name: 'Sheep', sprite: 'mon_sheep', emoji: '🐑', range: 'melee', huntOnly: true },
+  { name: 'Boar', sprite: 'mon_boar', emoji: '🐗', range: 'melee' },
+  { name: 'Bear', sprite: 'mon_bear', emoji: '🐻', range: 'melee' },
+  { name: 'Grave Hound', sprite: 'mon_hound', emoji: '🐕', range: 'melee' },
+  { name: 'Yeti', sprite: 'mon_yeti', emoji: '🦍', range: 'melee' },
 ];
 const BOSSES = [
   { name: 'Ogre Chief', sprite: 'boss_ogre',   emoji: '👹' },
@@ -114,7 +120,7 @@ const BOSSES = [
 // The campaign is a chain of arenas, 10 rounds each (round 10 is the champion).
 // What each enemy leaves behind: demonic enemies turn to ash, big creatures (and every boss) leave big bones.
 const DEMONIC = new Set(['imp', 'fire_sprite']);
-const BIG_CREATURES = new Set(['golem', 'treant', 'ogre', 'wyrm', 'lich', 'kraken']);
+const BIG_CREATURES = new Set(['golem', 'treant', 'ogre', 'wyrm', 'lich', 'kraken', 'bear', 'yeti']);
 const remainsOf = (key, boss) => (DEMONIC.has(key) ? 'ash' : boss || BIG_CREATURES.has(key) ? 'bigbones' : 'bones');
 const CHAPTER_NAMES = ['Mistvale Colosseum', 'Thornwood Ring', 'Ashfire Pit', 'Frostpeak Coliseum', 'Sunken Amphitheatre', 'Crystal Abyss Arena'];
 // Fighting styles. Looks are grouped the same way in the Library.

@@ -281,9 +281,38 @@ const Sfx = (() => {
       noise(t, { dur: d, peak: 0.2, filter: 'lowpass', f0: 500, f1: 200, a: 0.1 });
     },
   };
+  Object.assign(MONSTER_VOICE, {
+    sheep(t, m) { // "baa-a-a": a bleat with a fast wobble
+      const d = m === 'atk' ? 0.45 : 0.8;
+      voice(t, { f0: m === 'die' ? 520 : 440, f1: m === 'die' ? 260 : 400, dur: d, peak: 0.3, F1: 800, F2: 1500, vib: 40, vibRate: 11, a: 0.04 });
+    },
+    boar(t, m) { // snorting grunts, a squeal when it falls
+      if (m === 'die') { voice(t, { f0: 900, f1: 500, dur: 0.5, peak: 0.25, F1: 1200, F2: 2500, type: 'square' }); return; }
+      for (let i = 0; i < (m === 'atk' ? 2 : 4); i++) {
+        voice(t + i * 0.16, { f0: rnd(90, 120), f1: 80, dur: 0.12, peak: 0.4, F1: 400, F2: 900, growl: 0.6, a: 0.01 });
+        noise(t + i * 0.16, { dur: 0.08, peak: 0.2, filter: 'bandpass', f0: 600, q: 2 });
+      }
+    },
+    bear(t, m) { // a deep roar
+      const d = m === 'atk' ? 0.45 : 1.1;
+      voice(t, { f0: m === 'die' ? 140 : 80, f1: m === 'die' ? 50 : 100, dur: d, peak: 0.5, F1: 450, F2: 1000, growl: 0.7, a: 0.06 });
+      noise(t, { dur: d, peak: 0.15, filter: 'bandpass', f0: 700, f1: 400, q: 1, a: 0.08 });
+    },
+    hound(t, m) { // ghostly barks and a growl
+      if (m === 'atk') { for (let i = 0; i < 2; i++) voice(t + i * 0.18, { f0: 300, f1: 180, dur: 0.12, peak: 0.4, F1: 700, F2: 1400, a: 0.005 }); return; }
+      if (m === 'special') { voice(t, { f0: 350, f1: 480, dur: 1.0, peak: 0.25, F1: 600, F2: 1100, type: 'triangle', vib: 10, vibRate: 5, a: 0.15 }); return; }
+      voice(t, { f0: 600, f1: 250, dur: 0.5, peak: 0.25, F1: 900, F2: 1600, type: 'triangle', vib: 15, vibRate: 7 });
+    },
+    yeti(t, m) { // a booming roar with a howl on top
+      const d = m === 'atk' ? 0.5 : 1.2;
+      voice(t, { f0: 65, f1: m === 'die' ? 40 : 85, dur: d, peak: 0.5, F1: 350, F2: 800, growl: 0.6, a: 0.06 });
+      voice(t + 0.05, { f0: 260, f1: m === 'die' ? 140 : 330, dur: d * 0.9, peak: 0.15, F1: 600, F2: 1000, type: 'triangle', vib: 8, vibRate: 5, a: 0.1 });
+      tone(t, { type: 'sine', f0: 50, f1: 35, dur: d, peak: 0.35 });
+    },
+  });
   // Loudness per monster, so quiet voices (rattles, crackles) and huge bosses sit at a similar level.
   const MONSTER_VOL = { skeleton: 2.6, cultist: 1.8, fire_sprite: 2.6, bat: 1.5, spider: 1.4, slime: 1.3, golem: 1.3,
-    goblin: 0.8, goblin_archer: 0.85, imp: 0.75, wolf: 1, wraith: 0.85, treant: 0.9, lich: 1.1, ogre: 0.6, wyrm: 0.55, kraken: 0.6 };
+    goblin: 0.8, goblin_archer: 0.85, imp: 0.75, wolf: 1, wraith: 0.85, treant: 0.9, lich: 1.1, ogre: 0.6, wyrm: 0.55, kraken: 0.6, sheep: 0.75, boar: 0.7, bear: 0.65, hound: 0.75, yeti: 0.6 };
   function monster(key, mode) {
     const fn = MONSTER_VOICE[key];
     if (!fn || !on || !ctx || ctx.state !== 'running' || document.hidden) return false;
