@@ -59,6 +59,7 @@ function toggleAction(id) {
   if (!hasInputs(act)) return 'inputs';
   courierCheck(act);
   if (!hasRoom(act)) return 'full';
+  if (afkFull()) state.afkCollected = claimIdle(); // starting a skill with a full AFK clock collects it first
   state.active = { action: id, start: Date.now() };
   save();
   return 'started';
@@ -100,7 +101,9 @@ function processSkilling(now = Date.now()) {
   const a = state.active;
   if (!a) return null;
   const act = ACTIONS[a.action], dur = actionDur(act) * 1000;
-  let elapsed = Math.min(now - a.start, IDLE_CAP_MS);
+  // Skills share the Idle Rewards AFK clock: no progress past 12h after the last collect.
+  const until = Math.min(now, afkLimit());
+  const elapsed = until - a.start;
   if (elapsed < dur) return null;
   const n = Math.floor(elapsed / dur);
   const sum = { skill: act.skill, items: {}, xp: 0, count: 0, levelUp: 0, stopped: false, ms: now - a.start };
@@ -110,7 +113,7 @@ function processSkilling(now = Date.now()) {
     doAction(act, sum);
   }
   if (sum.stopped || !canDo(act)) { state.active = null; sum.stopped = true; sum.full = sum.full || !hasRoom(act); }
-  else a.start = now - ((now - a.start) % dur);
+  else a.start += n * dur; // keeps partial progress; stays put while the AFK clock is full
   save();
   return sum;
 }

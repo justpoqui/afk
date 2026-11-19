@@ -97,7 +97,8 @@ function invGrid(small = false) {
 }
 function invBar() {
   return `<div class="inv-bar ${invFull() ? 'is-full' : ''}"><span>🎒 Inventory <b>${invUsed()}/${invSize()}</b>${invFull() ? ' · full!' : ''}</span>
-    <button class="btn sm ghost" data-act="depositall">Deposit all</button><button class="btn sm ghost" data-page="inventory">Open</button></div>`;
+    <button class="btn sm ghost" data-act="depositall">Deposit all</button><button class="btn sm ghost" data-page="inventory">Open</button></div>
+    ${state.active && afkFull() ? `<div class="inv-bar is-full"><span>⏳ AFK clock full (${AFK_HOURS}h): skilling is paused</span><button class="btn sm gold" data-act="claim">Collect</button></div>` : ''}`;
 }
 
 // Called often; updates progress bars without re-rendering.
@@ -140,11 +141,13 @@ const pages = {
       <section class="panel home-head">
         <img class="camp-banner" src="assets/bg/camp.webp" alt="Your camp" draggable="false">
         <div class="idle-box">
-          <div class="idle-title">Idle Rewards <small>${fmtTime(p.ms)} / ${AFK_HOURS}h · ${r.gold} 🪙/min · ${r.gemsPerHour} 💎/h</small></div>
+          <div class="idle-title">Idle Rewards <small>AFK ${fmtTime(p.ms)} / ${AFK_HOURS}h · ${r.gold} 🪙/min · ${r.gemsPerHour} 💎/h</small></div>
           <div class="bar-track"><i style="width:${100 * p.ms / IDLE_CAP_MS}%"></i></div>
           <div class="row-btns"><div class="idle-loot">🪙 ${fmt(p.gold)} &nbsp; 💎 ${fmt(p.gems)}</div><button class="btn gold sm" data-act="claim">Collect</button></div>
         </div>
         <div class="doing">${busy ? `Now: ${SKILLS[busy.skill].icon} <b>${busy.name}</b> · 🎒 ${invUsed()}/${invSize()}` : 'Idle: pick a skill or go fight.'}</div>
+        ${busy && afkFull() ? `<p class="warn">⏳ AFK clock full: ${SKILLS[busy.skill].name} is paused. Collect to keep going.</p>` : ''}
+        <p class="hint">Skills share this ${AFK_HOURS}h AFK clock. Collecting resets it for both.</p>
       </section>
       <div class="tiles">
         ${tile('fight', '⚔️', 'Fight', `Arena ${stageLabel(state.stage)} · Hunting`)}
@@ -406,7 +409,7 @@ const pages = {
     return `${head}${blessing}${invBar()}${picker}
       ${id === 'cooking' ? `<p class="hint">Food can burn: ${Math.round(burnChance(ACTIONS.food0) * 100)}% for ${ACTIONS.food0.name} at your level. Burnt dishes become stackable 🍖 Burnt Food.</p>` : ''}
       <div class="act-grid">${acts.filter(a => a.group === cur).map(actCard).join('')}</div>
-      <p class="hint">Crafting only uses materials in your <b>inventory</b>; tap 📥 to withdraw a recipe's materials from the bank. You can do one thing at a time: one skill action, or fighting. Items go into your inventory one slot each, and the action stops when it's full, so deposit in the bank, where items stack. Skills keep going while the game is closed (up to ${AFK_HOURS}h, the same as idle combat rewards).</p>`;
+      <p class="hint">Crafting only uses materials in your <b>inventory</b>; tap 📥 to withdraw a recipe's materials from the bank. You can do one thing at a time: one skill action, or fighting. Items go into your inventory one slot each, and the action stops when it's full, so deposit in the bank, where items stack. Skills keep going while the game is closed, on the same ${AFK_HOURS}h AFK clock as Idle Rewards.</p>`;
   },
 
   bank() {
@@ -680,9 +683,12 @@ function showLook(id) {
 function onSkillTick(sum, offline) {
   if (!sum) return;
   if (offline && sum.count) {
-    openModal(`<h2>Welcome back!</h2><p class="muted">While you were away (${fmtTime(sum.ms)}), your ${SKILLS[sum.skill].name} kept going:</p>
+    // Coming back collects skill progress, and with it the Idle Rewards: they share one AFK clock.
+    const idle = claimIdle();
+    openModal(`<h2>Welcome back!</h2><p class="muted">While you were away (${fmtTime(Math.min(sum.ms, IDLE_CAP_MS))}${sum.ms > IDLE_CAP_MS ? `, AFK limit ${AFK_HOURS}h` : ''}), your ${SKILLS[sum.skill].name} kept going:</p>
       <div class="loot">${Object.entries(sum.items).map(([id, n]) => `<span>${icon(id)} +${fmt(n)} ${ITEMS[id].name}</span>`).join('')}
-      <span>${SKILLS[sum.skill].icon} +${fmt(sum.xp)} XP${sum.levelUp ? ` · now level ${sum.levelUp}!` : ''}</span></div>
+      <span>${SKILLS[sum.skill].icon} +${fmt(sum.xp)} XP${sum.levelUp ? ` · now level ${sum.levelUp}!` : ''}</span>
+      ${idle.gold || idle.gems ? `<span>🪙 +${fmt(idle.gold)} 💎 +${idle.gems} idle rewards</span>` : ''}</div>
       ${sum.stopped ? `<p class="muted">It stopped when ${sum.full ? 'your inventory filled up. Deposit items in the bank to keep going' : 'you ran out of materials'}.</p>` : ''}
       <button class="btn" data-act="close">Nice</button>`);
   } else if (sum.levelUp) toast(`${SKILLS[sum.skill].icon} ${SKILLS[sum.skill].name} level ${sum.levelUp}!`);
@@ -863,6 +869,7 @@ document.addEventListener('click', e => {
     if (r === 'level') toast(`Requires level ${ACTIONS[actCardEl.dataset.action].level}`);
     if (r === 'inputs') toast('Not enough materials in your inventory. Withdraw them from the bank (📥).');
     if (r === 'full') toast('🎒 Inventory full. Deposit items in the bank first.');
+    if (state.afkCollected) { const p = state.afkCollected; delete state.afkCollected; toast(`⏳ AFK clock reset · collected 🪙${fmt(p.gold)} 💎${p.gems}`); }
     render(); return;
   }
   const bi = t.closest('[data-item]:not([data-act])');

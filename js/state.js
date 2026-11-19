@@ -525,7 +525,15 @@ function pendingIdle() {
   const min = ms / 60000, r = idleRates();
   return { ms, gold: Math.floor(r.gold * min), gems: Math.floor(r.gemsPerHour * min / 60) };
 }
+// One AFK clock for Idle Rewards and skills: both stop earning 12h after the last collect,
+// and collecting either one (idle rewards, or skill progress when you come back) resets it for both.
+const afkLimit = () => state.lastClaim + IDLE_CAP_MS;
+const afkFull = () => Date.now() >= afkLimit();
 function claimIdle() {
+  const now = Date.now(), wasFull = now >= afkLimit();
+  processSkilling(now); // bank skill progress up to the old limit first
+  const a = state.active;
+  if (a && wasFull) a.start = now - Math.max(0, afkLimit() - a.start); // resume from now, keeping partial progress
   const p = pendingIdle();
   state.gold += p.gold; state.gems += p.gems;
   state.lastClaim = Date.now();
