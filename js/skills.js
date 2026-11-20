@@ -24,7 +24,8 @@ const actionDur = act => +(act.dur * (1 - TOOL_SPEED * toolTier(act.skill))).toF
 // the materials the current recipe still needs.
 function courierCheck(act) {
   if (act.noOutput) return false; // burying frees space, it never needs room
-  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(true, Object.keys(act.inputs)); return invRoomFor(act.id, 1) > 0; }
+  // Skilling sends everything but the recipe's materials (cooked food too: it's what Cooking makes).
+  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(false, Object.keys(act.inputs)); return invRoomFor(act.id, 1) > 0; }
   return false;
 }
 // Crafting only uses materials carried in the inventory (withdraw them from the bank first).
@@ -47,7 +48,9 @@ function withdrawFor(act) {
   return k;
 }
 // Every finished item needs a free inventory slot (cooking can also produce stackable Burnt Food).
-const hasRoom = act => act.noOutput || invRoomFor(act.id, 1) > 0;
+// Using up a non-stacking material frees its slot, so a full inventory of materials can still be crafted.
+const freesSlot = act => Object.keys(act.inputs).some(id => !ITEMS[id].stack && invCount(id) > 0);
+const hasRoom = act => act.noOutput || invRoomFor(act.id, 1) > 0 || freesSlot(act);
 const canDo = act => skillLevel(act.skill) >= act.level && hasInputs(act) && hasRoom(act);
 // Cooking burns sometimes: 40% at the recipe's level, 1.2% less per level above it, never below 2%.
 const burnChance = act => (act.skill === 'cooking' ? Math.max(0.02, 0.4 - (skillLevel('cooking') - act.level) * 0.012) : 0);
@@ -58,7 +61,7 @@ function toggleAction(id) {
   if (skillLevel(act.skill) < act.level) return 'level';
   if (!hasInputs(act)) return 'inputs';
   courierCheck(act);
-  if (!hasRoom(act)) return 'full';
+  if (!hasRoom(act)) return state.upgrades.courier && bankUsed() >= bankSize() ? 'bankfull' : 'full';
   if (afkFull()) state.afkCollected = claimIdle(); // starting a skill with a full AFK clock collects it first
   state.active = { action: id, start: Date.now() };
   save();
@@ -67,7 +70,8 @@ function toggleAction(id) {
 
 function doAction(act, sum) {
   const before = skillLevel(act.skill);
-  const lucky = Math.random() < bonusChance(act.skill);
+  // Keep-materials luck only when the result fits without using up a material's slot.
+  const lucky = Math.random() < bonusChance(act.skill) && (act.noOutput || invRoomFor(act.id, 1) > 0);
   if (!(lucky && SKILLS[act.skill].type === 'craft')) {
     for (const [id, n] of Object.entries(act.inputs)) invRemove(id, n);
   }
@@ -111,9 +115,12 @@ function processSkilling(now = Date.now()) {
     if (courierCheck(act)) sum.couriered = true;
     if (!canDo(act)) { sum.stopped = true; sum.full = !hasRoom(act); break; }
     doAction(act, sum);
+    // The courier empties the inventory as soon as it fills, keeping the recipe's materials.
+    if (state.upgrades.courier && invFull()) { depositAll(false, Object.keys(act.inputs)); sum.couriered = true; }
   }
   if (sum.stopped || !canDo(act)) { state.active = null; sum.stopped = true; sum.full = sum.full || !hasRoom(act); }
   else a.start += n * dur; // keeps partial progress; stays put while the AFK clock is full
+  sum.bankFull = sum.full && !!state.upgrades.courier && bankUsed() >= bankSize(); // the courier had nowhere to put new item types
   save();
   return sum;
 }

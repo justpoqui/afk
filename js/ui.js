@@ -690,10 +690,10 @@ function onSkillTick(sum, offline) {
       <div class="loot">${Object.entries(sum.items).map(([id, n]) => `<span>${icon(id)} +${fmt(n)} ${ITEMS[id].name}</span>`).join('')}
       <span>${SKILLS[sum.skill].icon} +${fmt(sum.xp)} XP${sum.levelUp ? ` · now level ${sum.levelUp}!` : ''}</span>
       ${idle.gold || idle.gems ? `<span>🪙 +${fmt(idle.gold)} 💎 +${idle.gems} idle rewards</span>` : ''}</div>
-      ${sum.stopped ? `<p class="muted">It stopped when ${sum.full ? 'your inventory filled up. Deposit items in the bank to keep going' : 'you ran out of materials'}.</p>` : ''}
+      ${sum.stopped ? `<p class="muted">It stopped when ${sum.bankFull ? `your bank ran out of slots (${bankUsed()}/${bankSize()}), so the courier couldn't store new items. Sell items or buy bank slots in the Shop` : sum.full ? 'your inventory filled up. Deposit items in the bank to keep going' : 'you ran out of materials'}.</p>` : ''}
       <button class="btn" data-act="close">Nice</button>`);
   } else if (sum.levelUp) toast(`${SKILLS[sum.skill].icon} ${SKILLS[sum.skill].name} level ${sum.levelUp}!`);
-  else if (sum.stopped) toast(sum.full ? '🎒 Inventory full! Deposit items in the bank.' : 'Out of materials. Action stopped.');
+  else if (sum.stopped) toast(sum.bankFull ? `🏦 Bank full (${bankUsed()}/${bankSize()} slots): the courier can't store new items. Sell some or buy bank slots.` : sum.full ? '🎒 Inventory full! Deposit items in the bank.' : 'Out of materials. Action stopped.');
   if (!offline) {
     const bank = page === 'bank' || page === 'inventory' || page === 'skill:' + sum.skill || page === 'tasks';
     if (bank) render(); else { renderNav(); renderTop(); }
@@ -870,6 +870,7 @@ document.addEventListener('click', e => {
     if (r === 'level') toast(`Requires level ${ACTIONS[actCardEl.dataset.action].level}`);
     if (r === 'inputs') toast('Not enough materials in your inventory. Withdraw them from the bank (📥).');
     if (r === 'full') toast('🎒 Inventory full. Deposit items in the bank first.');
+    if (r === 'bankfull') toast(`🏦 Bank full (${bankUsed()}/${bankSize()} slots): the courier can't store new items. Sell some or buy bank slots in the Shop.`);
     if (state.afkCollected) { const p = state.afkCollected; delete state.afkCollected; toast(`⏳ AFK clock reset · collected 🪙${fmt(p.gold)} 💎${p.gems}`); }
     render(); return;
   }
