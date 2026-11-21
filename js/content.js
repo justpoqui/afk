@@ -37,6 +37,68 @@ function rollMobDrops(key, into = {}) {
   return into;
 }
 
+// ---- Dungeons: a run of waves fought one after another (HP carries over), ending with a boss.
+// The boss drops a chest whose tier is rolled when it falls; each chest holds 6-10 random rewards.
+// area: which hunting area's background and gem rate to use; tier: the material tier of the loot.
+const DUNGEONS = [
+  { id: 'warren',  name: 'Goblin Warren',     icon: '🕳️', area: 0, tier: 0, waves: [['slime', 3], ['boar', 4], ['goblin', 5], ['goblin', 6], ['wolf', 8]],
+    boss: { key: 'goblin', lvl: 10, name: 'Goblin Warlord' } },
+  { id: 'hollow',  name: 'Thornwood Hollow',  icon: '🌳', area: 1, tier: 1, waves: [['spider', 14], ['goblin_archer', 17], ['bear', 20], ['spider', 21], ['treant', 23]],
+    boss: { key: 'treant', lvl: 26, name: 'Elder Treant' } },
+  { id: 'crypt',   name: 'Sunken Crypt',      icon: '⚰️', area: 2, tier: 2, waves: [['skeleton', 28], ['hound', 30], ['wraith', 33], ['skeleton', 36], ['cultist', 38]],
+    boss: { key: 'skeleton', lvl: 42, name: 'Bone Colossus' } },
+  { id: 'glacier', name: 'Frozen Depths',     icon: '❄️', area: 3, tier: 3, waves: [['bat', 44], ['yeti', 46], ['bat', 48], ['golem', 50]],
+    boss: { key: 'yeti', lvl: 55, name: 'Yeti Matriarch' } },
+  { id: 'rift',    name: 'Infernal Rift',     icon: '🔥', area: 4, tier: 4, waves: [['imp', 56], ['fire_sprite', 60], ['imp', 63], ['fire_sprite', 66], ['golem', 68]],
+    boss: { key: 'ogre', lvl: 72, name: 'Ogre Chief' } },
+  { id: 'abyss',   name: 'Abyssal Sanctum',   icon: '🌀', area: 5, tier: 6, waves: [['cultist', 80], ['fire_sprite', 84], ['golem', 88], ['wyrm', 90]],
+    boss: { key: 'kraken', lvl: 100, name: 'Abyssal Kraken' } },
+];
+// Chest tiers rolled when the boss falls: weight (chance), how much more loot, and better rolls.
+const CHEST_TIERS = [
+  { id: 'wooden',  name: 'Wooden Chest',  color: '#b07a40', weight: 45, mult: 1,   gear: 0.04, up: 0,    scroll: 0 },
+  { id: 'iron',    name: 'Iron Chest',    color: '#9aa7b4', weight: 30, mult: 1.5, gear: 0.07, up: 0.05, scroll: 0 },
+  { id: 'silver',  name: 'Silver Chest',  color: '#dfe6ee', weight: 15, mult: 2.2, gear: 0.1,  up: 0.15, scroll: 0 },
+  { id: 'golden',  name: 'Golden Chest',  color: '#f2c14e', weight: 8,  mult: 3,   gear: 0.15, up: 0.3,  scroll: 0.1 },
+  { id: 'mythic',  name: 'Mythic Chest',  color: '#b48cff', weight: 2,  mult: 4.5, gear: 0.25, up: 0.5,  scroll: 0.35 },
+];
+CHEST_TIERS.forEach(c => { c.img = `assets/chests/${c.id}.webp`; });
+function rollChestTier() {
+  let r = Math.random() * CHEST_TIERS.reduce((s, c) => s + c.weight, 0);
+  return CHEST_TIERS.find(c => (r -= c.weight) < 0) || CHEST_TIERS[0];
+}
+// 6-10 different rewards from the dungeon's tier (better chests roll more, and sometimes a tier higher).
+function rollChestLoot(d, chest) {
+  const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1)), pick = a => a[Math.floor(Math.random() * a.length)];
+  const lvl = d.boss.lvl, loot = { gold: 0, gems: 0, scrolls: 0, items: {} };
+  const count = rnd(6, 10);
+  const kinds = [['mat', 30], ['drop', 18], ['food', 10], ['pot', 6], ['glyph', 8], ['gold', 10], ['gems', 8], ['remains', 5], ['gear', 100 * chest.gear], ['scroll', 100 * chest.scroll]];
+  const total = kinds.reduce((s, k) => s + k[1], 0);
+  let rolls = 0;
+  for (let got = 0; got < count && rolls < 200; rolls++) {
+    let r = Math.random() * total, kind = kinds.find(k => (r -= k[1]) < 0)[0];
+    const t = Math.min(TIERS - 1, d.tier + (Math.random() < chest.up ? 1 : 0)), m = chest.mult;
+    let id = null, n = 0;
+    if (kind === 'gold') { if (loot.gold) continue; loot.gold = Math.round((150 + lvl * 25) * (0.8 + Math.random() * 0.6) * m); got++; continue; }
+    if (kind === 'gems') { if (loot.gems) continue; loot.gems = Math.round(rnd(8, 20) * m); got++; continue; }
+    if (kind === 'scroll') { if (loot.scrolls) continue; loot.scrolls = chest.id === 'mythic' ? rnd(1, 2) : 1; got++; continue; }
+    if (kind === 'mat') { id = pick(['log', 'ore', 'fish', 'herb', 'bar', 'plank']) + t; n = rnd(4, 9); }
+    if (kind === 'drop') { id = pick(['hide' + t, ALCH_DROPS[t][0], 'wool', 'silk', 'chipped']); n = rnd(2, 5); }
+    if (kind === 'food') { id = 'food' + t; n = rnd(2, 5); }
+    if (kind === 'pot') { id = 'pot' + t; n = rnd(1, 2); }
+    if (kind === 'glyph') { id = 'glyph_' + GLYPHS[Math.min(t, GLYPHS.length - 1)][0]; n = rnd(10, 25); }
+    if (kind === 'remains') { id = pick(['bones', 'bigbones', 'ash']); n = rnd(3, 8); }
+    if (kind === 'gear') {
+      id = pick(['dagger', 'sword', 'longsword', 'greatsword', 'bow', 'staff', 'helm', 'armor', 'legs', 'gloves', 'boots', 'kite', 'wshield',
+        'rhood', 'rbody', 'rlegs', 'rgloves', 'rboots', 'mhood', 'mbody', 'mlegs', 'mgloves', 'mboots']) + t; n = 1;
+    }
+    if (!ITEMS[id] || loot.items[id]) continue; // every reward in a chest is a different item
+    loot.items[id] = kind === 'gear' ? 1 : Math.max(1, Math.round(n * m));
+    got++;
+  }
+  return loot;
+}
+
 // ---- Quests: deliver items, slay monsters, reach levels. Story quests unlock in order; skill quests need levels to start. ----
 const QUESTS = [
   { id: 'woodsman', name: "The Woodsman's Request", icon: '🪵', desc: 'The camp needs firewood and metal for the winter.',

@@ -18,7 +18,7 @@ function newState() {
     upgrades: { tools: {}, backpack: 0, courier: false, bankSlots: 0 }, bonusSlots: 0, quests: {},
     bank: {}, inv: [], skills: Object.fromEntries(Object.keys(SKILLS).map(k => [k, { xp: k === 'hitpoints' ? xpForLevel(START_HP_LEVEL) : 0 }])),
     active: null, provision: null, potion: null, tasksClaimed: [], tiersClaimed: [],
-    stats: { actions: {}, summons: 0, claims: 0, equips: 0, potions: 0, eaten: 0, kills: 0, burnt: 0, mkills: {} },
+    stats: { actions: {}, summons: 0, claims: 0, equips: 0, potions: 0, eaten: 0, kills: 0, burnt: 0, mkills: {}, dungeons: {}, chests: 0 },
   };
 }
 
@@ -445,6 +445,29 @@ function monsterUnit(areaIdx, monIdx) {
     skill: boss ? { name: 'Cataclysm', type: 'nuke', power: 2.6 } : { name: 'Frenzy', type: 'nuke', power: 2.0 },
   };
 }
+// One wave of a dungeon run: a monster of that wave's level, or (last wave) the dungeon's boss.
+const dungeonWaves = d => d.waves.length + 1;
+function dungeonUnit(di, wave) {
+  const d = DUNGEONS[di], last = wave >= d.waves.length;
+  const [key, lvl] = last ? [d.boss.key, d.boss.lvl] : d.waves[wave];
+  const tpl = monsterTemplate(key), realBoss = tpl.sprite.startsWith('boss_'), mult = enemyMult(lvl - 1);
+  const u = {
+    key, name: last ? d.boss.name : tpl.name, emoji: tpl.emoji, sprite: tpl.sprite, range: tpl.range || 'melee', boss: last, lvl,
+    proj: tpl.range === 'ranged' ? (tpl.proj || 'bolt') : (realBoss ? 'bolt' : null), bolt: tpl.bolt || (realBoss ? '#ff5d5d' : null),
+    hp: Math.round(520 * mult * (last ? 1.0 : 0.4)), atk: Math.round(40 * mult * (last ? 2.2 : 1.8)),
+    def: Math.round(18 * mult * (last ? 1.2 : 1)), spd: last ? 85 : 90,
+    skill: last ? { name: 'Crushing Blow', type: 'nuke', power: 2.6 } : { name: 'Frenzy', type: 'nuke', power: 2.0 },
+  };
+  return u;
+}
+// Banks a dungeon chest's rewards (items go to the bank).
+function claimChest(loot) {
+  state.gold += loot.gold; state.gems += loot.gems; state.scrolls += loot.scrolls;
+  for (const [id, n] of Object.entries(loot.items)) addItem(id, n);
+  state.stats.chests++;
+  save();
+}
+
 // Gold and item drops for a hunting kill: materials of the area's tier, rare gear, the odd gem.
 function rollLoot(areaIdx, lvl, key) {
   // Drops come from the highest tier at or below the monster's level.

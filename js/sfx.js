@@ -123,6 +123,11 @@ const Sfx = (() => {
     win(t) { [523, 659, 784, 1047].forEach((f, i) => tone(t + i * 0.11, { type: 'triangle', f0: f, dur: 0.3, peak: 0.22 })); },
     lose(t) { [392, 330, 262].forEach((f, i) => tone(t + i * 0.16, { type: 'triangle', f0: f, dur: 0.4, peak: 0.2 })); },
     cheer(t) { cheer(t); },
+    tick(t) { tone(t, { type: 'square', f0: 1800, f1: 1400, dur: 0.03, peak: 0.08, a: 0.001 }); },
+    chest(t) { // lid opens: a thunk, then a sparkling run of notes
+      tone(t, { type: 'triangle', f0: 160, f1: 90, dur: 0.15, peak: 0.4 });
+      [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(t + 0.12 + i * 0.07, { type: 'sine', f0: f, dur: 0.35, peak: 0.15 }));
+    },
     boo(t) { boo(t); },
   };
 
@@ -331,7 +336,7 @@ const Sfx = (() => {
   function play(name) {
     if (!on || !ctx || ctx.state !== 'running' || document.hidden || !SOUNDS[name]) return;
     const now = ctx.currentTime;
-    if ((name in last && now - last[name] < 0.04) || voices > 10) return; // don't stack the same sound in one instant
+    if ((name in last && now - last[name] < (name === 'tick' ? 0.02 : 0.04)) || voices > 10) return; // don't stack the same sound in one instant
     last[name] = now; voices++;
     setTimeout(() => voices--, 300);
     try { SOUNDS[name](now + 0.005); } catch (e) { /* never break the game over a sound */ }

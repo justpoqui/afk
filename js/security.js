@@ -188,6 +188,7 @@ function validateState(s) {
   for (const [id, n] of Object.entries(plainObj(st.actions))) if (ACTIONS[id]) stats.actions[id] = int(n, 0, MAX, 0);
   const monsterKeys = new Set(AREAS.flatMap(a => a.monsters.map(m => m[0])).concat([...MONSTERS, ...BOSSES].map(m => m.sprite.replace(/^(mon|boss)_/, ''))));
   for (const [k, n] of Object.entries(plainObj(st.mkills))) if (monsterKeys.has(k)) stats.mkills[k] = int(n, 0, MAX, 0);
+  for (const [k, n] of Object.entries(plainObj(st.dungeons))) if (DUNGEONS.some(d => d.id === k)) stats.dungeons[k] = int(n, 0, MAX, 0);
   s.stats = stats;
 
   const taskKeys = new Set(TASK_TIERS.flatMap(t => t.tasks.map(x => x.key)));

@@ -644,3 +644,17 @@ textarea.code { width: 100%; min-height: 84px; background: #120f1a; color: var(-
 
 .mon-drops { display: flex; align-items: center; gap: 2px; opacity: 0.85; }
 .mon-drops .ico.sm { width: 20px; height: 20px; }
+
+/* Dungeons */
+.chest-odds { display: flex; justify-content: space-between; gap: 4px; margin: 6px 0 10px; }
+.chest-odds span { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--c); font-weight: 700; }
+.chest-odds img { width: 44px; height: 44px; }
+.chest-roll { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 8px 0; }
+.chest-roll img { width: 128px; height: 128px; filter: drop-shadow(0 0 10px var(--c, #fff)); transition: transform 0.15s; }
+.chest-roll img.landed { animation: chest-land 0.6s ease-out; }
+.chest-roll b { font-size: 18px; }
+@keyframes chest-land { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-6deg); } 70% { transform: scale(0.95) rotate(4deg); } 100% { transform: scale(1); } }
+.chest-loot span { animation: loot-pop 0.35s ease-out both; }
+@keyframes loot-pop { from { opacity: 0; transform: translateY(8px) scale(0.9); } to { opacity: 1; transform: none; } }
+.run-sum { margin-top: 8px; font-size: 13px; text-align: left; }
+.run-sum summary { cursor: pointer; color: var(--muted, #aaa); }

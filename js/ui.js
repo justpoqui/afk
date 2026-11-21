@@ -170,8 +170,21 @@ const pages = {
   fight() {
     const busy = state.active ? SKILLS[ACTIONS[state.active.action].skill] : null;
     const warn = busy ? `<p class="warn">⚠️ Fighting stops ${busy.icon} ${busy.name}. You can do one thing at a time.</p>` : '';
-    const head = `${tabs(fightTab, 'fighttab', [['campaign', '🏟️ Arena'], ['hunting', '🗺️ Hunting Grounds']])}
+    const head = `${tabs(fightTab, 'fighttab', [['campaign', '🏟️ Arena'], ['hunting', '🗺️ Hunting'], ['dungeons', '🏰 Dungeons']])}
       <div class="prep-line">Combat level <b>${combatLevel()}</b> · training <b>${SKILLS[fightSkill()].icon} ${SKILLS[fightSkill()].name}</b> + ❤️ · ${prepLine().replace(/<\/?div[^>]*>/g, '')}</div>${warn}`;
+    if (fightTab === 'dungeons') {
+      return `${head}
+        <p class="hint">Fight wave after wave without healing between them (bring food). Beat the boss for a chest: its tier is rolled when it drops, and it holds 6–10 rewards.</p>
+        <div class="chest-odds">${CHEST_TIERS.map(c => `<span style="--c:${c.color}"><img src="${c.img}" alt="🎁" draggable="false">${c.weight}%</span>`).join('')}</div>
+        ${DUNGEONS.map((d, di) => {
+          const boss = dungeonUnit(di, d.waves.length), lv = d.waves.map(w => w[1]).concat(d.boss.lvl), clears = state.stats.dungeons[d.id] || 0;
+          return `<section class="panel dungeon"><div class="area-head"><span>${d.icon}</span><b>${d.name}</b><small>Lv ${Math.min(...lv)}–${Math.max(...lv)}</small></div>
+            <div class="mon-row"><span class="mon-art">${art(boss, 'flip', true)}</span>
+              <div class="mon-info"><b>👑 ${d.boss.name}</b><small>${dungeonWaves(d)} waves · boss Lv <span class="lv ${diffClass(d.boss.lvl)}">${d.boss.lvl}</span> · ❤️ ${fmt(boss.hp)}${clears ? ` · ✓ ${clears} clear${clears > 1 ? 's' : ''}` : ''}</small>
+                <small class="mon-drops">Waves ${d.waves.map(([k]) => monsterTemplate(k).emoji).join(' ')}</small></div>
+              <button class="btn sm gold" data-act="dungeon" data-d="${di}">Enter</button></div></section>`;
+        }).join('')}`;
+    }
     if (fightTab === 'hunting') {
       return `${head}
         <p class="hint">Fight one monster at a time, over and over. Your HP carries between kills, so carry food in your inventory. Loot goes to your inventory.</p>
@@ -758,17 +771,28 @@ function startHunt(ai, mi) {
   openBattleScreen(`${AREAS[ai].icon} ${m.name} · Lv ${lvl}`, `assets/bg/hunt_${AREAS[ai].id}.webp`);
   nextHuntFight(true);
 }
+// Dungeons run on the hunt loop: hunt.dungeon = { di, wave } picks each wave's monster.
+function startDungeon(di) {
+  stopSkillForFight();
+  const d = DUNGEONS[di];
+  hunt = { ai: d.area, mi: 0, kills: 0, gold: 0, gems: 0, items: {}, lost: 0, xp: 0, hpXp: 0, ups: {}, hp: null, energy: 0, style: fightSkill(), glyphs: {}, dungeon: { di, wave: 0 } };
+  openBattleScreen(`${d.icon} ${d.name}`, `assets/bg/hunt_${AREAS[d.area].id}.webp`);
+  nextHuntFight(true);
+}
+const huntFoe = () => (hunt.dungeon ? dungeonUnit(hunt.dungeon.di, hunt.dungeon.wave) : monsterUnit(hunt.ai, hunt.mi));
 function nextHuntFight(first = false) {
   if (!hunt) return;
   const p = playerBattleUnit();
   if (hunt.hp != null) { p.startHp = hunt.hp; p.startEnergy = hunt.energy; }
-  const b = new Battle(p, [monsterUnit(hunt.ai, hunt.mi)], win => { if (battle === b) huntFightEnd(b, win); }, { hunt: true, cont: !first });
+  const foe = huntFoe();
+  if (hunt.dungeon) { const d = DUNGEONS[hunt.dungeon.di]; $('#battle-title').textContent = `${d.icon} ${foe.boss ? '👑 ' + foe.name : `Wave ${hunt.dungeon.wave + 1}: ${foe.name}`}`; }
+  const b = new Battle(p, [foe], win => { if (battle === b) huntFightEnd(b, win); }, { hunt: true, cont: !first });
   runBattle(b);
   huntHud();
 }
 function huntHud() {
   if (!hunt) return;
-  $('#battle-timer').textContent = '☠ ' + hunt.kills;
+  $('#battle-timer').textContent = hunt.dungeon ? `${hunt.dungeon.wave + 1}/${dungeonWaves(DUNGEONS[hunt.dungeon.di])}` : '☠ ' + hunt.kills;
   $('#battle-info').innerHTML = `<div class="prep-line">🪙 ${fmt(hunt.gold)}${hunt.gems ? ` · 💎 ${hunt.gems}` : ''} · loot ${Object.values(hunt.items).reduce((a, b) => a + b, 0)} · 🍽️ ${foodCarried()} food · 🎒 ${invUsed()}/${invSize()}</div>`;
 }
 function bankHuntXp(b) {
@@ -782,7 +806,7 @@ function huntFightEnd(b, win) {
   for (const [id, n] of Object.entries(b.glyphsUsed)) hunt.glyphs[id] = (hunt.glyphs[id] || 0) + n;
   if (!win) { endHunt(true); return; }
   hunt.kills++; state.stats.kills++;
-  const [mkey, lvl] = AREAS[hunt.ai].monsters[hunt.mi], loot = rollLoot(hunt.ai, lvl, mkey);
+  const foe = b.units.find(u => u.side === 'enemy'), mkey = foe.key, lvl = foe.lvl, loot = rollLoot(hunt.ai, lvl, mkey);
   state.gold += loot.gold; hunt.gold += loot.gold;
   state.gems += loot.gems; hunt.gems += loot.gems;
   for (const [id, n] of Object.entries(loot.items)) {
@@ -793,9 +817,10 @@ function huntFightEnd(b, win) {
   }
   hunt.hp = b.player.hp; hunt.energy = b.player.energy;
   save();
-  setTimeout(() => nextHuntFight(), 250);
+  if (hunt.dungeon && ++hunt.dungeon.wave >= dungeonWaves(DUNGEONS[hunt.dungeon.di])) { endHunt(false, true); return; }
+  setTimeout(() => nextHuntFight(), hunt.dungeon ? 600 : 250);
 }
-function endHunt(died) {
+function endHunt(died, cleared = false) {
   const h = hunt;
   hunt = null;
   battle = null;
@@ -803,6 +828,7 @@ function endHunt(died) {
   save();
   $('#battle').classList.add('hidden');
   render();
+  if (h.dungeon) { endDungeon(h, died, cleared); return; }
   const m = monsterTemplate(AREAS[h.ai].monsters[h.mi][0]);
   openModal(`<div class="result ${died ? 'lose' : 'win'}"><h2>${died ? 'You were defeated' : 'Hunt over'}</h2>
     <div class="big-emoji">${died ? '💀' : '🏹'}</div>
@@ -813,6 +839,56 @@ function endHunt(died) {
     <p class="xp-line">${SKILLS[h.style].icon} +${fmt(h.xp)} ${SKILLS[h.style].name} XP · ❤️ +${fmt(h.hpXp)} Hitpoints XP</p>
     ${Object.entries(h.ups).map(([k, l]) => `<div class="lvl-up">${SKILLS[k].icon} ${SKILLS[k].name} is now level ${l}!</div>`).join('')}
     <div class="row-btns"><button class="btn ghost" data-act="close">Done</button><button class="btn" data-act="hunt" data-a="${h.ai}" data-m="${h.mi}">Fight again</button></div></div>`);
+}
+
+// Shared by hunts and dungeons: what the run dropped and the XP it earned.
+const runSummary = h => `<p>🪙 ${fmt(h.gold)}${h.gems ? ` &nbsp; 💎 ${h.gems}` : ''}</p>
+    <div class="loot">${Object.entries(h.items).filter(([, n]) => n).map(([id, n]) => `<span>${icon(id)} +${n} ${ITEMS[id].name}</span>`).join('')}</div>
+    ${h.lost ? `<p class="warn">🎒 ${h.lost} drops were lost because your inventory was full.</p>` : ''}${glyphLine(h.glyphs)}
+    <p class="xp-line">${SKILLS[h.style].icon} +${fmt(h.xp)} ${SKILLS[h.style].name} XP · ❤️ +${fmt(h.hpXp)} Hitpoints XP</p>
+    ${Object.entries(h.ups).map(([k, l]) => `<div class="lvl-up">${SKILLS[k].icon} ${SKILLS[k].name} is now level ${l}!</div>`).join('')}`;
+function endDungeon(h, died, cleared) {
+  const di = h.dungeon.di, d = DUNGEONS[di];
+  if (!cleared) {
+    openModal(`<div class="result lose"><h2>${died ? 'Defeated in the dungeon' : 'You left the dungeon'}</h2><div class="big-emoji">${died ? '💀' : '🚪'}</div>
+      <p>${d.name}: reached wave <b>${h.dungeon.wave + 1}</b> of ${dungeonWaves(d)}. The boss's chest is only for a full clear.</p>${runSummary(h)}
+      <div class="row-btns"><button class="btn ghost" data-act="close">Done</button><button class="btn" data-act="dungeon" data-d="${di}">Try again</button></div></div>`);
+    return;
+  }
+  state.stats.dungeons[d.id] = (state.stats.dungeons[d.id] || 0) + 1;
+  const chest = rollChestTier(), loot = rollChestLoot(d, chest);
+  claimChest(loot);
+  render();
+  sfx('cheer');
+  // The chest randomizer: spins through the chest tiers and lands on the one the boss dropped.
+  openModal(`<div class="result win"><h2>${d.name} cleared!</h2>
+    <p class="muted">${d.boss.name} dropped a chest…</p>
+    <div class="chest-roll"><img id="chest-spin" src="${CHEST_TIERS[0].img}" alt="🎁" draggable="false"><b id="chest-name">…</b></div>
+    <div id="chest-open" class="hidden"></div>
+    <details class="run-sum"><summary>Dungeon loot and XP</summary>${runSummary(h)}</details>
+    <div class="row-btns"><button class="btn ghost" data-act="close">Done</button><button class="btn" data-act="dungeon" data-d="${di}">Run again</button></div></div>`);
+  let step = 0, delay = 50;
+  const order = [...CHEST_TIERS], target = 3 * order.length + order.indexOf(chest); // three laps, then stop on the rolled tier
+  const tick = () => {
+    const c = order[step % order.length], img = $('#chest-spin');
+    if (!img) return;
+    img.src = c.img; img.style.setProperty('--c', c.color);
+    $('#chest-name').textContent = c.name; $('#chest-name').style.color = c.color;
+    sfx('tick');
+    if (step >= target) { landChest(chest, loot); return; }
+    step++; delay *= 1.1;
+    setTimeout(tick, delay);
+  };
+  setTimeout(tick, 300);
+}
+function landChest(chest, loot) {
+  $('#chest-spin').classList.add('landed');
+  sfx('chest');
+  const rows = [loot.gold && `<span>🪙 +${fmt(loot.gold)} gold</span>`, loot.gems && `<span>💎 +${loot.gems} gems</span>`, loot.scrolls && `<span>📜 +${loot.scrolls} scroll${loot.scrolls > 1 ? 's' : ''}</span>`,
+    ...Object.entries(loot.items).map(([id, n]) => `<span>${icon(id)} +${fmt(n)} ${ITEMS[id].name}</span>`)].filter(Boolean);
+  const box = $('#chest-open');
+  box.innerHTML = `<p class="good">${chest.name}! ${rows.length} rewards (items go to your bank):</p><div class="loot chest-loot">${rows.map((r, i) => r.replace('<span>', `<span style="animation-delay:${i * 0.12}s">`)).join('')}</div>`;
+  box.classList.remove('hidden');
 }
 
 function endBattle(b, win, stage) {
@@ -888,6 +964,7 @@ document.addEventListener('click', e => {
       case 'gochar': closeModal(); go('equipment'); break;
       case 'golib': closeModal(); go('library'); break;
       case 'hunt': closeModal(); startHunt(Number(d.a), Number(d.m)); break;
+      case 'dungeon': closeModal(); startDungeon(Number(d.d)); break;
       case 'fighttab': fightTab = d.k; render(); break;
       case 'lookcat': lookCat = d.k; render(); break;
       case 'shoptab': shopTab = d.k; render(); break;

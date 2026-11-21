@@ -1151,6 +1151,37 @@ def lich_dust():
         sphere((R.uniform(-0.6, 0.6), R.uniform(-0.4, 0.2), R.uniform(0.2, 0.9)), 0.04, glow('#b8ffa0', 5), outline=False)
 
 
+# ---------------- dungeon chests ----------------
+CHEST_STYLE = {  # body wood, band metal, band emit, gem colour (or None), glow
+    'wooden': ('#8a5a35', '#5a5a62', 0, None, 0),
+    'iron':   ('#6a4a35', '#9aa7b4', 0, None, 0),
+    'silver': ('#3f3a52', '#e2e8ef', 0.2, '#7fd6ff', 0),
+    'golden': ('#7a2a2a', '#f2c14e', 0.3, '#ff5a7a', 0),
+    'mythic': ('#2a1f45', '#b48cff', 1.2, '#7ffcff', 1),
+}
+
+
+def chest(cid):
+    wood, band, emit, gem, glow_on = CHEST_STYLE[cid]
+    wm, bm = mat(wood, rough=0.75), mat(band, rough=0.25, metal=0.9, emit=emit)
+    box((0, 0, -0.25), (1.7, 1.1, 0.9), wm, bevel=0.06)                       # body
+    cyl((0, 0, 0.2), 0.55, 1.7, wm, rot=(0, 90, 0), verts=24, scale=(1, 1, 1))  # domed lid
+    box((0, 0, 0.2), (1.7, 1.1, 0.02), mat('#1b1426'), outline=False)         # lid seam
+    for x in (-0.62, 0.62):
+        box((x, 0, -0.25), (0.14, 1.14, 0.92), bm, bevel=0.02)
+        torus((x, 0, 0.2), 0.56, 0.06, bm, rot=(0, 90, 0))
+    box((0, -0.57, 0.05), (0.32, 0.08, 0.4), bm, bevel=0.03)                  # lock plate
+    cyl((0, -0.62, 0.0), 0.06, 0.05, mat('#1b1426'), rot=(90, 0, 0), outline=False)
+    if gem:
+        sphere((0, -0.63, 0.15), 0.09, glow(gem, 4), outline=False)
+        for x in (-0.62, 0.62):
+            sphere((x, -0.6, -0.25), 0.07, glow(gem, 3), outline=False)
+    if glow_on:
+        for _ in range(8):
+            sphere((R.uniform(-0.9, 0.9), R.uniform(-0.7, 0.3), R.uniform(0.3, 1.0)), 0.04, glow('#e8d8ff', 6), outline=False)
+    group(rot=(0, 0, 20))
+
+
 ITEMS = {
     'bonedagger': bone_dagger, 'bonesword': bone_sword, 'bonebow': bone_bow, 'bonestaff': bone_staff,
     'bonehelm': bone_helm, 'bonegloves': bone_gauntlets, 'boneboots': bone_boots, 'boneshield': bone_shield,
@@ -1209,6 +1240,8 @@ for i in range(len(METAL)):
         ITEMS[f'r{suf}{i}'] = (lambda fn, i: lambda: fn(i))(rfn, i)
         ITEMS[f'm{suf}{i}'] = (lambda fn, i: lambda: fn(i))(mfn, i)
 # Spell pictures go to assets/spells/<id>.webp (python art/blender/items.py spell/sparkbolt)
+for cid in CHEST_STYLE:
+    ITEMS['chest/' + cid] = (lambda cid: lambda: chest(cid))(cid)
 for sid in SPELL_COL:
     ITEMS['spell/' + sid] = (lambda sid: lambda: spell_art(sid))(sid)
 
@@ -1226,7 +1259,8 @@ def build(item_id):
     # Melee weapons fill less or more of the frame by size, so a dagger reads small and a 2H sword huge.
     margin = {'dagger': 1.9, 'sword': 1.5, 'longsword': 1.28, 'greatsword': 1.08, 'bonedagger': 1.8, 'bonesword': 1.4}.get(item_id.rstrip('01234567'), 1.12)
     frame_ortho(cam, margin)
-    out = os.path.join(ROOT, 'assets', 'spells', item_id[6:] + '.webp') if item_id.startswith('spell/') else os.path.join(OUT, item_id + '.webp')
+    # 'spell/x' -> assets/spells/x.webp, 'chest/x' -> assets/chests/x.webp, items -> assets/items/<id>.webp
+    out = os.path.join(ROOT, 'assets', item_id.split('/')[0] + 's', item_id.split('/')[1] + '.webp') if '/' in item_id else os.path.join(OUT, item_id + '.webp')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     render(out, 128, 128, quality=88)
 
