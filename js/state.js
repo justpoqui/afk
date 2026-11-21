@@ -539,9 +539,9 @@ function completeQuest(q) {
   state.quests[q.id] = 'done'; save();
   return true;
 }
-const questRewardText = r => [r.gold && `🪙 ${fmt(r.gold)}`, r.gems && `💎 ${r.gems}`, r.slots && `🎒 +${r.slots} slots`,
+const questRewardText = (r, html = true) => [r.gold && `🪙 ${fmt(r.gold)}`, r.gems && `💎 ${r.gems}`, r.slots && `🎒 +${r.slots} slots`,
   ...Object.entries(r.xp || {}).map(([sk, xp]) => `${SKILLS[sk].icon} ${fmt(xp)} ${SKILLS[sk].name} XP`),
-  ...Object.entries(r.items || {}).map(([id, n]) => `${ITEMS[id].icon} ${ITEMS[id].name}${n > 1 ? ' ×' + n : ''}`)].filter(Boolean).join('  ');
+  ...Object.entries(r.items || {}).map(([id, n]) => `${typeof icon === 'function' && html ? icon(id, 'sm') + ' ' : ''}${ITEMS[id].name}${n > 1 ? ' ×' + n : ''}`)].filter(Boolean).join('  ');
 
 // ---- Idle rewards ----
 function idleRates() {

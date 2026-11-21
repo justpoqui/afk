@@ -181,7 +181,7 @@ const pages = {
           return `<section class="panel dungeon"><div class="area-head"><span>${d.icon}</span><b>${d.name}</b><small>Lv ${Math.min(...lv)}–${Math.max(...lv)}</small></div>
             <div class="mon-row"><span class="mon-art">${art(boss, 'flip', true)}</span>
               <div class="mon-info"><b>👑 ${d.boss.name}</b><small>${dungeonWaves(d)} waves · boss Lv <span class="lv ${diffClass(d.boss.lvl)}">${d.boss.lvl}</span> · ❤️ ${fmt(boss.hp)}${clears ? ` · ✓ ${clears} clear${clears > 1 ? 's' : ''}` : ''}</small>
-                <small class="mon-drops">Waves ${d.waves.map(([k]) => monsterTemplate(k).emoji).join(' ')}</small></div>
+                <small class="mon-drops">Waves ${d.waves.map(([k]) => `<img class="gi" src="${spriteUrl(monsterTemplate(k).sprite)}" alt="${monsterTemplate(k).emoji}" draggable="false">`).join('')}</small></div>
               <button class="btn sm gold" data-act="dungeon" data-d="${di}">Enter</button></div></section>`;
         }).join('')}`;
     }
@@ -349,7 +349,7 @@ const pages = {
           <small>Bank ${bankUsed()}/${bankSize()} slots · gets 10% pricier each time</small></div>
           <button class="btn sm ${state.gold < bankSlotCost(state.upgrades.bankSlots || 0) ? 'off' : 'gold'}" data-act="buybank">🪙 ${fmt(bankSlotCost(state.upgrades.bankSlots || 0))}</button></div>
         <div class="shop-row"><span class="ico lg">🦉</span><div class="shop-info"><b>Bank Courier</b>
-          <small>When your inventory fills while skilling, everything except food is sent to the bank, even offline.</small></div>
+          <small>When your inventory fills while skilling, everything but the recipe's materials goes to the bank, even offline.</small></div>
           ${state.upgrades.courier ? '<span class="owned">✓ Hired</span>' : `<button class="btn sm ${state.gold < COURIER_COST ? 'off' : 'gold'}" data-act="buycourier">🪙 ${fmt(COURIER_COST)}</button>`}</div>
       </div>
       <div class="sub">Tools: each tier makes that skill ${TOOL_SPEED * 100}% faster</div>
@@ -373,7 +373,7 @@ const pages = {
         ${reqs}
         ${open && !done ? q.steps.map(st => {
           const [c, n] = questStep(st);
-          const label = st.t === 'deliver' ? `Deliver ${n} × ${ITEMS[st.id].icon} ${ITEMS[st.id].name}` : st.t === 'kill' ? `Defeat ${n} × ${monsterTemplate(st.id).name}` : `Reach ${SKILLS[st.skill].name} level ${n}`;
+          const label = st.t === 'deliver' ? `Deliver ${n} × ${icon(st.id, 'sm')} ${ITEMS[st.id].name}` : st.t === 'kill' ? `Defeat ${n} × ${monsterTemplate(st.id).name}` : `Reach ${SKILLS[st.skill].name} level ${n}`;
           return `<div class="q-step ${c >= n ? 'ok' : ''}"><span>${c >= n ? '✓' : '•'} ${label}</span><small>${fmt(c)}/${fmt(n)}</small></div>`;
         }).join('') : ''}
         <div class="q-reward">Reward: ${questRewardText(q.r)}</div>
@@ -978,7 +978,7 @@ document.addEventListener('click', e => {
       case 'buypack': if (buyBackpack()) { render(); toast(`🎒 Inventory is now ${invSize()} slots`); } else toast('Not enough gold'); break;
       case 'buycourier': if (buyCourier()) { render(); toast('🦉 The Bank Courier is hired!'); } else toast('Not enough gold'); break;
       case 'buytool': if (buyTool(d.skill)) { render(); toast(`${SKILLS[d.skill].icon} ${TOOLS[d.skill][toolTier(d.skill) - 1]} bought!`); } else toast('Need more gold or a higher skill level'); break;
-      case 'quest': { const q = QUESTS.find(x => x.id === d.id); if (completeQuest(q)) { render(); toast(`📜 Quest complete! ${questRewardText(q.r)}`); } break; }
+      case 'quest': { const q = QUESTS.find(x => x.id === d.id); if (completeQuest(q)) { render(); toast(`📜 Quest complete! ${questRewardText(q.r, false)}`); } break; }
       case 'gosmith': closeModal(); go('skill:metalworking'); break;
       case 'close': closeModal(); break;
       case 'style': state.player.style = d.style; save(); render(); toast(`Now training ${SKILLS[d.style].icon} ${SKILLS[d.style].name}`); break;

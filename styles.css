@@ -658,3 +658,8 @@ textarea.code { width: 100%; min-height: 84px; background: #120f1a; color: var(-
 @keyframes loot-pop { from { opacity: 0; transform: translateY(8px) scale(0.9); } to { opacity: 1; transform: none; } }
 .run-sum { margin-top: 8px; font-size: 13px; text-align: left; }
 .run-sum summary { cursor: pointer; color: var(--muted, #aaa); }
+
+/* Blender icons that replace emoji in text */
+img.gi { width: 1.25em; height: 1.25em; vertical-align: -0.28em; object-fit: contain; display: inline-block; margin: 0 0.04em; }
+.big-emoji img.gi { width: 72px; height: 72px; }
+.ico img.gi, .sh-icon img.gi, .tile img.gi, .bl-ico img.gi { width: 1.35em; height: 1.35em; }

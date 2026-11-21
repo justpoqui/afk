@@ -126,7 +126,7 @@ class Battle {
     if (!id) return;
     invRemove(id); state.stats.eaten++;
     u.eatCd = 4;
-    this.float(u, ITEMS[id].icon, 'heal');
+    this.float(u, ITEMS[id].icon, 'heal', ITEMS[id].img); // shows the food's own picture
     this.heal(u, ITEMS[id].heal);
   }
 
@@ -422,12 +422,12 @@ class Battle {
   sound(u, name) { if (!this.silent && u.el && u.el.isConnected) sfx(name); }
   // A monster's own voice (returns false for units without one, e.g. the player).
   cry(u, mode) { return !!(u.key && !this.silent && u.el && u.el.isConnected && Sfx.monster(u.key, mode)); }
-  float(u, text, cls) {
+  float(u, text, cls, img) {
     if (this.silent || !u.el) return;
     u.floatN = ((u.floatN || 0) + 1) % 3; // stagger so back-to-back numbers don't overlap
     const f = document.createElement('div');
     f.className = 'float ' + cls;
-    f.textContent = text;
+    if (img) { const im = document.createElement('img'); im.className = 'gi'; im.src = img; im.alt = text; f.appendChild(im); } else f.textContent = text;
     f.style.left = (35 + Math.random() * 30) + '%';
     f.style.top = (-u.floatN * 16) + 'px';
     f.style.animationDuration = (FLOAT_MS / Math.max(1, this.speed * 0.75)) + 'ms';
