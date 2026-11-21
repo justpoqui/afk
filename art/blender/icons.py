@@ -13,7 +13,7 @@ import bpy
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common import *  # noqa: E402,F403
-from items import glow, group, prism, seg, mix, glyph_symbol, R  # noqa: E402
+from items import glow, group, prism, seg, mix, glyph_symbol, R, METAL, METAL_EMIT, WOOD  # noqa: E402
 
 OUT = os.path.join(ROOT, 'assets', 'icons')
 GOLD = '#f2c14e'
@@ -744,8 +744,221 @@ def bow():
     group(rot=(0, -30, 10))
 
 
+def calendar():
+    box((0, 0, -0.1), (1.4, 0.15, 1.4), mat('#fbf6ea'), bevel=0.05)
+    box((0, -0.02, 0.48), (1.4, 0.18, 0.4), mat('#e8434a'), bevel=0.04)
+    for x in (-0.4, 0.4):
+        cyl((x, -0.1, 0.72), 0.06, 0.25, steel(), verts=10)
+    for r in range(3):
+        for c in range(4):
+            box((-0.45 + c * 0.3, -0.09, 0.05 - r * 0.28), (0.18, 0.02, 0.16), mat('#c8c0d8' if (r, c) != (1, 2) else '#5cdc6a'), outline=False)
+    face()
+
+
+# ---------------- shop tools (one picture per tier) ----------------
+TOOL_MT = [1, 3, 4, 5]
+
+
+def tmetal(t):
+    i = TOOL_MT[t]
+    return mat(METAL[i], rough=0.25, metal=0.9, emit=METAL_EMIT[i] * 0.6)
+
+
+def twood(t):
+    return mat(WOOD[TOOL_MT[t]], rough=0.7)
+
+
+def t_axe(t):
+    cyl((0, 0, -0.1), 0.12, 1.9, wood(), verts=12, rot=(0, 20, 0))
+    prism([(0, 0.3), (0.75, 0.6), (0.85, 0.0), (0.75, -0.6), (0, -0.3)], 0.16, tmetal(t), loc=(0.2, 0, 0.55))
+    group(rot=(0, -10, 15))
+
+
+def t_pickaxe(t):
+    cyl((0, 0, -0.2), 0.13, 1.8, wood(), verts=12, rot=(0, 30, 0))
+    tube([(-0.95, 0, 0.15), (-0.3, 0, 0.62), (0.3, 0, 0.75), (1.0, 0, 0.4)], [0.06, 0.2, 0.2, 0.05], tmetal(t))
+    group(rot=(0, 0, 15))
+
+
+def t_rod(t):
+    tube([(-0.9, 0, -0.9), (0, 0, 0.0), (0.6, 0, 0.7), (0.95, 0, 0.95)], [0.12, 0.09, 0.06, 0.04], twood(t))
+    cyl((-0.55, -0.12, -0.5), 0.24, 0.16, mat('#c8d0da', rough=0.3, metal=0.8), rot=(90, 0, 0), verts=16)
+    tube([(0.95, 0, 0.95), (1.0, 0, 0.3), (0.98, 0, -0.3)], [0.012, 0.012, 0.012], mat('#e8e4f4', emit=0.3), outline=False)
+    sphere((0.98, 0, -0.38), 0.14, mat('#e8434a'))
+    sphere((0.98, 0, -0.27), 0.1, mat('#ffffff'))
+    group(rot=(0, 0, 15))
+
+
+def t_sickle(t):
+    cyl((0, 0, -0.65), 0.12, 0.75, wood(), verts=12)
+    tube([(0, 0, -0.25), (0.45, 0, 0.15), (0.4, 0, 0.65), (0.0, 0, 0.85), (-0.35, 0, 0.7)], [0.08, 0.13, 0.12, 0.08, 0.02], tmetal(t))
+    group(rot=(0, 15, 15))
+
+
+def t_hammer(t):
+    cyl((0, 0, -0.2), 0.1, 1.7, wood(), verts=12)
+    box((0, 0, 0.7), (1.0, 0.45, 0.45), tmetal(t), bevel=0.06)
+    group(rot=(0, 30, 15))
+
+
+def t_saw(t):
+    pts = [(-0.5, 0.3), (0.95, 0.12), (0.95, -0.15)] + [(0.95 - k * 0.12, -0.15 - (0.09 if k % 2 == 0 else 0)) for k in range(12)] + [(-0.5, -0.3)]
+    prism(pts, 0.05, tmetal(t))
+    box((-0.75, 0, 0), (0.5, 0.18, 0.6), wood(), bevel=0.08)
+    group(rot=(-20, 0, 25))
+
+
+def t_blowpipe(t):
+    cyl((0, 0, 0), 0.08, 2.0, tmetal(t), rot=(0, 60, 0), verts=12)
+    sphere((0.95, 0, 0.55), 0.38, mat('#ffb04a', emit=1.2, alpha=0.8))
+    cyl((-0.75, 0, -0.43), 0.12, 0.35, wood(), rot=(0, 60, 0), verts=12)
+    group(rot=(0, 0, 15))
+
+
+def t_rack(t):
+    w = twood(t)
+    for x in (-0.8, 0.8):
+        cyl((x, 0, -0.1), 0.08, 1.8, w, verts=10)
+    for z in (-0.8, 0.7):
+        cyl((0, 0, z), 0.07, 1.75, w, rot=(0, 90, 0), verts=10)
+    prism([(-0.5, 0.45), (0.0, 0.6), (0.5, 0.45), (0.55, -0.1), (0.4, -0.6), (-0.4, -0.6), (-0.55, -0.1)], 0.04, mat('#b07a50', rough=0.8))
+    for x, z in ((-0.62, 0.5), (0.62, 0.5), (-0.62, -0.5), (0.62, -0.5)):
+        tube([(x * 1.25, 0, z * 1.35), (x * 0.82, 0, z)], [0.015, 0.015], mat('#e8d8b8'), outline=False)
+    for x, z in ((-0.8, 0.7), (0.8, 0.7), (-0.8, -0.8), (0.8, -0.8)):
+        sphere((x, 0, z), 0.1, tmetal(t))
+    face((-10, 0, 15))
+
+
+def pan_tool():
+    m = mat('#3a3a44', rough=0.4, metal=0.6)
+    cyl((0, 0, 0), 0.75, 0.15, m, verts=32)
+    box((1.15, 0, 0.05), (0.8, 0.14, 0.08), wood(), bevel=0.03)
+    for x, c in ((-0.2, '#d9a35a'), (0.2, '#c8602a')):
+        sphere((x, 0, 0.12), 0.25, mat(c), scale=(1.4, 0.8, 0.4))
+    group(rot=(35, 0, 15))
+
+
+def oven():
+    stone = mat('#9a8f86', rough=0.95)
+    sphere((0, 0, -0.1), 0.95, stone, scale=(1, 1, 0.85))
+    box((0, 0, -0.85), (2.0, 1.8, 0.2), stone)
+    cyl((0, -0.7, -0.35), 0.35, 0.4, mat('#1b1010'), rot=(90, 0, 0), verts=20, scale=(1, 1, 0.9), outline=False)
+    sphere((0, -0.75, -0.45), 0.2, glow('#ff8a2a', 4), scale=(1.3, 0.4, 0.6), outline=False)
+    cyl((0.45, 0.2, 0.75), 0.13, 0.5, stone, verts=10)
+
+
+def dragon_range():
+    m = mat('#2a2a34', rough=0.4, metal=0.7)
+    box((0, 0, -0.3), (1.6, 1.0, 1.0), m, bevel=0.06)
+    for x in (-0.4, 0.4):
+        torus((x, 0, 0.22), 0.25, 0.04, mat('#5a5a66', metal=0.8))
+        cyl((x, 0, 0.32), 0.18, 0.35, glow('#ff6a2a', 4), r2=0.0, verts=10, outline=False)
+    box((0, -0.51, -0.4), (1.1, 0.03, 0.5), mat('#ff8a2a', emit=2), outline=False)
+    for s_ in (-1, 1):
+        cyl((s_ * 0.9, -0.3, 0.35), 0.1, 0.4, mat('#a83a2a'), r2=0.0, rot=(0, s_ * 25, 0), verts=8)   # dragon horns
+    group(rot=(0, 0, 15))
+
+
+def vials_rack():
+    box((0, 0, -0.55), (1.7, 0.6, 0.2), wood(), bevel=0.04)
+    for k, c in enumerate(('#e8434a', '#5cdc6a', '#4fb3ff', '#ffd84a')):
+        x = -0.6 + k * 0.4
+        cyl((x, 0, -0.05), 0.14, 0.8, mat('#cfe8ff', rough=0.05, alpha=0.4), verts=14)
+        cyl((x, 0, -0.2), 0.12, 0.45, mat(c, emit=0.8), verts=14, outline=False)
+        cyl((x, 0, 0.4), 0.1, 0.12, wood(), verts=10)
+    group(rot=(0, 0, 15))
+
+
+def copper_still():
+    cu = mat('#c87533', rough=0.3, metal=0.9)
+    sphere((-0.3, 0, -0.3), 0.6, cu)
+    cyl((-0.3, 0, 0.4), 0.12, 0.6, cu, verts=12)
+    tube([(-0.3, 0, 0.7), (0.2, 0, 0.85), (0.6, 0, 0.4), (0.6, 0, -0.3)], [0.06, 0.06, 0.06, 0.06], cu)
+    for k in range(3):
+        torus((0.6, 0, -0.1 - k * 0.15), 0.18, 0.04, cu)
+    cyl((0.6, 0, -0.75), 0.25, 0.3, mat('#cfe8ff', rough=0.05, alpha=0.5), verts=14)
+    group(rot=(0, 0, 15))
+
+
+def phil_kit():
+    box((0, 0, -0.4), (1.7, 1.0, 0.5), mat('#5a2a3a', rough=0.6), bevel=0.05)
+    box((0, 0.45, 0.25), (1.7, 0.1, 0.9), mat('#5a2a3a', rough=0.6), rot=(-15, 0, 0), bevel=0.04)
+    for x, z in ((-0.6, -0.4), (0.6, -0.4)):
+        box((x, -0.51, z), (0.2, 0.03, 0.2), gold(), outline=False)
+    sphere((0.0, 0, 0.1), 0.32, glow('#ff4a8a', 3))
+    for x, c in ((-0.5, '#5cdc6a'), (0.5, '#4fb3ff')):
+        cyl((x, 0, 0.0), 0.12, 0.5, mat(c, emit=0.8, alpha=0.8), verts=12)
+    group(rot=(0, 0, 15))
+
+
+ALTAR = [('#8a8a94', None, None), ('#f0ece4', None, '#9fdcff'), ('#d8cfc0', GOLD, '#ffd84a'), ('#2a2440', '#b48cff', '#7ffcff')]
+
+
+def altar(t):
+    stone, trim, glow_c = ALTAR[t]
+    sm = mat(stone, rough=0.8)
+    box((0, 0, -0.65), (1.7, 0.9, 0.3), sm, bevel=0.04)
+    box((0, 0, -0.2), (1.3, 0.7, 0.65), sm, bevel=0.04)
+    box((0, 0, 0.18), (1.6, 0.9, 0.14), sm, bevel=0.03)
+    if trim:
+        for z in (0.12, -0.5):
+            box((0, -0.36, z), (1.6 if z > 0 else 1.7, 0.04, 0.05), mat(trim, rough=0.25, metal=0.9), outline=False)
+    for x in (-0.6, 0.6):
+        cyl((x, 0, 0.42), 0.09, 0.35, mat('#fbf6ea'), verts=12)
+        sphere((x, 0, 0.66), 0.07, glow('#ffd84a', 6), scale=(0.7, 0.7, 1.3), outline=False)
+    sphere((0, 0, 0.4), 0.2, mat('#efe6d2'), scale=(1.4, 0.6, 0.6))   # an offering of bones
+    if glow_c:
+        torus((0, 0, 0.85), 0.25, 0.04, glow(glow_c, 4), rot=(70, 0, 0), outline=False)
+    if t == 3:
+        glyph_symbol('radiant', -0.37, s=0.35, m=glow('#7ffcff', 3), r=0.05)
+    group(rot=(0, 0, 15))
+
+
+def spinning_wheel():
+    w = wood()
+    torus((0.2, 0, 0.2), 0.62, 0.05, w, rot=(90, 0, 0))
+    for k in range(6):
+        a = k * math.pi / 3
+        tube([(0.2, 0, 0.2), (0.2 + 0.6 * math.cos(a), 0, 0.2 + 0.6 * math.sin(a))], [0.025, 0.025], w, outline=False)
+    box((0, 0, -0.75), (1.8, 0.5, 0.12), w)
+    for x in (0.2, -0.65):
+        cyl((x, 0, -0.35), 0.05, 0.8, w, verts=8)
+    sphere((-0.65, 0, 0.15), 0.22, mat('#f6f2e8', rough=0.95))   # wool on the distaff
+    face((-10, 0, 15))
+
+
+def loom(t):
+    w = mat(['#c8935a', '#8a5a35', '#6a4428'][t - 1], rough=0.7)
+    size = 1 + (t - 1) * 0.12
+    for x in (-0.8, 0.8):
+        box((x * size, 0, 0), (0.12, 0.12, 1.8 * size), w)
+    for z in (-0.75, 0.75):
+        cyl((0, 0, z * size), 0.06, 1.7 * size, w, rot=(0, 90, 0), verts=10)
+    cols = ['#e8434a', '#f6f2e8', '#4fb3ff', '#ffd84a']
+    for k in range(9):
+        box((-0.6 + k * 0.15, -0.02, 0.1), (0.04, 0.02, 1.25 * size), mat(cols[k % len(cols)] if t > 1 else '#f6f2e8'), outline=False)
+    box((0, -0.04, -0.3), (1.35, 0.04, 0.6), mat('#c8402a' if t < 3 else '#5a2a8a', rough=0.9), outline=False)   # woven cloth
+    if t == 3:
+        for x in (-0.8, 0.8):
+            sphere((x * size, 0, 0.95 * size), 0.12, gold())
+    face((-10, 0, 15))
+
+
+def tool_icon(sk, t):
+    per = {'woodcutting': t_axe, 'mining': t_pickaxe, 'fishing': t_rod, 'herbalism': t_sickle, 'metalworking': t_hammer,
+           'carpentry': t_saw, 'glassworking': t_blowpipe, 'tanning': t_rack, 'grace': altar}
+    if sk in per:
+        return per[sk](t)
+    if sk == 'cooking':
+        return [pan_tool, oven, dragon_range][t]()
+    if sk == 'alchemy':
+        return [vials_rack, copper_still, phil_kit][t]()
+    if sk == 'weaving':
+        return spinning_wheel() if t == 0 else loom(t)
+
+
 ICONS = {
-    'bow': bow, 'coin': coin, 'gem': gem, 'scroll': scroll, 'backpack': backpack, 'bank': bank, 'heart': heart, 'swords': swords,
+    'bow': bow, 'calendar': calendar, 'coin': coin, 'gem': gem, 'scroll': scroll, 'backpack': backpack, 'bank': bank, 'heart': heart, 'swords': swords,
     'shield': shield, 'grace': grace, 'lock': lock, 'crown': crown, 'flame': flame, 'skull': skull, 'sparkle': sparkle,
     'warning': warning, 'hourglass': hourglass, 'books': books, 'clipboard': clipboard, 'plate': plate, 'speaker': speaker,
     'mute': mute, 'withdraw': withdraw, 'fist': fist, 'foot': foot, 'arena': arena, 'puzzle': puzzle, 'burst': burst,
@@ -760,6 +973,13 @@ ICONS = {
 }
 
 
+TOOL_TIERS = {'woodcutting': 4, 'mining': 4, 'fishing': 4, 'herbalism': 4, 'metalworking': 4, 'carpentry': 4, 'glassworking': 4,
+              'cooking': 3, 'alchemy': 3, 'grace': 4, 'tanning': 4, 'weaving': 4}
+for _sk, _n in TOOL_TIERS.items():
+    for _t in range(_n):
+        ICONS[f'tool/{_sk}{_t}'] = (lambda sk, t: lambda: tool_icon(sk, t))(_sk, _t)
+
+
 def build(name):
     R.seed(sum(map(ord, name)))
     reset(transparent=True, samples=24)
@@ -771,7 +991,12 @@ def build(name):
     sun((-120, 0, 15), 1.6, '#ffe6c0')
     cam = camera((3.0, -6.0, 4.5), (0, 0, 0), ortho=3)
     frame_ortho(cam, 1.08)
-    render(os.path.join(OUT, name + '.webp'), 96, 96, quality=88)
+    # 'tool/x' -> assets/tools/x.webp (shown bigger in the shop); everything else -> assets/icons
+    if name.startswith('tool/'):
+        os.makedirs(os.path.join(ROOT, 'assets', 'tools'), exist_ok=True)
+        render(os.path.join(ROOT, 'assets', 'tools', name[5:] + '.webp'), 128, 128, quality=88)
+    else:
+        render(os.path.join(OUT, name + '.webp'), 96, 96, quality=88)
 
 
 if __name__ == '__main__':

@@ -198,6 +198,12 @@ function validateState(s) {
   for (const q of QUESTS) if (plainObj(s.quests)[q.id] === 'done') quests[q.id] = 'done';
   s.quests = quests;
 
+  // Daily quests: keep today's set if it's well-formed, otherwise they're rebuilt on load.
+  const dq = plainObj(s.daily), qs = Array.isArray(dq.quests) ? dq.quests : [];
+  const okQuest = q => DAILY_DIFFS.some(d => d.id === q.diff) && ((q.t === 'act' && ACTIONS[q.id]) || (q.t === 'kill' && monsterTemplate(q.id)) || (q.t === 'dungeon' && DUNGEONS.some(d => d.id === q.id)));
+  s.daily = typeof dq.day === 'string' && qs.length === 3 && qs.every(q => okQuest(plainObj(q)))
+    ? { day: dq.day.slice(0, 12), quests: qs.map(q => ({ t: q.t, id: q.id, diff: q.diff, n: int(q.n, 1, 1000, 1), base: int(q.base, 0, MAX, 0), claimed: q.claimed === true })) }
+    : null;
   const a = plainObj(s.active);
   s.active = ACTIONS[a.action] ? { action: a.action, start: num(a.start, 0, now, now) } : null;
   s.provision = ITEMS[s.provision] && ITEMS[s.provision].heal ? s.provision : null;

@@ -25,9 +25,11 @@ const actionDur = act => +(act.dur * (1 - TOOL_SPEED * toolTier(act.skill))).toF
 function courierCheck(act) {
   if (act.noOutput) return false; // burying frees space, it never needs room
   // Skilling sends everything but the recipe's materials (cooked food too: it's what Cooking makes).
-  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(false, Object.keys(act.inputs)); return invRoomFor(act.id, 1) > 0; }
+  if (state.upgrades.courier && invRoomFor(act.id, 1) <= 0) { depositAll(false, courierKeeps(act)); return invRoomFor(act.id, 1) > 0; }
   return false;
 }
+// The courier keeps the recipe's materials and any talismans you're holding.
+const courierKeeps = act => Object.keys(act.inputs).concat(GLYPHS.map(g => 'talisman_' + g[0]));
 // Crafting only uses materials carried in the inventory (withdraw them from the bank first).
 const hasInputs = act => Object.entries(act.inputs).every(([id, n]) => invCount(id) >= n);
 // How many crafts of `act` the inventory can be filled for, using inventory + bank stock.
@@ -51,7 +53,9 @@ function withdrawFor(act) {
 // Using up a non-stacking material frees its slot, so a full inventory of materials can still be crafted.
 const freesSlot = act => Object.keys(act.inputs).some(id => !ITEMS[id].stack && invCount(id) > 0);
 const hasRoom = act => act.noOutput || invRoomFor(act.id, 1) > 0 || freesSlot(act);
-const canDo = act => skillLevel(act.skill) >= act.level && hasInputs(act) && hasRoom(act);
+// Glyph Making needs that glyph's talisman in the inventory or its amulet worn.
+const hasGlyphFocus = act => !act.glyphKey || invCount('talisman_' + act.glyphKey) > 0 || state.player.gear.amulet === 'amulet_' + act.glyphKey;
+const canDo = act => skillLevel(act.skill) >= act.level && hasGlyphFocus(act) && hasInputs(act) && hasRoom(act);
 // Cooking burns sometimes: 40% at the recipe's level, 1.2% less per level above it, never below 2%.
 const burnChance = act => (act.skill === 'cooking' ? Math.max(0.02, 0.4 - (skillLevel('cooking') - act.level) * 0.012) : 0);
 
@@ -59,6 +63,7 @@ function toggleAction(id) {
   if (state.active && state.active.action === id) { state.active = null; save(); return 'stopped'; }
   const act = ACTIONS[id];
   if (skillLevel(act.skill) < act.level) return 'level';
+  if (!hasGlyphFocus(act)) return 'focus';
   if (!hasInputs(act)) return 'inputs';
   courierCheck(act);
   if (!hasRoom(act)) return state.upgrades.courier && bankUsed() >= bankSize() ? 'bankfull' : 'full';
@@ -116,7 +121,7 @@ function processSkilling(now = Date.now()) {
     if (!canDo(act)) { sum.stopped = true; sum.full = !hasRoom(act); break; }
     doAction(act, sum);
     // The courier empties the inventory as soon as it fills, keeping the recipe's materials.
-    if (state.upgrades.courier && invFull()) { depositAll(false, Object.keys(act.inputs)); sum.couriered = true; }
+    if (state.upgrades.courier && invFull()) { depositAll(false, courierKeeps(act)); sum.couriered = true; }
   }
   if (sum.stopped || !canDo(act)) { state.active = null; sum.stopped = true; sum.full = sum.full || !hasRoom(act); }
   else a.start += n * dur; // keeps partial progress; stays put while the AFK clock is full

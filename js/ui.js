@@ -56,7 +56,7 @@ function renderNav() {
       if (id === 'fight') right = `<span class="lvl">${stageLabel(state.stage)}</span>`;
       if (id === 'sheet') right = `<span class="lvl">Cb ${combatLevel()}</span>`;
       if (id === 'library') right = `<span class="lvl">${Object.keys(state.looks).length}/${HEROES.length}</span>`;
-      if (id === 'quests' && QUESTS.some(questReady)) right = `<span class="badge">!</span>`;
+      if (id === 'quests' && (QUESTS.some(questReady) || (state.daily && state.daily.quests.some(dailyReady)))) right = `<span class="badge">!</span>`;
       if (id === 'bank') right = `<span class="lvl">${Object.keys(state.bank).length}</span>`;
       if (id === 'inventory') right = `<span class="lvl ${invFull() ? 'full' : ''}">${invUsed()}/${invSize()}</span>`;
       const running = id === 'skill:' + activeSkill;
@@ -352,13 +352,15 @@ const pages = {
           <small>When your inventory fills while skilling, everything but the recipe's materials goes to the bank, even offline.</small></div>
           ${state.upgrades.courier ? '<span class="owned">✓ Hired</span>' : `<button class="btn sm ${state.gold < COURIER_COST ? 'off' : 'gold'}" data-act="buycourier">🪙 ${fmt(COURIER_COST)}</button>`}</div>
       </div>
-      <div class="sub">Tools: each tier makes that skill ${TOOL_SPEED * 100}% faster</div>
+      <div class="sub">Tools: each tier makes that skill ${TOOL_SPEED * 100}% faster. Materials come from your inventory and bank.</div>
       <div class="shop-list">${Object.entries(TOOLS).map(([sk, names]) => {
-        const t = toolTier(sk), maxed = t >= names.length;
-        return `<div class="shop-row"><span class="ico lg">${SKILLS[sk].icon}</span>
-          <div class="shop-info"><b>${maxed ? names[names.length - 1] + ' (max)' : names[t]}</b>
-          <small>${t ? `Owned: ${names[t - 1]} (−${t * 10}%)` : 'No tool yet'}${maxed ? '' : ` · needs ${SKILLS[sk].name} ${TOOL_REQ[t]}`}</small></div>
-          ${maxed ? '<span class="owned">✓</span>' : `<button class="btn sm ${state.gold < TOOL_COST[t] || skillLevel(sk) < TOOL_REQ[t] ? 'off' : 'gold'}" data-act="buytool" data-skill="${sk}">🪙 ${fmt(TOOL_COST[t])}</button>`}</div>`;
+        const t = toolTier(sk), maxed = t >= names.length, shown = maxed ? names.length - 1 : t;
+        const ok = !maxed && state.gold >= TOOL_COST[t] && skillLevel(sk) >= TOOL_REQ[t] && toolMatsOk(sk, t);
+        return `<div class="shop-row tool-row"><span class="ico lg tool-ico"><img class="item-img" src="${toolImg(sk, shown)}" alt="${SKILLS[sk].icon}" draggable="false"></span>
+          <div class="shop-info"><b>${names[shown]}${maxed ? ' (max)' : ''}</b>
+          <small>${SKILLS[sk].icon} ${SKILLS[sk].name} ${t ? `· owned: ${names[t - 1]} (−${t * 10}%)` : '· no tool yet'}${maxed ? '' : ` · <span class="${skillLevel(sk) >= TOOL_REQ[t] ? 'req-ok' : 'req-no'}">needs level ${TOOL_REQ[t]}</span>`}</small>
+          ${maxed ? '' : `<div class="sp-cost">${Object.entries(TOOL_MATS[sk][t]).map(([id, n]) => `<span class="${haveCount(id) >= n ? '' : 'lack'}">${icon(id, 'sm')} ${fmt(haveCount(id))}/${n}</span>`).join('')}</div>`}</div>
+          ${maxed ? '<span class="owned">✓</span>' : `<button class="btn sm ${ok ? 'gold' : 'off'}" data-act="buytool" data-skill="${sk}">🪙 ${fmt(TOOL_COST[t])}</button>`}</div>`;
       }).join('')}</div>`;
   },
 
@@ -380,9 +382,20 @@ const pages = {
         ${questReady(q) ? `<button class="btn gold" data-act="quest" data-id="${q.id}">Complete quest${q.steps.some(st => st.t === 'deliver') ? ' (hands over the items)' : ''}</button>` : ''}
       </section>`;
     };
+    checkDailies();
+    const hrs = Math.ceil(msToMidnight() / 3600e3);
+    const daily = state.daily.quests.map((q, qi) => {
+      const df = DAILY_DIFFS.find(d => d.id === q.diff), p = dailyProgress(q);
+      return `<section class="panel quest daily ${q.claimed ? 'done' : ''}" style="--c:${df.color}">
+        <div class="quest-head"><span class="diff-badge">${df.name}</span><div><b>${dailyText(q)}</b><small>${q.claimed ? '✓ Claimed' : `${fmt(p)}/${fmt(q.n)}`}</small></div></div>
+        <div class="bar-track sm"><i style="width:${100 * p / q.n}%"></i></div>
+        <div class="q-reward">Reward: 🪙 ${fmt(dailyGold(q))}${df.gems ? ` · 💎 ${df.gems}` : ''} · 🎁 ${df.loot} random rewards</div>
+        ${dailyReady(q) ? `<button class="btn gold" data-act="daily" data-i="${qi}">Claim</button>` : ''}</section>`;
+    }).join('');
     const story = QUESTS.filter(q => !q.req), skill = QUESTS.filter(q => q.req);
     const count = list => `${list.filter(questDone).length}/${list.length}`;
-    return `<div class="panel-title">📜 Story quests <span class="muted">· ${count(story)} · unlock one after another</span></div>${story.map(card).join('')}
+    return `<div class="panel-title">📅 Daily quests <span class="muted">· new ones in ${hrs}h</span></div>${daily}
+      <div class="panel-title">📜 Story quests <span class="muted">· ${count(story)} · unlock one after another</span></div>${story.map(card).join('')}
       <div class="panel-title">🛠️ Skill quests <span class="muted">· ${count(skill)} · need skill levels to start, items are handed in from inventory and bank</span></div>${skill.map(card).join('')}`;
   },
 
@@ -528,6 +541,7 @@ function actCard(a) {
     ${inputs.length ? `<div class="ac-inputs">${inputs.map(([id, n]) =>
       `<span class="${invCount(id) < n ? 'lack' : ''}">${icon(id, 'sm')} ${n}<small>(🎒${fmt(invCount(id))}${itemCount(id) ? ` 🏦${fmt(itemCount(id))}` : ''})</small></span>`).join('')}</div>` : ''}
     ${inputs.length && !locked && craftsToFill(a) > Math.min(...inputs.map(([id, n]) => Math.floor(invCount(id) / n))) ? `<span class="wd-btn" data-act="withdrawfor" data-id="${a.id}">📥 Withdraw for ${craftsToFill(a)}</span>` : ''}
+    ${a.glyphKey && !hasGlyphFocus(a) ? `<div class="ac-desc req-no">🔒 Hold a ${ITEMS['talisman_' + a.glyphKey].name} or wear its amulet (dungeon chests)</div>` : ''}
     ${a.nodeImg ? `<div class="ac-desc">Gives ${icon(a.id, 'sm')} ${ITEMS[a.id].name} · ${describeItem(a.id)}</div>` : !a.noOutput && describeItem(a.id) ? `<div class="ac-desc">${describeItem(a.id)}</div>` : ''}
     <div class="ac-foot"><span>🎒 ${fmt(invCount(shown))} · 🏦 ${fmt(itemCount(shown))}</span><span class="ac-btn">${active ? 'Stop' : locked ? `🔒 Level ${a.level}` : (a.verb || SKILLS[a.skill].verb)}</span></div>
     <div class="prog"><i></i></div>
@@ -538,12 +552,13 @@ function describeItem(id) {
   const it = ITEMS[id];
   if (it.slot) {
     const stats = [it.atk && (it.atype ? `${COMBAT_TYPES[it.atype].icon} ${COMBAT_TYPES[it.atype].name} damage +${it.atk}` : `Damage +${it.atk}`), it.hp && `HP +${it.hp}`, it.def && `Defence +${it.def}`].filter(Boolean).join(', ');
-    const kind = it.slot === 'weapon' ? `${COMBAT_TYPES[it.wtype].icon} ${COMBAT_TYPES[it.wtype].name} weapon` : GEAR_SLOT_INFO[it.slot].name;
+    const kind = it.slot === 'weapon' ? `${COMBAT_TYPES[it.wtype].icon} ${COMBAT_TYPES[it.wtype].name} weapon` : it.amuletOf ? `Amulet (lets you inscribe ${GLYPHS.find(g => g[0] === it.amuletOf)[1]}s)` : GEAR_SLOT_INFO[it.slot].name;
     const extra = [it.spd && `${it.spd > 0 ? '+' : ''}${Math.round(it.spd * 100)}% attack speed`, it.twoHanded && 'two-handed (no shield)', it.slot === 'shield' && `blocks ${Math.round(BLOCK_CHANCE * 100)}% of hits for half damage`].filter(Boolean).join(', ');
     const req = it.req ? ` · <span class="${meetsReq(it) ? 'req-ok' : 'req-no'}">needs ${SKILLS[it.req.skill].icon} ${SKILLS[it.req.skill].name} ${it.req.level}</span>` : '';
     return `Lv ${it.ilvl} ${kind} · ${stats}${extra ? ' · ' + extra : ''}${it.set ? ` · 🧩 ${SETS[it.set].name}` : ''}${req}${it.slot === 'weapon' && !weaponMatches(it) ? ' (half damage: not your fighting style)' : ''}`;
   }
   if (it.glyph) return 'Glyph · used by spells';
+  if (it.talisman) return `Charm · hold it in your inventory to inscribe ${GLYPHS.find(g => g[0] === it.talisman)[1]}s`;
   if (id === 'chipped') return `For 🔣 Glyph Making · stacks ${it.maxStack}`;
   if (it.heal) return `Food · heals ${it.heal} HP in battle`;
   if (it.effect) return `Potion · ${it.effectText} for ${POTION_BATTLES} battles`;
@@ -857,6 +872,9 @@ function endDungeon(h, died, cleared) {
   }
   state.stats.dungeons[d.id] = (state.stats.dungeons[d.id] || 0) + 1;
   const chest = rollChestTier(), loot = rollChestLoot(d, chest);
+  // A first clear always includes the dungeon's first talisman, if you don't have it yet.
+  const firstCharm = 'talisman_' + d.glyphs[0];
+  if (state.stats.dungeons[d.id] === 1 && !ownsCharm(firstCharm)) loot.items[firstCharm] = 1;
   claimChest(loot);
   render();
   sfx('cheer');
@@ -944,6 +962,7 @@ document.addEventListener('click', e => {
   if (actCardEl) {
     const r = toggleAction(actCardEl.dataset.action);
     if (r === 'level') toast(`Requires level ${ACTIONS[actCardEl.dataset.action].level}`);
+    if (r === 'focus') toast(`🔒 Needs a ${ITEMS['talisman_' + ACTIONS[actCardEl.dataset.action].glyphKey].name} in your inventory, or its amulet worn`);
     if (r === 'inputs') toast('Not enough materials in your inventory. Withdraw them from the bank (📥).');
     if (r === 'full') toast('🎒 Inventory full. Deposit items in the bank first.');
     if (r === 'bankfull') toast(`🏦 Bank full (${bankUsed()}/${bankSize()} slots): the courier can't store new items. Sell some or buy bank slots in the Shop.`);
@@ -965,6 +984,14 @@ document.addEventListener('click', e => {
       case 'golib': closeModal(); go('library'); break;
       case 'hunt': closeModal(); startHunt(Number(d.a), Number(d.m)); break;
       case 'dungeon': closeModal(); startDungeon(Number(d.d)); break;
+      case 'daily': {
+        const loot = claimDaily(state.daily.quests[Number(d.i)]);
+        if (loot) { render(); sfx('chest'); openModal(`<div class="result win"><h2>Daily quest complete!</h2>
+          <div class="loot chest-loot">${[`<span>🪙 +${fmt(loot.gold)}</span>`, loot.gems && `<span>💎 +${loot.gems}</span>`, loot.scrolls && `<span>📜 +${loot.scrolls}</span>`,
+            ...Object.entries(loot.items).map(([id, n]) => `<span>${icon(id)} +${fmt(n)} ${ITEMS[id].name}</span>`)].filter(Boolean).join('')}</div>
+          <p class="muted">Items go to your bank.</p><button class="btn" data-act="close">Nice</button></div>`); }
+        break;
+      }
       case 'fighttab': fightTab = d.k; render(); break;
       case 'lookcat': lookCat = d.k; render(); break;
       case 'shoptab': shopTab = d.k; render(); break;
@@ -977,7 +1004,7 @@ document.addEventListener('click', e => {
       case 'buybank': if (buyBankSlot()) { render(); toast(`🏦 Bank is now ${bankSize()} slots`); } else toast('Not enough gold'); break;
       case 'buypack': if (buyBackpack()) { render(); toast(`🎒 Inventory is now ${invSize()} slots`); } else toast('Not enough gold'); break;
       case 'buycourier': if (buyCourier()) { render(); toast('🦉 The Bank Courier is hired!'); } else toast('Not enough gold'); break;
-      case 'buytool': if (buyTool(d.skill)) { render(); toast(`${SKILLS[d.skill].icon} ${TOOLS[d.skill][toolTier(d.skill) - 1]} bought!`); } else toast('Need more gold or a higher skill level'); break;
+      case 'buytool': if (buyTool(d.skill)) { render(); toast(`${SKILLS[d.skill].icon} ${TOOLS[d.skill][toolTier(d.skill) - 1]} bought!`); } else toast('Need more gold, the materials, or a higher skill level'); break;
       case 'quest': { const q = QUESTS.find(x => x.id === d.id); if (completeQuest(q)) { render(); toast(`📜 Quest complete! ${questRewardText(q.r, false)}`); } break; }
       case 'gosmith': closeModal(); go('skill:metalworking'); break;
       case 'close': closeModal(); break;
@@ -1082,6 +1109,7 @@ $('#btn-retreat').addEventListener('click', () => {
 
 // ---------------- Boot ----------------
 load();
+checkDailies();
 const offline = processSkilling();
 render();
 if (security.problem) setTimeout(() => toast('🛡️ ' + security.problem), 400);
@@ -1091,6 +1119,7 @@ onSkillTick(offline, true);
 setInterval(() => { onSkillTick(processSkilling(), false); tickBars(); }, 100);
 setInterval(() => {
   if (clockGuard(state)) { save(); toast("🕒 Your phone's clock moved back, so idle progress restarted from now"); }
+  if (checkDailies()) { renderNav(); toast('📅 New daily quests!'); }
   if (page === 'home' && !modalOpen() && !battle) render(); else renderTop();
 }, 1000);
 

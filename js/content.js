@@ -41,17 +41,17 @@ function rollMobDrops(key, into = {}) {
 // The boss drops a chest whose tier is rolled when it falls; each chest holds 6-10 random rewards.
 // area: which hunting area's background and gem rate to use; tier: the material tier of the loot.
 const DUNGEONS = [
-  { id: 'warren',  name: 'Goblin Warren',     icon: '🕳️', area: 0, tier: 0, waves: [['slime', 3], ['boar', 4], ['goblin', 5], ['goblin', 6], ['wolf', 8]],
+  { id: 'warren',  name: 'Goblin Warren',     icon: '🕳️', area: 0, tier: 0, glyphs: ['spark', 'tide'], waves: [['slime', 3], ['boar', 4], ['goblin', 5], ['goblin', 6], ['wolf', 8]],
     boss: { key: 'goblin', lvl: 10, name: 'Goblin Warlord' } },
-  { id: 'hollow',  name: 'Thornwood Hollow',  icon: '🌳', area: 1, tier: 1, waves: [['spider', 14], ['goblin_archer', 17], ['bear', 20], ['spider', 21], ['treant', 23]],
+  { id: 'hollow',  name: 'Thornwood Hollow',  icon: '🌳', area: 1, tier: 1, glyphs: ['tide', 'root'], waves: [['spider', 14], ['goblin_archer', 17], ['bear', 20], ['spider', 21], ['treant', 23]],
     boss: { key: 'treant', lvl: 26, name: 'Elder Treant' } },
-  { id: 'crypt',   name: 'Sunken Crypt',      icon: '⚰️', area: 2, tier: 2, waves: [['skeleton', 28], ['hound', 30], ['wraith', 33], ['skeleton', 36], ['cultist', 38]],
+  { id: 'crypt',   name: 'Sunken Crypt',      icon: '⚰️', area: 2, tier: 2, glyphs: ['root', 'gale'], waves: [['skeleton', 28], ['hound', 30], ['wraith', 33], ['skeleton', 36], ['cultist', 38]],
     boss: { key: 'skeleton', lvl: 42, name: 'Bone Colossus' } },
-  { id: 'glacier', name: 'Frozen Depths',     icon: '❄️', area: 3, tier: 3, waves: [['bat', 44], ['yeti', 46], ['bat', 48], ['golem', 50]],
+  { id: 'glacier', name: 'Frozen Depths',     icon: '❄️', area: 3, tier: 3, glyphs: ['gale', 'ember'], waves: [['bat', 44], ['yeti', 46], ['bat', 48], ['golem', 50]],
     boss: { key: 'yeti', lvl: 55, name: 'Yeti Matriarch' } },
-  { id: 'rift',    name: 'Infernal Rift',     icon: '🔥', area: 4, tier: 4, waves: [['imp', 56], ['fire_sprite', 60], ['imp', 63], ['fire_sprite', 66], ['golem', 68]],
+  { id: 'rift',    name: 'Infernal Rift',     icon: '🔥', area: 4, tier: 4, glyphs: ['ember', 'frost'], waves: [['imp', 56], ['fire_sprite', 60], ['imp', 63], ['fire_sprite', 66], ['golem', 68]],
     boss: { key: 'ogre', lvl: 72, name: 'Ogre Chief' } },
-  { id: 'abyss',   name: 'Abyssal Sanctum',   icon: '🌀', area: 5, tier: 6, waves: [['cultist', 80], ['fire_sprite', 84], ['golem', 88], ['wyrm', 90]],
+  { id: 'abyss',   name: 'Abyssal Sanctum',   icon: '🌀', area: 5, tier: 6, glyphs: ['frost', 'radiant', 'void'], waves: [['cultist', 80], ['fire_sprite', 84], ['golem', 88], ['wyrm', 90]],
     boss: { key: 'kraken', lvl: 100, name: 'Abyssal Kraken' } },
 ];
 // Chest tiers rolled when the boss falls: weight (chance), how much more loot, and better rolls.
@@ -68,11 +68,14 @@ function rollChestTier() {
   return CHEST_TIERS.find(c => (r -= c.weight) < 0) || CHEST_TIERS[0];
 }
 // 6-10 different rewards from the dungeon's tier (better chests roll more, and sometimes a tier higher).
-function rollChestLoot(d, chest) {
+// Talismans and amulets (needed for Glyph Making) only come from dungeon chests (and daily quest loot).
+const ownsCharm = id => haveCount(id) > 0 || state.player.gear.amulet === id;
+function rollChestLoot(d, chest, count = null) {
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1)), pick = a => a[Math.floor(Math.random() * a.length)];
   const lvl = d.boss.lvl, loot = { gold: 0, gems: 0, scrolls: 0, items: {} };
-  const count = rnd(6, 10);
-  const kinds = [['mat', 30], ['drop', 18], ['food', 10], ['pot', 6], ['glyph', 8], ['gold', 10], ['gems', 8], ['remains', 5], ['gear', 100 * chest.gear], ['scroll', 100 * chest.scroll]];
+  count = count || rnd(6, 10);
+  const kinds = [['mat', 30], ['drop', 18], ['food', 10], ['pot', 6], ['glyph', 8], ['gold', 10], ['gems', 8], ['remains', 5], ['gear', 100 * chest.gear], ['scroll', 100 * chest.scroll],
+    ['talisman', d.glyphs ? 3.5 : 0], ['amulet', d.glyphs ? 0.6 + 8 * chest.gear : 0]];
   const total = kinds.reduce((s, k) => s + k[1], 0);
   let rolls = 0;
   for (let got = 0; got < count && rolls < 200; rolls++) {
@@ -88,12 +91,13 @@ function rollChestLoot(d, chest) {
     if (kind === 'pot') { id = 'pot' + t; n = rnd(1, 2); }
     if (kind === 'glyph') { id = 'glyph_' + GLYPHS[Math.min(t, GLYPHS.length - 1)][0]; n = rnd(10, 25); }
     if (kind === 'remains') { id = pick(['bones', 'bigbones', 'ash']); n = rnd(3, 8); }
+    if (kind === 'talisman' || kind === 'amulet') { id = kind + '_' + pick(d.glyphs); if (ownsCharm(id)) continue; n = 1; }
     if (kind === 'gear') {
       id = pick(['dagger', 'sword', 'longsword', 'greatsword', 'bow', 'staff', 'helm', 'armor', 'legs', 'gloves', 'boots', 'kite', 'wshield',
         'rhood', 'rbody', 'rlegs', 'rgloves', 'rboots', 'mhood', 'mbody', 'mlegs', 'mgloves', 'mboots']) + t; n = 1;
     }
     if (!ITEMS[id] || loot.items[id]) continue; // every reward in a chest is a different item
-    loot.items[id] = kind === 'gear' ? 1 : Math.max(1, Math.round(n * m));
+    loot.items[id] = kind === 'gear' || kind === 'talisman' || kind === 'amulet' ? 1 : Math.max(1, Math.round(n * m));
     got++;
   }
   return loot;
@@ -152,17 +156,33 @@ const QUESTS = [
 { let prev = null; for (const q of QUESTS) if (!q.req) { if (prev && !q.after) q.after = prev; prev = q.id; } }
 
 // ---- Shop (gold) ----
-const TOOLS = {
-  woodcutting: ['Iron Axe', 'Steel Axe', 'Mythril Axe', 'Voidsteel Axe'],
-  mining:      ['Iron Pickaxe', 'Steel Pickaxe', 'Mythril Pickaxe', 'Voidsteel Pickaxe'],
-  fishing:     ['Sturdy Rod', 'Fiberglass Rod', 'Mythril Rod', 'Voidsteel Rod'],
-  herbalism:   ['Iron Sickle', 'Steel Sickle', 'Mythril Sickle', 'Voidsteel Sickle'],
-  metalworking:['Iron Hammer', 'Steel Hammer', 'Mythril Hammer', 'Voidsteel Hammer'],
-  carpentry:   ['Iron Saw', 'Steel Saw', 'Mythril Saw', 'Voidsteel Saw'],
-  glassworking:['Blowpipe', 'Steel Blowpipe', 'Mythril Blowpipe', 'Voidsteel Blowpipe'],
-  cooking:     ['Cast-iron Pan', 'Stone Oven', 'Dragonfire Range'],
-  alchemy:     ['Glass Vials', 'Copper Still', "Philosopher's Kit"],
+// Tools: each tier costs gold plus materials from the game (bars, logs, planks, monster drops...).
+// Tool tier t is made from material tier TOOL_MT[t]: Iron, Mythril, Starmetal, Obsidian.
+const TOOL_MT = [1, 3, 4, 5];
+const TOOL_DEFS = {
+  woodcutting: ['Axe', t => ({ ['bar' + t]: 6, ['log' + t]: 10 })],
+  mining:      ['Pickaxe', t => ({ ['bar' + t]: 8, ['ore' + t]: 12 })],
+  fishing:     ['Rod', t => ({ ['plank' + t]: 6, silk: 4 }), true],
+  herbalism:   ['Sickle', t => ({ ['bar' + t]: 5, ['herb' + t]: 10 })],
+  metalworking:['Hammer', t => ({ ['bar' + t]: 12, ['log' + t]: 6 })],
+  carpentry:   ['Saw', t => ({ ['bar' + t]: 5, ['plank' + t]: 10 })],
+  glassworking:['Blowpipe', t => ({ ['bar' + t]: 5, glass: 20 })],
+  tanning:     ['Tanning Rack', t => ({ ['plank' + t]: 8, ['bar' + t]: 4, ['leather' + t]: 3 }), true],
 };
+const TOOLS = {}, TOOL_MATS = {};
+for (const [sk, [kind, mats, woodNamed]] of Object.entries(TOOL_DEFS)) {
+  TOOLS[sk] = TOOL_MT.map(t => `${woodNamed ? WOODS[t] : METALS[t]} ${kind}`);
+  TOOL_MATS[sk] = TOOL_MT.map(mats);
+}
+// Hand-made tool lines (names and materials per tier)
+const TOOL_LINES = {
+  cooking: [['Cast-iron Pan', { bar1: 6, food1: 10 }], ['Stone Oven', { ore3: 15, food3: 8 }], ['Dragonfire Range', { bar4: 10, fireess: 5 }]],
+  alchemy: [['Glass Vials', { vial: 20, herb1: 10 }], ['Copper Still', { bar0: 15, glass: 10 }], ["Philosopher's Kit", { bar4: 8, orb4: 3, pot3: 5 }]],
+  grace:   [['Stone Altar', { ore1: 15, bones: 20 }], ['Marble Altar', { ore3: 15, bigbones: 15 }], ['Gilded Altar', { bar4: 8, bigbones: 20 }], ['Celestial Altar', { bar5: 10, ash: 25 }]],
+  weaving: [['Spinning Wheel', { plank1: 8, wool: 10 }], ['Hand Loom', { plank3: 8, cloth: 10 }], ['Floor Loom', { plank4: 10, silk: 8 }], ['Grand Loom', { plank5: 12, cloth: 25 }]],
+};
+for (const [sk, line] of Object.entries(TOOL_LINES)) { TOOLS[sk] = line.map(x => x[0]); TOOL_MATS[sk] = line.map(x => x[1]); }
+const toolImg = (sk, t) => `assets/tools/${sk}${t}.webp`;
 const TOOL_COST = [1500, 12000, 60000, 400000];
 const TOOL_REQ = [10, 30, 55, 75];      // skill level needed to buy each tier
 const TOOL_SPEED = 0.1;             // each tool tier makes that skill's actions 10% faster

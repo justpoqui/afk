@@ -3,7 +3,7 @@
 const AFK_HOURS = 12;
 const IDLE_CAP_MS = AFK_HOURS * 3600 * 1000;
 // Equipment slots, in paper-doll order. Add a slot here + GEAR_SLOT_INFO (skilldata.js) to extend.
-const GEAR_SLOTS = ['helmet', 'chest', 'legs', 'gloves', 'boots', 'weapon', 'shield'];
+const GEAR_SLOTS = ['helmet', 'chest', 'legs', 'gloves', 'boots', 'weapon', 'shield', 'amulet'];
 const emptyGear = () => Object.fromEntries(GEAR_SLOTS.map(s => [s, null]));
 const START_HP_LEVEL = 10;
 
@@ -13,6 +13,7 @@ function newState() {
   return {
     gold: 300, gems: 120, scrolls: 3,
     stage: 1, lastClaim: Date.now(),
+    daily: null,
     player: { skin: 'tobin', style: 'strength', ctype: 'melee', gear: emptyGear(), blessings: [], spell: 'auto' },
     looks: { tobin: 0 }, // owned looks -> duplicate stars
     upgrades: { tools: {}, backpack: 0, courier: false, bankSlots: 0 }, bonusSlots: 0, quests: {},
@@ -460,12 +461,66 @@ function dungeonUnit(di, wave) {
   };
   return u;
 }
-// Banks a dungeon chest's rewards (items go to the bank).
-function claimChest(loot) {
+// Banks a chest's rewards (items go to the bank).
+function claimLoot(loot) {
   state.gold += loot.gold; state.gems += loot.gems; state.scrolls += loot.scrolls;
   for (const [id, n] of Object.entries(loot.items)) addItem(id, n);
-  state.stats.chests++;
   save();
+}
+function claimChest(loot) { state.stats.chests++; claimLoot(loot); }
+
+// ---- Daily quests: three a day (Easy, Medium, Hard), picked for your levels; reset at local midnight ----
+const DAILY_DIFFS = [
+  { id: 'easy',   name: 'Easy',   color: '#5cdc6a', gold: 1,   loot: 2, chest: 0, gems: 0 },
+  { id: 'medium', name: 'Medium', color: '#ffb02e', gold: 2.5, loot: 3, chest: 1, gems: 10 },
+  { id: 'hard',   name: 'Hard',   color: '#ff5d5d', gold: 5,   loot: 4, chest: 3, gems: 30 },
+];
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const msToMidnight = () => { const d = new Date(); d.setHours(24, 0, 0, 0); return d - Date.now(); };
+const dailyCount = q => ({ act: () => state.stats.actions[q.id] || 0, kill: () => state.stats.mkills[q.id] || 0, dungeon: () => state.stats.dungeons[q.id] || 0 }[q.t]());
+const dailyProgress = q => Math.min(q.n, dailyCount(q) - q.base);
+const dailyReady = q => !q.claimed && dailyProgress(q) >= q.n;
+function makeDailies(key) {
+  let h = 0; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  const rng = mulberry(Math.abs(h) + totalSkillLevel()), pick = a => a[Math.floor(rng() * a.length)];
+  const cl = combatLevel();
+  // what you can do right now: unlocked gathering and crafting actions, monsters near your level, dungeons you could clear
+  const gathers = Object.values(ACTIONS).filter(a => SKILLS[a.skill].type === 'gather' && skillLevel(a.skill) >= a.level);
+  const crafts = Object.values(ACTIONS).filter(a => SKILLS[a.skill].type === 'craft' && !a.noOutput && skillLevel(a.skill) >= a.level && a.level >= skillLevel(a.skill) - 25);
+  const mons = AREAS.flatMap(a => a.monsters).filter(([, lvl]) => lvl <= cl + 3);
+  const dungeons = DUNGEONS.filter(d => d.boss.lvl <= cl + 6);
+  const kill = n => { const [k] = pick(mons.slice(-4)); return { t: 'kill', id: k, n }; };
+  const quests = DAILY_DIFFS.map(df => {
+    let q;
+    if (df.id === 'easy') q = rng() < 0.6 && gathers.length ? { t: 'act', id: pick(gathers.slice(-6)).id, n: 40 } : kill(10);
+    else if (df.id === 'medium') q = rng() < 0.6 && crafts.length ? { t: 'act', id: pick(crafts).id, n: 50 } : kill(25);
+    else q = dungeons.length && rng() < 0.6 ? { t: 'dungeon', id: dungeons[dungeons.length - 1].id, n: 1 } : rng() < 0.5 ? kill(50) : { t: 'act', id: pick(gathers.slice(-4)).id, n: 150 };
+    q.diff = df.id; q.claimed = false;
+    q.base = dailyCount(q);
+    return q;
+  });
+  return { day: key, quests };
+}
+// Fresh dailies when the day changes.
+function checkDailies() {
+  if (state.daily && state.daily.day === dayKey()) return false;
+  state.daily = makeDailies(dayKey()); save();
+  return true;
+}
+const dailyText = q => q.t === 'act' ? `${ACTIONS[q.id].verb || SKILLS[ACTIONS[q.id].skill].verb} ${q.n} × ${ACTIONS[q.id].name}`
+  : q.t === 'kill' ? `Defeat ${q.n} × ${monsterTemplate(q.id).name}` : `Clear ${DUNGEONS.find(d => d.id === q.id).name}`;
+const dailyGold = q => Math.round((200 + 40 * combatLevel()) * DAILY_DIFFS.find(d => d.id === q.diff).gold);
+// Reward: gold, gems on harder ones, and random loot from your level's tier (sometimes a talisman).
+function claimDaily(q) {
+  if (!dailyReady(q)) return null;
+  const df = DAILY_DIFFS.find(d => d.id === q.diff), cl = combatLevel();
+  const tier = Math.max(0, T_LEVEL.filter(l => l <= cl).length - 1);
+  const d = [...DUNGEONS].reverse().find(x => x.boss.lvl <= cl + 6) || DUNGEONS[0];
+  const loot = rollChestLoot({ tier, boss: { lvl: cl }, glyphs: df.id === 'easy' ? null : d.glyphs }, CHEST_TIERS[df.chest], df.loot);
+  loot.gold += dailyGold(q); loot.gems += df.gems;
+  q.claimed = true;
+  claimLoot(loot);
+  return loot;
 }
 
 // Gold and item drops for a hunting kill: materials of the area's tier, rare gear, the odd gem.
@@ -493,9 +548,12 @@ function stageReward(stage) {
 
 // ---- Shop ----
 const toolTier = skill => state.upgrades.tools[skill] || 0;
+// Materials come from the inventory first, then the bank.
+const toolMatsOk = (skill, t) => Object.entries(TOOL_MATS[skill][t]).every(([id, n]) => haveCount(id) >= n);
 function buyTool(skill) {
   const t = toolTier(skill);
-  if (t >= TOOLS[skill].length || skillLevel(skill) < TOOL_REQ[t] || state.gold < TOOL_COST[t]) return false;
+  if (t >= TOOLS[skill].length || skillLevel(skill) < TOOL_REQ[t] || state.gold < TOOL_COST[t] || !toolMatsOk(skill, t)) return false;
+  for (const [id, n] of Object.entries(TOOL_MATS[skill][t])) take(id, n);
   state.gold -= TOOL_COST[t]; state.upgrades.tools[skill] = t + 1; save(); return true;
 }
 function buyBackpack() {

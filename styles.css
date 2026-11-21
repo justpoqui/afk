@@ -570,7 +570,7 @@ body.nav-open #scrim { display: block; }
 /* ---------- Paper-doll equipment ---------- */
 .doll { position: relative; display: grid; gap: 8px; justify-content: center;
   grid-template-columns: 78px 78px 78px;
-  grid-template-areas: ". helmet ." "weapon chest shield" "gloves legs ." ". boots ."; }
+  grid-template-areas: ". helmet amulet" "weapon chest shield" "gloves legs ." ". boots ."; }
 .doll-figure { grid-column: 1 / -1; grid-row: 1 / -1; justify-self: center; align-self: center; width: 210px; height: 210px; opacity: .22; pointer-events: none; }
 .doll-slot { position: relative; z-index: 1; aspect-ratio: 1; border-radius: 14px; background: #120f1acc; border: 1.5px dashed #3a3156;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px; }
@@ -663,3 +663,8 @@ textarea.code { width: 100%; min-height: 84px; background: #120f1a; color: var(-
 img.gi { width: 1.25em; height: 1.25em; vertical-align: -0.28em; object-fit: contain; display: inline-block; margin: 0 0.04em; }
 .big-emoji img.gi { width: 72px; height: 72px; }
 .ico img.gi, .sh-icon img.gi, .tile img.gi, .bl-ico img.gi { width: 1.35em; height: 1.35em; }
+
+.tool-row .tool-ico { background: var(--panel2); }
+.tool-row .sp-cost { margin-top: 3px; }
+.quest.daily { border-left: 3px solid var(--c); }
+.quest-head .diff-badge { font-size: 11px; line-height: 1.4; flex: none; font-weight: 800; color: #120f1a; background: var(--c); padding: 2px 7px; border-radius: 8px; align-self: center; }

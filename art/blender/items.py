@@ -763,6 +763,7 @@ def seg(points, r, m, outline=False):
 GLYPH_COL = {'spark': '#ffe14a', 'tide': '#4fb3ff', 'root': '#5fd068', 'gale': '#cfeeff',
              'ember': '#ff7a2a', 'frost': '#9ff0ff', 'radiant': '#ffe9a0', 'void': '#a06bff'}
 GLYPH_KEYS = list(GLYPH_COL)
+GOLD_C = '#f2c14e'
 STONE = '#7f8aa6'
 
 
@@ -1182,6 +1183,29 @@ def chest(cid):
     group(rot=(0, 0, 20))
 
 
+# ---------------- talismans and amulets (Glyph Making) ----------------
+def talisman(k):
+    c = GLYPH_COL[k]
+    cyl((0, 0, -0.1), 0.72, 0.18, mat(mix(STONE, c, 0.15), rough=0.85), rot=(90, 0, 0), verts=6)
+    torus((0, -0.05, -0.1), 0.62, 0.05, mat(GOLD_C, rough=0.3, metal=0.9), rot=(90, 0, 0))
+    glyph_symbol(k, -0.12, s=0.95, r=0.06)
+    torus((0, 0, 0.72), 0.15, 0.04, mat(GOLD_C, rough=0.3, metal=0.9), rot=(90, 0, 0))
+    tube([(0, 0, 0.85), (-0.35, 0.05, 1.1), (0.35, 0.05, 1.1), (0, 0, 0.85)], [0.025] * 4, mat('#5a3d22'), outline=False)
+    group(rot=(-30, 0, 15))
+
+
+def amulet(k):
+    c = GLYPH_COL[k]
+    g = mat(GOLD_C, rough=0.25, metal=0.9)
+    for i in range(16):   # chain links
+        a = math.pi * (0.1 + i * 0.8 / 15)
+        torus((0.75 * math.cos(a), 0.05, -0.15 + 0.85 * math.sin(a)), 0.06, 0.02, g, rot=(90 if i % 2 else 0, 0, math.degrees(a)), outline=False)
+    cyl((0, 0, -0.35), 0.42, 0.14, g, rot=(90, 0, 0), verts=24)
+    sphere((0, -0.08, -0.35), 0.3, mat(c, rough=0.05, emit=1.2), scale=(1, 0.5, 1))
+    glyph_symbol(k, -0.25, s=0.38, m=glow('#ffffff', 2), r=0.035)
+    group(rot=(-25, 0, 15))
+
+
 ITEMS = {
     'bonedagger': bone_dagger, 'bonesword': bone_sword, 'bonebow': bone_bow, 'bonestaff': bone_staff,
     'bonehelm': bone_helm, 'bonegloves': bone_gauntlets, 'boneboots': bone_boots, 'boneshield': bone_shield,
@@ -1233,6 +1257,9 @@ for i in range(len(METAL)):
 for i in range(8):
     ITEMS[f'hide{i}'] = (lambda i: lambda: hide(i))(i)
     ITEMS[f'leather{i}'] = (lambda i: lambda: leather(i))(i)
+for k in GLYPH_KEYS:
+    ITEMS['talisman_' + k] = (lambda k: lambda: talisman(k))(k)
+    ITEMS['amulet_' + k] = (lambda k: lambda: amulet(k))(k)
 for k in GLYPH_KEYS:
     ITEMS['glyph_' + k] = (lambda k: lambda: glyph_tablet(k))(k)
 for i in range(len(METAL)):

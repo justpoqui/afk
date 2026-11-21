@@ -43,7 +43,7 @@ const SKILLS = {
 
 const ITEMS = {};
 const ACTIONS = {}; // keyed by output item id (each item has exactly one recipe)
-const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Glyphs', 'Mob Drops', 'Leather', 'Cloth', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Remains', 'Misc'];
+const CATEGORY_ORDER = ['Logs', 'Ores', 'Fish', 'Herbs', 'Bars', 'Planks', 'Glass', 'Orbs', 'Glyphs', 'Charms', 'Mob Drops', 'Leather', 'Cloth', 'Weapons', 'Armor', 'Shields', 'Food', 'Potions', 'Remains', 'Misc'];
 
 // Every item has a Blender-rendered icon at assets/items/<id>.webp (see art/blender/items.py).
 // New items, including future monster drops, need a model there too; run `node art/check-item-icons.js`.
@@ -104,7 +104,7 @@ const POTION_BATTLES = 5;
 const GEAR_SLOT_INFO = {
   helmet: { name: 'Helmet', icon: '⛑️' }, chest: { name: 'Chest', icon: '👕' }, legs: { name: 'Legs', icon: '👖' },
   gloves: { name: 'Gloves', icon: '🧤' }, boots: { name: 'Boots', icon: '👢' }, weapon: { name: 'Weapon', icon: '🗡️' },
-  shield: { name: 'Shield', icon: '🛡️' },
+  shield: { name: 'Shield', icon: '🛡️' }, amulet: { name: 'Amulet', icon: '📿' },
 };
 const WOODS = ['Pine', 'Birch', 'Emberwood', 'Silverbark', 'Elderheart', 'Ironbark', 'Dragonwood', 'Worldtree'];
 const BOWS = ['Pine Shortbow', 'Birch Longbow', 'Emberwood Bow', 'Silverbark Bow', 'Elderheart Greatbow', 'Ironbark Warbow', 'Dragonwood Longbow', 'Worldtree Greatbow'];
@@ -199,7 +199,12 @@ const GLYPHS_PER_CRAFT = 10;
 const GLYPH_XP = [9, 16, 26, 42, 66, 110, 190, 300];
 GLYPHS.forEach(([k, name, c, lvl, stones], i) => {
   addItem_('glyph_' + k, { name, icon: '🔣', tint: c, cat: 'Glyphs', tier: i, sell: 2 + i * 3, stack: true, glyph: true });
-  addAction_('glyphmaking', 'glyph_' + k, { level: lvl, dur: 2.5 + i * 0.3, xp: GLYPH_XP[i], inputs: { chipped: stones }, qty: GLYPHS_PER_CRAFT, group: 'Glyphs' });
+  addAction_('glyphmaking', 'glyph_' + k, { level: lvl, dur: 2.5 + i * 0.3, xp: GLYPH_XP[i], inputs: { chipped: stones }, qty: GLYPHS_PER_CRAFT, group: 'Glyphs', glyphKey: k });
+  // To inscribe a glyph you hold its talisman (in the inventory) or wear its amulet. Both drop only in dungeons.
+  const word = name.replace(' Glyph', ''), L = Math.max(5, lvl);
+  addItem_('talisman_' + k, { name: `${word} Talisman`, icon: '🔣', tint: c, cat: 'Charms', tier: i, sell: 50 + i * 60, talisman: k });
+  addItem_('amulet_' + k, { name: `${word} Amulet`, icon: '📿', tint: c, cat: 'Charms', tier: i, slot: 'amulet', ilvl: L, amuletOf: k, sell: 150 + i * 150,
+    req: { skill: 'glyphmaking', level: lvl }, hp: Math.round(gearHp(L) * 0.15), def: Math.round(gearDef(L) * 0.1), atk: Math.round(gearAtk(L) * 0.08) });
 });
 
 // ---- Spells (Magic): each cast uses its glyphs from your inventory. Early spells need one glyph,
@@ -335,11 +340,11 @@ for (const [id, name, slot, wtype, lvl, b, bb, sh, extra] of BONE_GEAR) {
 const STAT_AT = { atk: gearAtk, hp: gearHp, def: gearDef };
 const SLOT_EXTRA = {
   weapon: { hp: 0.06, def: 0.06 }, shield: { atk: 0.04 }, helmet: { atk: 0.03 }, chest: { atk: 0.04 },
-  legs: { atk: 0.03 }, gloves: { hp: 0.1 }, boots: { atk: 0.03 },
+  legs: { atk: 0.03 }, gloves: { hp: 0.1 }, boots: { atk: 0.03 }, amulet: {},
 };
 for (const it of Object.values(ITEMS)) {
   if (!it.slot) continue;
-  it.ilvl = it.bone ? BONE_L : GEAR_LEVEL[it.tier];
+  it.ilvl = it.ilvl || (it.bone ? BONE_L : GEAR_LEVEL[it.tier]);
   for (const [k, share] of Object.entries(SLOT_EXTRA[it.slot])) if (!it[k]) it[k] = Math.max(1, Math.round(STAT_AT[k](it.ilvl) * share));
 }
 

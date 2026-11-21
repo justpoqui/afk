@@ -17,7 +17,7 @@ const ICON_SRC = (() => {
     '🌾': ic('wheat'), '🌲': ic('pine'), '🏔️': ic('mountain'), '🌊': ic('wave'), '🕳️': ic('hole'), '❄️': ic('snowflake'), '🔭': ic('telescope'),
     '🌉': ic('bridge'), '🥉': ic('medal_bronze'), '🥈': ic('medal_silver'), '🥇': ic('medal_gold'), '🏠': ic('house'), '🗺️': ic('map'),
     '🏰': ic('castle'), '🧺': ic('basket'), '📦': ic('box'), '📖': ic('spellbook'), '🚪': ic('door'), '🏆': ic('trophy'), '👁️': ic('eye'),
-    '🦅': ic('eagle'), '🌱': ic('sprout'), '🌪️': ic('tornado'), '🌟': ic('star'),
+    '🦅': ic('eagle'), '📿': it('amulet_frost'), '📅': ic('calendar'), '🌱': ic('sprout'), '🌪️': ic('tornado'), '🌟': ic('star'),
     // skills
     '🪓': ic('axe'), '🔨': ic('hammer'), '🪚': ic('saw'), '🫙': it('vial'), '🪣': ic('tub'), '🧶': ic('yarn'), '🍳': ic('pan'), '⚗️': ic('alembic'),
     // gear slots and materials
